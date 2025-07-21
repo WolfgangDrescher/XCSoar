@@ -637,6 +637,9 @@ XCSOAR_SOURCES += \
 	$(SRC)/Apple/InternalSensors.cpp \
 	$(SRC)/Apple/KeyboardDetection.cpp \
 	$(SRC)/Device/SmartDeviceSensors.cpp
+	$(SRC)/Device/AndroidSensors.cpp \
+	$(SRC)/Apple/BluetoothManager.mm \
+	$(SRC)/Apple/InternalSensors.cpp
 endif
 
 ifeq ($(TARGET),ANDROID)

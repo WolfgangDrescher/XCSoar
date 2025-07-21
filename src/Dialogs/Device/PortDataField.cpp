@@ -25,6 +25,10 @@
 #include "Device/Port/AndroidIOIOUartPort.hpp"
 #endif
 
+#ifdef __APPLE__
+#include "Apple/BluetoothManager.hpp"
+#endif
+
 static constexpr struct {
   DeviceConfig::PortType type;
   const char *label;
@@ -258,6 +262,12 @@ FillAndroidIOIOPorts([[maybe_unused]] DataFieldEnum &df, [[maybe_unused]] const 
 #endif
 }
 
+static void
+FillIosBluetoothPorts(DataFieldEnum &df, const DeviceConfig &config) noexcept
+{
+  // TODO
+}
+
 void
 FillPorts(DataFieldEnum &df, const DeviceConfig &config) noexcept
 {
@@ -266,6 +276,7 @@ FillPorts(DataFieldEnum &df, const DeviceConfig &config) noexcept
   FillAndroidBluetoothPorts(df, config);
   FillAndroidUsbSerialPorts(df, config);
   FillAndroidIOIOPorts(df, config);
+  FillIosBluetoothPorts(df, config);
 }
 
 void
