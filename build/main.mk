@@ -638,7 +638,7 @@ XCSOAR_SOURCES += \
 	$(SRC)/Apple/KeyboardDetection.cpp \
 	$(SRC)/Device/SmartDeviceSensors.cpp
 	$(SRC)/Device/AndroidSensors.cpp \
-	$(SRC)/Apple/BluetoothManager.mm \
+	$(SRC)/Apple/BluetoothHelper.mm \
 	$(SRC)/Apple/InternalSensors.cpp
 endif
 
