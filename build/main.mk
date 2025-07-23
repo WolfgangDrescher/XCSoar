@@ -660,6 +660,11 @@ XCSOAR_SOURCES += \
 	$(SRC)/Device/SmartDeviceSensors.cpp
 	$(SRC)/Device/AndroidSensors.cpp \
 	$(SRC)/Apple/BluetoothHelper.mm \
+	$(SRC)/Apple/NativeDetectDeviceListener.mm \
+	$(SRC)/Apple/NativePortListener.cpp \
+	$(SRC)/Apple/NativeInputListener.cpp \
+	$(SRC)/Apple/PortBridge.cpp \
+	$(SRC)/Apple/Main.cpp \
 	$(SRC)/Apple/InternalSensors.cpp
 endif
 
