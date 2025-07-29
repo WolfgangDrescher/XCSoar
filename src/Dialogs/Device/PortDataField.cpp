@@ -266,14 +266,6 @@ FillAndroidIOIOPorts([[maybe_unused]] DataFieldEnum &df, [[maybe_unused]] const 
 #endif
 }
 
-static void
-FillIosBluetoothPorts(DataFieldEnum &df, const DeviceConfig &config) noexcept
-{
-  (void)config;
-  (void)df;
-  // TODO
-}
-
 void
 FillPorts(DataFieldEnum &df, const DeviceConfig &config) noexcept
 {
@@ -282,7 +274,6 @@ FillPorts(DataFieldEnum &df, const DeviceConfig &config) noexcept
   FillAndroidBluetoothPorts(df, config);
   FillAndroidUsbSerialPorts(df, config);
   FillAndroidIOIOPorts(df, config);
-  FillIosBluetoothPorts(df, config);
 }
 
 void
