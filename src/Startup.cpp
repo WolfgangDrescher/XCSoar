@@ -33,9 +33,6 @@
 #include "LogFile.hpp"
 #include "UtilsSystem.hpp"
 
-#ifdef __APPLE__
-#include "Apple/Main.hpp"
-#endif
 #include "FLARM/Glue.hpp"
 #include "Logger/Logger.hpp"
 #include "Logger/NMEALogger.hpp"
@@ -131,6 +128,7 @@
 
 #ifdef __APPLE__
 #include "Apple/Services.hpp"
+#include "Apple/Main.hpp"
 #endif
 
 #ifdef HAVE_EDL
