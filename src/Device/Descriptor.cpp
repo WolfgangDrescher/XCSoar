@@ -132,6 +132,10 @@ DeviceDescriptor::GetState() const noexcept
     return PortState::READY;
 #endif
 
+#ifdef __APPLE__
+    return PortState::READY;
+#endif
+
   return PortState::FAILED;
 }
 
