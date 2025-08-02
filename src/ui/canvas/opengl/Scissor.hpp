@@ -7,7 +7,7 @@
 #include "Globals.hpp"
 #include "Canvas.hpp"
 #include "ui/opengl/Features.hpp" // for SOFTWARE_ROTATE_DISPLAY
-
+#include "LogFile.hpp"
 #ifdef SOFTWARE_ROTATE_DISPLAY
 #include "Rotate.hpp"
 
@@ -26,6 +26,7 @@ private:
   void Scissor(PixelRect rc) noexcept {
     OpenGL::ToViewport(rc);
     ::glScissor(rc.left, rc.top, rc.GetWidth(), rc.GetHeight());
+	GLenum err0 = glGetError(); if (err0 != GL_NO_ERROR) LogFormat("FLFL OpenGL error 0x%X", err0);
   }
 };
 

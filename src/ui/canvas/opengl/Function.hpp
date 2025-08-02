@@ -2,7 +2,7 @@
 // Copyright The XCSoar Project
 
 #pragma once
-
+#include "LogFile.hpp"
 #ifdef USE_EGL
 #include "ui/egl/System.hpp"
 #elif defined(USE_GLX)
@@ -12,7 +12,7 @@
 #define Font X11Font
 #define Window X11Window
 #define Display X11Display
-
+#include "ui/opengl/System.hpp"
 #include <GL/glx.h>
 
 #undef Font
@@ -33,13 +33,29 @@ static inline Function
 GetProcAddress(const char *name)
 {
 #ifdef USE_EGL
-  return eglGetProcAddress(name);
+  Function f = (Function)eglGetProcAddress(name);
+  GLenum err0 = glGetError();
+  if (err0 != GL_NO_ERROR)
+    LogFormat("EMEM OpenGL error 0x%X", err0);
+  return f;
 #elif defined(USE_GLX)
-  return glXGetProcAddressARB((const GLubyte *)name);
+  Function f = (Function)glXGetProcAddressARB((const GLubyte *)name);
+  GLenum err0 = glGetError();
+  if (err0 != GL_NO_ERROR)
+    LogFormat("EMEM OpenGL error 0x%X", err0);
+  return f;
 #elif defined(ENABLE_SDL)
-  return (Function)SDL_GL_GetProcAddress(name);
+  Function f = (Function)SDL_GL_GetProcAddress(name);
+  GLenum err0 = glGetError();
+  if (err0 != GL_NO_ERROR)
+    LogFormat("MM SDL error 0x%X", err0);
+  return f;
 #else
-  return (Function)dlsym(RTLD_DEFAULT, name);
+  Function f = (Function)dlsym(RTLD_DEFAULT, name);
+  GLenum err0 = glGetError();
+  if (err0 != GL_NO_ERROR)
+    LogFormat("EMEM OpenGL error 0x%X", err0);
+  return f;
 #endif
 }
 

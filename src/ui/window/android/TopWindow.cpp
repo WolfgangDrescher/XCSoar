@@ -194,6 +194,7 @@ TopWindow::Resume() noexcept
 bool
 TopWindow::OnEvent(const Event &event)
 {
+  GLenum err5 = glGetError(); if (err5 != GL_NO_ERROR) LogFormat("AAAA SDL error 0x%X", err5);
   switch (event.type) {
     Window *w;
 

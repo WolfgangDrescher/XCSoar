@@ -15,7 +15,7 @@
 #include "util/tstring.hpp"
 #include "Geo/GeoClip.hpp"
 #include "Geo/FAISphere.hpp"
-
+#include "LogFile.hpp"
 #ifdef ENABLE_OPENGL
 #include "ui/canvas/opengl/VertexPointer.hpp"
 #include "ui/canvas/opengl/Buffer.hpp"
@@ -165,7 +165,9 @@ TopographyFileRenderer::Paint(Canvas &canvas,
 
   if (!pen.GetColor().IsOpaque()) {
     glEnable(GL_BLEND);
+	GLenum err0 = glGetError(); if (err0 != GL_NO_ERROR) LogFormat("BKBK OpenGL error 0x%X", err0);
     glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
+	GLenum err6 = glGetError(); if (err6 != GL_NO_ERROR) LogFormat("BLBL OpenGL error 0x%X", err6);
   }
 #else
   shape_renderer.Configure(&pen, &brush);
@@ -181,6 +183,7 @@ TopographyFileRenderer::Paint(Canvas &canvas,
 
   glUniformMatrix4fv(OpenGL::solid_modelview, 1, GL_FALSE,
                      glm::value_ptr(ToGLM(projection, file.GetCenter())));
+		GLenum err0 = glGetError(); if (err0 != GL_NO_ERROR) LogFormat("BMBM OpenGL error 0x%X", err0);
 #else // !ENABLE_OPENGL
   const GeoClip clip(projection.GetScreenBounds().Scale(1.1));
   AllocatedArray<GeoPoint> geo_points;
@@ -223,12 +226,14 @@ TopographyFileRenderer::Paint(Canvas &canvas,
           unsigned offset = 0;
           for (unsigned n : lines) {
             glDrawArrays(GL_LINE_STRIP, offset, n);
+			GLenum err0 = glGetError(); if (err0 != GL_NO_ERROR) LogFormat("BNBN OpenGL error 0x%X", err0);
             offset += n;
           }
         } else {
           for (unsigned n : std::span<const GLushort>{indices.count, lines.size()}) {
             glDrawElements(GL_LINE_STRIP, n, GL_UNSIGNED_SHORT,
                            indices.indices);
+						   GLenum err6 = glGetError(); if (err6 != GL_NO_ERROR) LogFormat("BOBO OpenGL error 0x%X", err6);
             indices.indices += n;
           }
         }
@@ -272,6 +277,7 @@ TopographyFileRenderer::Paint(Canvas &canvas,
         vp.Update(GL_FLOAT, points);
         glDrawElements(GL_TRIANGLE_STRIP, n, GL_UNSIGNED_SHORT,
                        triangles.indices);
+					   GLenum err0 = glGetError(); if (err0 != GL_NO_ERROR) LogFormat("BQBQ OpenGL error 0x%X", err0);
       }
 #else // !ENABLE_OPENGL
       {
@@ -332,8 +338,10 @@ TopographyFileRenderer::Paint(Canvas &canvas,
 
   glUniformMatrix4fv(OpenGL::solid_modelview, 1, GL_FALSE,
                      glm::value_ptr(glm::mat4(1)));
+					 GLenum err7 = glGetError(); if (err7 != GL_NO_ERROR) LogFormat("BRBR OpenGL error 0x%X", err7);
   if (!pen.GetColor().IsOpaque())
     glDisable(GL_BLEND);
+	GLenum err6 = glGetError(); if (err6 != GL_NO_ERROR) LogFormat("BSBS OpenGL error 0x%X", err6);
 
   pen.Unbind();
 

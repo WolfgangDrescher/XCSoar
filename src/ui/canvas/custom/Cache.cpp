@@ -7,7 +7,7 @@
 #include "util/StringCompare.hxx"
 #include "util/StringAPI.hxx"
 #include "util/tstring_view.hxx"
-
+#include "LogFile.hpp"
 #ifdef ENABLE_OPENGL
 #include "ui/canvas/opengl/Texture.hpp"
 #include "ui/canvas/opengl/Debug.hpp"
@@ -238,6 +238,10 @@ TextCache::Get(const Font &font, std::string_view text) noexcept
   font.Render(text2, size, buffer.get());
 #ifdef ENABLE_OPENGL
   glPixelStorei(GL_UNPACK_ALIGNMENT, 1);
+					GLenum err = glGetError();
+if (err != GL_NO_ERROR) {
+  LogFormat("HHH OpenGL error 0x%X", err);
+}
   RenderedText rt(size, buffer.get());
 #else
   RenderedText rt(size, std::move(buffer));

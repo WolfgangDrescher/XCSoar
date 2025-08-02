@@ -5,7 +5,7 @@
 #include "ui/canvas/RawBitmap.hpp"
 #include "Geo/GeoBounds.hpp"
 #include "Projection/Projection.hpp"
-
+#include "LogFile.hpp"
 #ifdef ENABLE_OPENGL
 #include "ui/canvas/opengl/Texture.hpp"
 #include "ui/canvas/opengl/Scope.hpp"
@@ -50,12 +50,16 @@ DrawGeoBitmap(const RawBitmap &bitmap, PixelSize bitmap_size,
 
   OpenGL::texture_shader->Use();
   glEnableVertexAttribArray(OpenGL::Attribute::TEXCOORD);
+  GLenum err0 = glGetError(); if (err0 != GL_NO_ERROR) LogFormat("AZAZ OpenGL error 0x%X", err0);
   glVertexAttribPointer(OpenGL::Attribute::TEXCOORD, 2, GL_FLOAT, GL_FALSE,
                         0, coord);
+			GLenum err1 = glGetError(); if (err1 != GL_NO_ERROR) LogFormat("BABA OpenGL error 0x%X", err1);
 
   glDrawArrays(GL_TRIANGLE_STRIP, 0, 4);
+  GLenum err2 = glGetError(); if (err2 != GL_NO_ERROR) LogFormat("BCBC OpenGL error 0x%X", err2);
 
   glDisableVertexAttribArray(OpenGL::Attribute::TEXCOORD);
+  GLenum err3 = glGetError(); if (err3 != GL_NO_ERROR) LogFormat("BDBD OpenGL error 0x%X", err3);
 }
 
 #endif

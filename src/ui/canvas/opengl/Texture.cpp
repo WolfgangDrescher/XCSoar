@@ -6,6 +6,7 @@
 #include "VertexPointer.hpp"
 #include "ui/dim/BulkPoint.hpp"
 #include "Scope.hpp"
+#include "LogFile.hpp"
 
 #include <glm/gtc/type_ptr.hpp>
 
@@ -53,12 +54,24 @@ LoadTextureAutoAlign(GLint internal_format, PixelSize size,
   if (validated_size == size)
     glTexImage2D(GL_TEXTURE_2D, 0, internal_format, size.width, size.height, 0,
                  format, type, pixels);
+GLenum err = glGetError();
+if (err != GL_NO_ERROR) {
+  LogFormat("AAA OpenGL error 0x%X", err);
+}
   else {
     glTexImage2D(GL_TEXTURE_2D, 0, internal_format,
                  validated_size.width, validated_size.height, 0,
                  format, type, nullptr);
+				 GLenum err = glGetError();
+if (err != GL_NO_ERROR) {
+  LogFormat("BBB OpenGL error 0x%X", err);
+}
     glTexSubImage2D(GL_TEXTURE_2D, 0, 0, 0, size.width, size.height,
                     format, type, pixels);
+					GLenum err2 = glGetError();
+if (err2 != GL_NO_ERROR) {
+  LogFormat("CCC OpenGL error 0x%X", err2);
+}
   }
 }
 
@@ -72,6 +85,10 @@ GLTexture::GLTexture(GLint internal_format, PixelSize _size,
   glTexImage2D(GL_TEXTURE_2D, 0, internal_format,
                allocated_size.width, allocated_size.height,
                0, format, type, nullptr);
+			   					GLenum err = glGetError();
+if (err != GL_NO_ERROR) {
+  LogFormat("DDD OpenGL error 0x%X", err);
+}
 }
 
 GLTexture::GLTexture(GLint internal_format, PixelSize _size,
@@ -102,12 +119,17 @@ GLTexture::ResizeDiscard([[maybe_unused]] GLint internal_format, PixelSize new_s
   glTexImage2D(GL_TEXTURE_2D, 0, GL_RGB,
                validated_size.width, validated_size.height,
                0, format, type, nullptr);
+			   					GLenum err = glGetError();
+if (err != GL_NO_ERROR) {
+  LogFormat("EEE OpenGL error 0x%X", err);
+}
 }
 
 void
 GLTexture::Initialise() noexcept
 {
   glGenTextures(1, &id);
+  GLenum err0 = glGetError(); if (err0 != GL_NO_ERROR) LogFormat("FWAFWA OpenGL error 0x%X", err0);
   Bind();
   Configure();
 }
@@ -116,11 +138,15 @@ void
 GLTexture::Configure() noexcept
 {
   glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE);
+  GLenum err3 = glGetError(); if (err3 != GL_NO_ERROR) LogFormat("FWCFWC OpenGL error 0x%X", err3);
   glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE);
+  GLenum err2 = glGetError(); if (err2 != GL_NO_ERROR) LogFormat("FWBFWB OpenGL error 0x%X", err2);
 
   constexpr GLint filter = GL_LINEAR;
   glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, filter);
+  GLenum err1 = glGetError(); if (err1 != GL_NO_ERROR) LogFormat("FWAFWA OpenGL error 0x%X", err1);
   glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, filter);
+  GLenum err0 = glGetError(); if (err0 != GL_NO_ERROR) LogFormat("FWFW OpenGL error 0x%X", err0);
 }
 
 void
@@ -149,10 +175,14 @@ GLTexture::Draw(PixelRect dest, PixelRect src) const noexcept
   };
 
   glEnableVertexAttribArray(OpenGL::Attribute::TEXCOORD);
+  GLenum err3 = glGetError(); if (err3 != GL_NO_ERROR) LogFormat("FXFXV OpenGL error 0x%X", err3);
   glVertexAttribPointer(OpenGL::Attribute::TEXCOORD, 2, GL_FLOAT, GL_FALSE,
                         0, coord);
+GLenum err2 = glGetError(); if (err2 != GL_NO_ERROR) LogFormat("FXFXB OpenGL error 0x%X", err2);
 
   glDrawArrays(GL_TRIANGLE_STRIP, 0, 4);
+	GLenum err1 = glGetError(); if (err1 != GL_NO_ERROR) LogFormat("FXFXA OpenGL error 0x%X", err1);
 
   glDisableVertexAttribArray(OpenGL::Attribute::TEXCOORD);
+  GLenum err0 = glGetError(); if (err0 != GL_NO_ERROR) LogFormat("FXFX OpenGL error 0x%X", err0);
 }

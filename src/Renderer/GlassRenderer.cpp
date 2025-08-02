@@ -3,7 +3,7 @@
 
 #include "GlassRenderer.hpp"
 #include "ui/canvas/Canvas.hpp"
-
+#include "LogFile.hpp"
 #if defined(EYE_CANDY) && defined(ENABLE_OPENGL)
 
 #include "ui/canvas/opengl/Scissor.hpp"
@@ -51,5 +51,6 @@ DrawGlassBackground(Canvas &canvas, const PixelRect &rc, Color color) noexcept
                 "Array size mismatch");
 
   glDrawArrays(GL_TRIANGLE_STRIP, 0, ARRAY_SIZE(vertices));
+  GLenum err0 = glGetError(); if (err0 != GL_NO_ERROR) LogFormat("BEBE OpenGL error 0x%X", err0);
 #endif
 }

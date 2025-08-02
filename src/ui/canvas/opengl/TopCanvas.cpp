@@ -6,7 +6,7 @@
 #include "Globals.hpp"
 #include "Init.hpp"
 #include "Math/Point2D.hpp"
-
+#include "LogFile.hpp"
 PixelSize
 TopCanvas::GetSize() const noexcept
 {

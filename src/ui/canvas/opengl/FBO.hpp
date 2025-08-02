@@ -4,7 +4,7 @@
 #pragma once
 
 #include "ui/opengl/SystemExt.hpp"
-
+#include "LogFile.hpp"
 #if (defined(__APPLE__) && defined(TARGET_OS_IPHONE) && TARGET_OS_IPHONE)
 #define GL_UNBIND_FRAMEBUFFER 1
 #define GL_UNBIND_RENDERBUFFER 1
@@ -40,18 +40,22 @@ static inline void
 BindRenderbuffer(GLenum target, GLuint renderbuffer) noexcept
 {
   glBindRenderbuffer(target, renderbuffer);
+  GLenum err0 = glGetError(); if (err0 != GL_NO_ERROR) LogFormat("ECEC OpenGL error 0x%X", err0);
 }
 
 static inline void
 DeleteRenderbuffers(GLsizei n, const GLuint *renderbuffers) noexcept
 {
+  GLenum err1 = glGetError(); if (err1 != GL_NO_ERROR) LogFormat("EDEDbefore OpenGL error 0x%X", err1);
   glDeleteRenderbuffers(n, renderbuffers);
+  GLenum err0 = glGetError(); if (err0 != GL_NO_ERROR) LogFormat("EDED OpenGL error 0x%X", err0);
 }
 
 static inline void
 GenRenderbuffers(GLsizei n, GLuint *renderbuffers) noexcept
 {
   glGenRenderbuffers(n, renderbuffers);
+  GLenum err0 = glGetError(); if (err0 != GL_NO_ERROR) LogFormat("EFEF OpenGL error 0x%X", err0);
 }
 
 static inline void
@@ -59,24 +63,29 @@ RenderbufferStorage(GLenum target, GLenum internalformat,
                     GLsizei width, GLsizei height) noexcept
 {
   glRenderbufferStorage(target, internalformat, width, height);
+  GLenum err0 = glGetError(); if (err0 != GL_NO_ERROR) LogFormat("EGEG OpenGL error 0x%X", err0);
 }
 
 static inline void
 BindFramebuffer(GLenum target, GLuint framebuffer) noexcept
 {
+  GLenum err1 = glGetError(); if (err1 != GL_NO_ERROR) LogFormat("EHEHbefore OpenGL error 0x%X", err1);
   glBindFramebuffer(target, framebuffer);
+  GLenum err0 = glGetError(); if (err0 != GL_NO_ERROR) LogFormat("EHEH OpenGL error 0x%X", err0);
 }
 
 static inline void
 DeleteFramebuffers(GLsizei n, const GLuint *framebuffers) noexcept
 {
   glDeleteFramebuffers(n, framebuffers);
+  GLenum err0 = glGetError(); if (err0 != GL_NO_ERROR) LogFormat("EIEI OpenGL error 0x%X", err0);
 }
 
 static inline void
 GenFramebuffers(GLsizei n, GLuint *framebuffers) noexcept
 {
   glGenFramebuffers(n, framebuffers);
+  GLenum err0 = glGetError(); if (err0 != GL_NO_ERROR) LogFormat("EJEJ OpenGL error 0x%X", err0);
 }
 
 static inline void
@@ -86,6 +95,7 @@ FramebufferRenderbuffer(GLenum target, GLenum attachment,
 {
   glFramebufferRenderbuffer(target, attachment,
                             renderbuffertarget, renderbuffer);
+							GLenum err0 = glGetError(); if (err0 != GL_NO_ERROR) LogFormat("EKEK OpenGL error 0x%X", err0);
 }
 
 static inline void
@@ -93,6 +103,7 @@ FramebufferTexture2D(GLenum target, GLenum attachment, GLenum textarget,
                      GLuint texture, GLint level) noexcept
 {
   glFramebufferTexture2D(target, attachment, textarget, texture, level);
+  GLenum err0 = glGetError(); if (err0 != GL_NO_ERROR) LogFormat("ELEL OpenGL error 0x%X", err0);
 }
 
 } // namespace OpenGL

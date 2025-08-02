@@ -7,7 +7,7 @@
 #include "Globals.hpp"
 #include "ui/dim/Point.hpp"
 #include "lib/fmt/RuntimeError.hxx"
-
+#include "LogFile.hpp"
 #include <glm/gtc/type_ptr.hpp>
 
 namespace OpenGL {
@@ -294,6 +294,7 @@ OpenGL::InitShaders()
   solid_shader->Use();
   glUniformMatrix4fv(solid_modelview, 1, GL_FALSE,
                      glm::value_ptr(glm::mat4(1)));
+GLenum err0 = glGetError(); if (err0 != GL_NO_ERROR) LogFormat("FPFP OpenGL error 0x%X", err0);
 
   texture_shader = CompileProgram(texture_vertex_shader, texture_fragment_shader);
   texture_shader->BindAttribLocation(Attribute::POSITION, "position");
@@ -306,6 +307,7 @@ OpenGL::InitShaders()
 
   texture_shader->Use();
   glUniform1i(texture_texture, 0);
+  GLenum err1 = glGetError(); if (err1 != GL_NO_ERROR) LogFormat("FQFQ OpenGL error 0x%X", err1);
 
   invert_shader = CompileProgram(invert_vertex_shader, invert_fragment_shader);
   invert_shader->BindAttribLocation(Attribute::POSITION, "position");
@@ -318,6 +320,7 @@ OpenGL::InitShaders()
 
   invert_shader->Use();
   glUniform1i(invert_texture, 0);
+  GLenum err2 = glGetError(); if (err2 != GL_NO_ERROR) LogFormat("FRFR OpenGL error 0x%X", err2);
 
   alpha_shader = CompileProgram(alpha_vertex_shader, alpha_fragment_shader);
   alpha_shader->BindAttribLocation(Attribute::POSITION, "position");
@@ -331,6 +334,7 @@ OpenGL::InitShaders()
 
   alpha_shader->Use();
   glUniform1i(alpha_texture, 0);
+  GLenum err3 = glGetError(); if (err3 != GL_NO_ERROR) LogFormat("FSFS OpenGL error 0x%X", err3);
 
   combine_texture_shader = CompileProgram(combine_texture_vertex_shader,
                                           combine_texture_fragment_shader);
@@ -348,6 +352,7 @@ OpenGL::InitShaders()
 
   combine_texture_shader->Use();
   glUniform1i(combine_texture_texture, 0);
+  GLenum err4 = glGetError(); if (err4 != GL_NO_ERROR) LogFormat("FTFT OpenGL error 0x%X", err4);
 
   dashed_shader = CompileProgram(dashed_vertex_shader, dashed_fragment_shader);
   dashed_shader->BindAttribLocation(Attribute::POSITION, "position");
@@ -412,35 +417,44 @@ OpenGL::UpdateShaderProjectionMatrix() noexcept
   alpha_shader->Use();
   glUniformMatrix4fv(alpha_projection, 1, GL_FALSE,
                      glm::value_ptr(projection_matrix));
+GLenum err1 = glGetError(); if (err1 != GL_NO_ERROR) LogFormat("FUFUA OpenGL error 0x%X", err1);
 
   invert_shader->Use();
   glUniformMatrix4fv(invert_projection, 1, GL_FALSE,
                      glm::value_ptr(projection_matrix));
+GLenum err2 = glGetError(); if (err2 != GL_NO_ERROR) LogFormat("FUFUB OpenGL error 0x%X", err2);
 
-  texture_shader->Use();
-  glUniformMatrix4fv(texture_projection, 1, GL_FALSE,
-                     glm::value_ptr(projection_matrix));
+texture_shader->Use();
+glUniformMatrix4fv(texture_projection, 1, GL_FALSE,
+	glm::value_ptr(projection_matrix));
+	GLenum err3 = glGetError(); if (err3 != GL_NO_ERROR) LogFormat("FUFUC OpenGL error 0x%X", err3);
 
   solid_shader->Use();
   glUniformMatrix4fv(solid_projection, 1, GL_FALSE,
                      glm::value_ptr(projection_matrix));
+GLenum err4 = glGetError(); if (err4 != GL_NO_ERROR) LogFormat("FUFUD OpenGL error 0x%X", err4);
 
   combine_texture_shader->Use();
   glUniformMatrix4fv(combine_texture_projection, 1, GL_FALSE,
                      glm::value_ptr(projection_matrix));
+GLenum err5 = glGetError(); if (err5 != GL_NO_ERROR) LogFormat("FUFUE OpenGL error 0x%X", err5);
 
   dashed_shader->Use();
   glUniformMatrix4fv(dashed_projection, 1, GL_FALSE,
                      glm::value_ptr(projection_matrix));
-  glUniform2f(dashed_resolution, viewport_size.x, viewport_size.y);
+GLenum err6 = glGetError(); if (err6 != GL_NO_ERROR) LogFormat("FUFUF OpenGL error 0x%X", err6);
+glUniform2f(dashed_resolution, viewport_size.x, viewport_size.y);
+GLenum err7 = glGetError(); if (err7 != GL_NO_ERROR) LogFormat("FUFUG OpenGL error 0x%X", err7);
 
   circle_outline_shader->Use();
   glUniformMatrix4fv(circle_outline_projection, 1, GL_FALSE,
                      glm::value_ptr(projection_matrix));
+GLenum err8 = glGetError(); if (err8 != GL_NO_ERROR) LogFormat("FUFUH OpenGL error 0x%X", err8);
 
   filled_circle_shader->Use();
   glUniformMatrix4fv(filled_circle_projection, 1, GL_FALSE,
                      glm::value_ptr(projection_matrix));
+GLenum err0 = glGetError(); if (err0 != GL_NO_ERROR) LogFormat("FUFUI OpenGL error 0x%X", err0);
 }
 
 void
@@ -450,25 +464,33 @@ OpenGL::UpdateShaderTranslate() noexcept
 
   solid_shader->Use();
   glUniform2f(solid_translate, t.x, t.y);
+  GLenum err7 = glGetError(); if (err7 != GL_NO_ERROR) LogFormat("FVFVA OpenGL error 0x%X", err7);
 
   texture_shader->Use();
   glUniform2f(texture_translate, t.x, t.y);
+  GLenum err6 = glGetError(); if (err6 != GL_NO_ERROR) LogFormat("FVFVB OpenGL error 0x%X", err6);
 
   invert_shader->Use();
   glUniform2f(invert_translate, t.x, t.y);
-
+  GLenum err5 = glGetError(); if (err5 != GL_NO_ERROR) LogFormat("FVFVC OpenGL error 0x%X", err5);
+  
   alpha_shader->Use();
   glUniform2f(alpha_translate, t.x, t.y);
+  GLenum err4 = glGetError(); if (err4 != GL_NO_ERROR) LogFormat("FVFVD OpenGL error 0x%X", err4);
 
   combine_texture_shader->Use();
   glUniform2f(combine_texture_translate, t.x, t.y);
+  GLenum err3 = glGetError(); if (err3 != GL_NO_ERROR) LogFormat("FVFVE OpenGL error 0x%X", err3);
 
   dashed_shader->Use();
   glUniform2f(dashed_translate, t.x, t.y);
+  GLenum err2 = glGetError(); if (err2 != GL_NO_ERROR) LogFormat("FVFVF OpenGL error 0x%X", err2);
 
   circle_outline_shader->Use();
   glUniform2f(circle_outline_translate, t.x, t.y);
+  GLenum err1 = glGetError(); if (err1 != GL_NO_ERROR) LogFormat("FVFVG OpenGL error 0x%X", err1);
 
   filled_circle_shader->Use();
   glUniform2f(filled_circle_translate, t.x, t.y);
+  GLenum err0 = glGetError(); if (err0 != GL_NO_ERROR) LogFormat("FVFVH OpenGL error 0x%X", err0);
 }

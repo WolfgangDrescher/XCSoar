@@ -10,7 +10,7 @@
 #include "Init.hpp"
 #include "Shaders.hpp"
 #include "Program.hpp"
-
+#include "LogFile.hpp"
 #ifdef SOFTWARE_ROTATE_DISPLAY
 #include "DisplayOrientation.hpp"
 #endif
@@ -105,6 +105,7 @@ BufferCanvas::Begin(Canvas &other) noexcept
     /* save the old viewport */
 
     glGetIntegerv(GL_VIEWPORT, old_viewport);
+	GLenum err0 = glGetError(); if (err0 != GL_NO_ERROR) LogFormat("CICI OpenGL error 0x%X", err0);
 
     old_projection_matrix = OpenGL::projection_matrix;
     OpenGL::projection_matrix = glm::mat4(1);
@@ -151,6 +152,7 @@ BufferCanvas::Commit(Canvas &other) noexcept
 
     glViewport(old_viewport[0], old_viewport[1],
                old_viewport[2], old_viewport[3]);
+GLenum err0 = glGetError(); if (err0 != GL_NO_ERROR) LogFormat("CJCJ OpenGL error 0x%X", err0);
 
     OpenGL::projection_matrix = old_projection_matrix;
     OpenGL::UpdateShaderProjectionMatrix();

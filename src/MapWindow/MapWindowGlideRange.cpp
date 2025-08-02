@@ -6,7 +6,7 @@
 #include "Geo/GeoClip.hpp"
 #include "Task/ProtectedRoutePlanner.hpp"
 #include "Route/FlatTriangleFanVisitor.hpp"
-
+#include "LogFile.hpp"
 #ifdef ENABLE_OPENGL
 #include "ui/canvas/opengl/Scope.hpp"
 #include "ui/canvas/opengl/VertexPointer.hpp"
@@ -46,10 +46,14 @@ struct ProjectedFan {
 
     glDrawElements(GL_TRIANGLES, idx_count, GL_UNSIGNED_SHORT,
                    triangle_buffer.data());
+	GLenum err0 = glGetError(); if (err0 != GL_NO_ERROR) LogFormat("YYY OpenGL error 0x%X", err0);
+
   }
 
   void DrawOutline(unsigned start) const noexcept {
     glDrawArrays(GL_LINE_LOOP, start, size);
+	GLenum err1 = glGetError(); if (err1 != GL_NO_ERROR) LogFormat("XXX OpenGL error 0x%X", err1);
+
   }
 #else
   void DrawFill(Canvas &canvas, const BulkPixelPoint *points) const noexcept {
@@ -270,18 +274,31 @@ MapWindow::RenderTerrainAbove(Canvas &canvas, bool working) noexcept
 
     const GLEnable<GL_STENCIL_TEST> stencil_test;
     glClear(GL_STENCIL_BUFFER_BIT);
+	GLenum err0 = glGetError(); if (err0 != GL_NO_ERROR) LogFormat("WWW OpenGL error 0x%X", err0);
+
 
     glColorMask(GL_FALSE, GL_FALSE, GL_FALSE, GL_FALSE);
+	GLenum err1 = glGetError(); if (err1 != GL_NO_ERROR) LogFormat("VVV OpenGL error 0x%X", err1);
+
 
     glStencilFunc(GL_ALWAYS, 1, 1);
+	GLenum err2 = glGetError(); if (err2 != GL_NO_ERROR) LogFormat("UUU OpenGL error 0x%X", err2);
+
     glStencilOp(GL_KEEP, GL_KEEP, GL_REPLACE);
+	GLenum err3 = glGetError(); if (err3 != GL_NO_ERROR) LogFormat("TTT OpenGL error 0x%X", err3);
+
 
     COLOR_WHITE.Bind();
     visitor.fans.DrawFill(canvas);
 
     glColorMask(GL_TRUE, GL_TRUE, GL_TRUE, GL_TRUE);
+	GLenum err4 = glGetError(); if (err4 != GL_NO_ERROR) LogFormat("SSS OpenGL error 0x%X", err4);
     glStencilFunc(GL_NOTEQUAL, 1, 1);
+	GLenum err5 = glGetError(); if (err5 != GL_NO_ERROR) LogFormat("RRR OpenGL error 0x%X", err5);
+
     glStencilOp(GL_KEEP, GL_KEEP, GL_KEEP);
+	GLenum err6 = glGetError(); if (err6 != GL_NO_ERROR) LogFormat("QQQ OpenGL error 0x%X", err6);
+
 
     const ScopeAlphaBlend alpha_blend;
 
@@ -359,25 +376,42 @@ MapWindow::RenderTerrainAbove(Canvas &canvas, bool working) noexcept
   const ScopeVertexPointer vp(&visitor.fans.points[0]);
 
   glEnable(GL_STENCIL_TEST);
+  GLenum err9 = glGetError(); if (err9 != GL_NO_ERROR) LogFormat("PPP OpenGL error 0x%X", err9);
   glClear(GL_STENCIL_BUFFER_BIT);
+  GLenum err8 = glGetError(); if (err8 != GL_NO_ERROR) LogFormat("OOO OpenGL error 0x%X", err8);
+
 
   glColorMask(GL_FALSE, GL_FALSE, GL_FALSE, GL_FALSE);
+  GLenum err7 = glGetError(); if (err7 != GL_NO_ERROR) LogFormat("NNN OpenGL error 0x%X", err7);
+
 
   glStencilFunc(GL_ALWAYS, 1, 1);
+  GLenum err5 = glGetError(); if (err5 != GL_NO_ERROR) LogFormat("MMM OpenGL error 0x%X", err5);
+
   glStencilOp(GL_KEEP, GL_KEEP, GL_REPLACE);
+  GLenum err4 = glGetError(); if (err4 != GL_NO_ERROR) LogFormat("LLL OpenGL error 0x%X", err4);
+
 
   COLOR_WHITE.Bind();
   visitor.fans.DrawFill(canvas);
 
   glColorMask(GL_TRUE, GL_TRUE, GL_TRUE, GL_TRUE);
+  GLenum err3 = glGetError(); if (err3 != GL_NO_ERROR) LogFormat("000 OpenGL error 0x%X", err3);
+
   glStencilFunc(GL_NOTEQUAL, 1, 1);
+  GLenum err2 = glGetError(); if (err2 != GL_NO_ERROR) LogFormat("111 OpenGL error 0x%X", err2);
+
   glStencilOp(GL_KEEP, GL_KEEP, GL_KEEP);
+  GLenum err1 = glGetError(); if (err1 != GL_NO_ERROR) LogFormat("222 OpenGL error 0x%X", err1);
+
 
   reach_pen_thick.Bind();
   visitor.fans.DrawOutline(canvas);
   reach_pen_thick.Unbind();
 
   glDisable(GL_STENCIL_TEST);
+  GLenum err0 = glGetError(); if (err0 != GL_NO_ERROR) LogFormat("ZZZ OpenGL error 0x%X", err0);
+
 
 #elif defined(USE_GDI) || defined(USE_MEMORY_CANVAS)
 

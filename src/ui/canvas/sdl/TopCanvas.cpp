@@ -6,6 +6,7 @@
 #include "ui/dim/Size.hpp"
 #include "lib/fmt/RuntimeError.hxx"
 #include "Asset.hpp"
+#include "ui/opengl/System.hpp"
 
 #ifdef ENABLE_OPENGL
 #include "ui/dim/Rect.hpp"
@@ -42,9 +43,11 @@ static int
 GetConfigAttrib(SDL_GLattr attribute, int default_value) noexcept
 {
   int value;
-  return SDL_GL_GetAttribute(attribute, &value) == 0
+  int a = SDL_GL_GetAttribute(attribute, &value) == 0
     ? value
     : default_value;
+	GLenum err0 = glGetError(); if (err0 != GL_NO_ERROR) LogFormat("LL SDL error 0x%X", err0);
+	return a;
 }
 
 #endif
@@ -76,6 +79,9 @@ TopCanvas::TopCanvas(UI::Display &_display, SDL_Window *_window)
   if (::SDL_GL_CreateContext(window) == nullptr)
     throw FmtRuntimeError("SDL_GL_CreateContext({}) has failed: {}",
                           (const void *)window, ::SDL_GetError());
+
+// SDL_GL_MakeCurrent(window, context);
+
 
   LogFormat("SDL_GL config: RGB=%d/%d/%d alpha=%d depth=%d stencil=%d",
             GetConfigAttrib(SDL_GL_RED_SIZE, 0),
@@ -115,6 +121,7 @@ TopCanvas::GetNativeSize() const noexcept
 {
   int w, h;
   SDL_GL_GetDrawableSize(window, &w, &h);
+  GLenum err0 = glGetError(); if (err0 != GL_NO_ERROR) LogFormat("JJ SDL error 0x%X", err0);
   return PixelSize(w, h);
 }
 
@@ -274,6 +281,7 @@ TopCanvas::Flip()
 {
 #ifdef ENABLE_OPENGL
   ::SDL_GL_SwapWindow(window);
+  GLenum err0 = glGetError(); if (err0 != GL_NO_ERROR) LogFormat("II SDL error 0x%X", err0);
 #else
 
 #ifdef GREYSCALE

@@ -6,7 +6,7 @@
 #include "ui/opengl/System.hpp"
 #include "ui/dim/Rect.hpp"
 #include "FBO.hpp"
-
+#include "LogFile.hpp"
 #include <cassert>
 
 /**
@@ -51,7 +51,9 @@ public:
             bool _flipped = false) noexcept;
 
   ~GLTexture() noexcept {
+	GLenum err0 = glGetError(); if (err0 != GL_NO_ERROR) LogFormat("FYFYbefore OpenGL error 0x%X", err0);
     glDeleteTextures(1, &id);
+	GLenum err1 = glGetError(); if (err1 != GL_NO_ERROR) LogFormat("FYFY OpenGL error 0x%X", err1);
   }
 
   unsigned GetWidth() const noexcept {
@@ -98,6 +100,7 @@ protected:
 public:
   void Bind() noexcept {
     glBindTexture(GL_TEXTURE_2D, id);
+	GLenum err0 = glGetError(); if (err0 != GL_NO_ERROR) LogFormat("FZFZ OpenGL error 0x%X", err0);
   }
 
   void AttachFramebuffer(GLenum attachment) noexcept {

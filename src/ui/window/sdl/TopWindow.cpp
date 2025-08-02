@@ -6,6 +6,10 @@
 #include "ui/canvas/custom/TopCanvas.hpp"
 #include "lib/fmt/RuntimeError.hxx"
 #include "util/UTF8.hpp"
+#include "ui/opengl/System.hpp"
+#include "LogFile.hpp"
+
+
 
 #ifdef UNICODE
 #include "util/ConvertString.hpp"
@@ -98,6 +102,7 @@ TopWindow::CreateNative(const TCHAR *_text, PixelSize new_size,
 bool
 TopWindow::OnEvent(const SDL_Event &event)
 {
+	GLenum err6 = glGetError(); if (err6 != GL_NO_ERROR) LogFormat("CCC SDL error 0x%X", err6);
   switch (event.type) {
     Window *w;
 
@@ -206,11 +211,15 @@ TopWindow::OnEvent(const SDL_Event &event)
     case SDL_WINDOWEVENT_MAXIMIZED:
       if (auto *event_window = SDL_GetWindowFromID(event.window.windowID)) {
         int w, h;
+		GLenum err5 = glGetError(); if (err5 != GL_NO_ERROR) LogFormat("BBB SDL error 0x%X", err5);
         SDL_GetWindowSize(event_window, &w, &h);
+		GLenum err4 = glGetError(); if (err4 != GL_NO_ERROR) LogFormat("AAA SDL error 0x%X", err4);
         if ((w >= 0) && (h >= 0)) {
 #ifdef HAVE_HIGHDPI_SUPPORT
           int real_w, real_h;
+		GLenum err3 = glGetError(); if (err3 != GL_NO_ERROR) LogFormat("GGbefore SDL error 0x%X", err3);
           SDL_GL_GetDrawableSize(event_window, &real_w, &real_h);
+		  GLenum err2 = glGetError(); if (err2 != GL_NO_ERROR) LogFormat("GG SDL error 0x%X", err2);
           point_to_real_x = static_cast<float>(real_w) /
             static_cast<float>(w);
           point_to_real_y = static_cast<float>(real_h) /

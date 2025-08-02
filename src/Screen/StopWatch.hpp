@@ -2,7 +2,7 @@
 // Copyright The XCSoar Project
 
 #pragma once
-
+#include "LogFile.hpp"
 #ifdef STOP_WATCH
 
 #include "util/StaticArray.hxx"
@@ -51,6 +51,7 @@ private:
   static void FlushScreen() {
 #ifdef ENABLE_OPENGL
     glFinish();
+	GLenum err0 = glGetError(); if (err0 != GL_NO_ERROR) LogFormat("BJBJ OpenGL error 0x%X", err0);
 #endif
   }
 

@@ -7,7 +7,7 @@
 #include "ui/event/Globals.hpp"
 #include "ui/event/poll/Queue.hpp"
 #include "util/Macros.hpp"
-
+#include "LogFile.hpp"
 #ifdef USE_EGL
 #include "ui/egl/System.hpp"
 #endif
@@ -29,7 +29,7 @@ TopWindow::CreateNative(const TCHAR *text, PixelSize size,
   XVisualInfo *vi = glXGetVisualFromFBConfig(display.GetXDisplay(),
                                              display.GetFBConfig());
 #endif
-
+GLenum err0 = glGetError(); if (err0 != GL_NO_ERROR) LogFormat("HDHD OpenGL error 0x%X", err0);
   const auto x_root = DefaultRootWindow(x_display);
   if (x_root == 0)
     throw std::runtime_error("DefaultRootWindow() failed");

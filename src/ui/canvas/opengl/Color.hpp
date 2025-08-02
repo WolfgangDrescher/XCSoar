@@ -6,7 +6,7 @@
 #include "ui/canvas/PortableColor.hpp"
 #include "ui/opengl/System.hpp"
 #include "Attribute.hpp"
-
+#include "LogFile.hpp"
 #include <cstdint>
 
 /**
@@ -136,11 +136,13 @@ public:
   void Uniform(GLint location) const noexcept {
     glUniform4f(location, ExportFloat(r), ExportFloat(g),
                 ExportFloat(b), ExportFloat(a));
+GLenum err0 = glGetError(); if (err0 != GL_NO_ERROR) LogFormat("DTDT OpenGL error 0x%X", err0);
   }
 
   void VertexAttrib(GLint index) const noexcept {
     glVertexAttrib4f(index, ExportFloat(r), ExportFloat(g),
                      ExportFloat(b), ExportFloat(a));
+					 GLenum err0 = glGetError(); if (err0 != GL_NO_ERROR) LogFormat("DUDU OpenGL error 0x%X", err0);
   }
 
   /**
@@ -176,11 +178,14 @@ public:
 struct ScopeColorPointer {
   ScopeColorPointer(const Color *p) noexcept {
     glEnableVertexAttribArray(OpenGL::Attribute::COLOR);
+GLenum err1 = glGetError(); if (err1 != GL_NO_ERROR) LogFormat("DVDV OpenGL error 0x%X", err1);
     glVertexAttribPointer(OpenGL::Attribute::COLOR, 4, Color::TYPE,
                           GL_FALSE, 0, p);
+GLenum err0 = glGetError(); if (err0 != GL_NO_ERROR) LogFormat("DVDV OpenGL error 0x%X", err0);
   }
 
   ~ScopeColorPointer() noexcept {
     glDisableVertexAttribArray(OpenGL::Attribute::COLOR);
+	GLenum err0 = glGetError(); if (err0 != GL_NO_ERROR) LogFormat("DWDW OpenGL error 0x%X", err0);
   }
 };

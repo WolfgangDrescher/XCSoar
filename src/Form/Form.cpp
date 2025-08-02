@@ -11,7 +11,7 @@
 #include "util/Macros.hpp"
 #include "Look/DialogLook.hpp"
 #include "ui/event/Globals.hpp"
-
+#include "LogFile.hpp"
 #ifndef USE_WINUSER
 #include "ui/window/custom/Reference.hpp"
 #endif
@@ -283,6 +283,7 @@ CheckKey([[maybe_unused]] ContainerWindow *container, const Event &event)
 int
 WndForm::ShowModal()
 {
+	GLenum err9 = glGetError(); if (err9 != GL_NO_ERROR) LogFormat("OOOO SDL error 0x%X", err9);
 #ifndef USE_WINUSER
   ContainerWindow *root = GetRootOwner();
   WindowReference old_focus_reference = root->GetFocusedWindowReference();
@@ -291,44 +292,64 @@ WndForm::ShowModal()
 #endif /* USE_WINUSER */
 
   PeriodClock enter_clock;
-  if (HasTouchScreen())
-    enter_clock.Update();
+  if (HasTouchScreen()) {
+	GLenum errE = glGetError(); if (errE != GL_NO_ERROR) LogFormat("TTTT SDL error 0x%X", errE);
+	  enter_clock.Update();
+  }
 
   ShowOnTop();
+
+  GLenum errF = glGetError(); if (errF != GL_NO_ERROR) LogFormat("UUUU SDL error 0x%X", errF);
 
   modal_result = 0;
 
   SingleWindow &main_window = GetMainWindow();
   main_window.CancelMode();
 
+  GLenum errG = glGetError(); if (errG != GL_NO_ERROR) LogFormat("VVVV SDL error 0x%X", errG);
+
 #ifdef USE_WINUSER
   oldFocusHwnd = ::GetFocus();
 #endif /* USE_WINUSER */
   SetDefaultFocus();
 
+  GLenum errH = glGetError(); if (errH != GL_NO_ERROR) LogFormat("WWWW SDL error 0x%X", errH);
+
   bool hastimed = false;
 
   main_window.AddDialog(this);
 
+  GLenum errI = glGetError(); if (errI != GL_NO_ERROR) LogFormat("XXX SDL error 0x%X", errI);
+
 #ifndef USE_GDI
+GLenum errN = glGetError(); if (errN != GL_NO_ERROR) LogFormat("2222 SDL error 0x%X", errN);
   main_window.Refresh();
+  GLenum errM = glGetError(); if (errM != GL_NO_ERROR) LogFormat("1111 SDL error 0x%X", errM);
 #endif
 
 #if defined(ANDROID) || defined(USE_POLL_EVENT) || defined(ENABLE_SDL)
-  EventLoop loop(*event_queue, main_window);
+GLenum errL = glGetError(); if (errL != GL_NO_ERROR) LogFormat("0000 SDL error 0x%X", errL);
+EventLoop loop(*event_queue, main_window);
+GLenum errK = glGetError(); if (errK != GL_NO_ERROR) LogFormat("ZZZZ SDL error 0x%X", errK);
 #else
   DialogEventLoop loop(*event_queue, *this);
+  GLenum errJ = glGetError(); if (errJ != GL_NO_ERROR) LogFormat("YYYY SDL error 0x%X", errJ);
 #endif
   Event event;
-
+	GLenum errD = glGetError(); if (errD != GL_NO_ERROR) LogFormat("SSSS SDL error 0x%X", errD);
   while ((modal_result == 0 || force) && loop.Get(event)) {
     if (!main_window.FilterEvent(event, this)) {
-      if (modeless && event.IsMouseDown())
-        break;
-      else
-        continue;
+		GLenum errA = glGetError(); if (errA != GL_NO_ERROR) LogFormat("PPPP SDL error 0x%X", errA);
+      if (modeless && event.IsMouseDown()) {
+		GLenum errB = glGetError(); if (errB != GL_NO_ERROR) LogFormat("QQQQ SDL error 0x%X", errB);
+		  break;
+	  }
+      else {
+		GLenum errC = glGetError(); if (errC != GL_NO_ERROR) LogFormat("RRRR SDL error 0x%X", errC);
+		  continue;
+	  }
     }
-
+GLenum err8 = glGetError(); if (err8 != GL_NO_ERROR) LogFormat("NNNN SDL error 0x%X", err8);
     // hack to stop exiting immediately
     if (HasTouchScreen() && !hastimed &&
         event.IsUserInput()) {
@@ -344,6 +365,7 @@ WndForm::ShowModal()
         continue;
 
 #ifdef ENABLE_SDL
+GLenum err7 = glGetError(); if (err7 != GL_NO_ERROR) LogFormat("MMMM SDL error 0x%X", err7);
       if (event.GetKeyCode() == SDLK_TAB) {
         /* the Tab key moves the keyboard focus */
         const Uint8 *keystate = ::SDL_GetKeyboardState(nullptr);
@@ -351,6 +373,7 @@ WndForm::ShowModal()
             keystate[SDL_SCANCODE_LSHIFT] || keystate[SDL_SCANCODE_RSHIFT]
           ? SDLK_UP : SDLK_DOWN;
       }
+	  GLenum err6 = glGetError(); if (err6 != GL_NO_ERROR) LogFormat("LLLL SDL error 0x%X", err6);
 #endif
 
       if (
@@ -394,6 +417,7 @@ WndForm::ShowModal()
         continue;
     }
 
+	GLenum err5 = glGetError(); if (err5 != GL_NO_ERROR) LogFormat("HHHH SDL error 0x%X", err5);
     loop.Dispatch(event);
   } // End Modal Loop
 
@@ -464,6 +488,7 @@ WndForm::OnPaint(Canvas &canvas) noexcept
     OpenGL::solid_shader->Use();
     glDrawElements(GL_TRIANGLES, ARRAY_SIZE(indices),
                    GL_UNSIGNED_BYTE, indices);
+GLenum err0 = glGetError(); if (err0 != GL_NO_ERROR) LogFormat("ZZZ OpenGL error 0x%X", err0);
   }
 #endif
 

@@ -160,8 +160,9 @@ OpenGL::SetupContext()
     render_buffer_stencil = render_buffer_depth_stencil;
 
   glDisable(GL_DEPTH_TEST);
+  GLenum err1 = glGetError(); if (err1 != GL_NO_ERROR) LogFormat("ENEN OpenGL error 0x%X", err1);
   glDisable(GL_DITHER);
-
+GLenum err0 = glGetError(); if (err0 != GL_NO_ERROR) LogFormat("ENEN OpenGL error 0x%X", err0);
   InitShaders();
 }
 
@@ -212,6 +213,7 @@ OpenGL::SetupViewport(UnsignedPoint2D size) noexcept
   window_size = size;
 
   glViewport(0, 0, size.x, size.y);
+  GLenum err0 = glGetError(); if (err0 != GL_NO_ERROR) LogFormat("EOEO OpenGL error 0x%X", err0);
 
 #ifdef SOFTWARE_ROTATE_DISPLAY
   OrientationSwap(size, display_orientation);

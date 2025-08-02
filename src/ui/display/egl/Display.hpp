@@ -6,7 +6,7 @@
 #include "ui/egl/System.hpp"
 
 #include <optional>
-
+#include "LogFile.hpp"
 namespace EGL {
 
 class Display {
@@ -54,7 +54,9 @@ public:
   }
 
   EGLBoolean SwapBuffers(EGLSurface surface) noexcept {
-    return eglSwapBuffers(display, surface);
+    EGLBoolean a = eglSwapBuffers(display, surface);
+	GLenum err0 = glGetError(); if (err0 != GL_NO_ERROR) LogFormat("HAHA OpenGL error 0x%X", err0);
+	return a;
   }
 
 private:

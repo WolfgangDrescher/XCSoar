@@ -7,7 +7,7 @@
 #include "Scope.hpp"
 #include "Shaders.hpp"
 #include "Program.hpp"
-
+#include "LogFile.hpp"
 #include <cassert>
 
 #ifdef USE_RGB565
@@ -36,8 +36,16 @@ RawBitmap::BindAndGetTexture() const noexcept
 
   if (dirty) {
     glPixelStorei(GL_UNPACK_ALIGNMENT, 1);
+					GLenum err = glGetError();
+if (err != GL_NO_ERROR) {
+  LogFormat("FFF OpenGL error 0x%X", err);
+}
     glTexSubImage2D(GL_TEXTURE_2D, 0, 0, 0, size.width, size.height,
                     FORMAT, TYPE, GetBuffer());
+										GLenum err3 = glGetError();
+if (err3 != GL_NO_ERROR) {
+  LogFormat("GGG OpenGL error 0x%X", err3);
+}
 
     dirty = false;
   }

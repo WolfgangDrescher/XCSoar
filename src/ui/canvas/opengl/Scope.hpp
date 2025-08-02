@@ -4,7 +4,7 @@
 #pragma once
 
 #include "ui/opengl/System.hpp"
-
+#include "LogFile.hpp"
 /**
  * Enables and auto-disables an OpenGL capability.
  */
@@ -14,10 +14,12 @@ public:
   [[nodiscard]]
   GLEnable() noexcept {
     ::glEnable(cap);
+	GLenum err0 = glGetError(); if (err0 != GL_NO_ERROR) LogFormat("FMAFMA OpenGL error 0x%X", err0);
   }
 
   ~GLEnable() noexcept {
     ::glDisable(cap);
+	GLenum err0 = glGetError(); if (err0 != GL_NO_ERROR) LogFormat("FMBFMB OpenGL error 0x%X", err0);
   }
 
   GLEnable(const GLEnable &) = delete;
@@ -29,12 +31,15 @@ public:
   [[nodiscard]]
   GLBlend(GLenum sfactor, GLenum dfactor) noexcept {
     ::glBlendFunc(sfactor, dfactor);
+	GLenum err0 = glGetError(); if (err0 != GL_NO_ERROR) LogFormat("FMFM OpenGL error 0x%X", err0);
   }
 
   [[nodiscard]]
   GLBlend(GLclampf alpha) noexcept {
     ::glBlendFunc(GL_CONSTANT_ALPHA, GL_ONE_MINUS_CONSTANT_ALPHA);
+	GLenum err1 = glGetError(); if (err1 != GL_NO_ERROR) LogFormat("FNFN OpenGL error 0x%X", err1);
     ::glBlendColor(0, 0, 0, alpha);
+	GLenum err0 = glGetError(); if (err0 != GL_NO_ERROR) LogFormat("FNFN OpenGL error 0x%X", err0);
   }
 };
 
@@ -53,5 +58,6 @@ public:
   [[nodiscard]]
   GLScissor(GLint x, GLint y, GLsizei width, GLsizei height) noexcept {
     ::glScissor(x, y, width, height);
+	GLenum err0 = glGetError(); if (err0 != GL_NO_ERROR) LogFormat("FOFO OpenGL error 0x%X", err0);
   }
 };

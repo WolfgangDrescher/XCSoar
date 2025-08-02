@@ -3,7 +3,7 @@
 
 #include "GradientRenderer.hpp"
 #include "ui/canvas/Canvas.hpp"
-
+#include "LogFile.hpp"
 #if defined(EYE_CANDY) && defined(ENABLE_OPENGL)
 
 #include "ui/canvas/opengl/VertexPointer.hpp"
@@ -38,6 +38,7 @@ DrawVerticalGradient([[maybe_unused]] Canvas &canvas, const PixelRect &rc,
                 "Array size mismatch");
 
   glDrawArrays(GL_TRIANGLE_STRIP, 0, ARRAY_SIZE(vertices));
+  GLenum err0 = glGetError(); if (err0 != GL_NO_ERROR) LogFormat("BFBF OpenGL error 0x%X", err0);
 #else
   canvas.DrawFilledRectangle(rc, fallback_color);
 #endif

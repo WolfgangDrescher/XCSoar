@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: GPL-2.0-or-later
 // Copyright The XCSoar Project
-
+#include "LogFile.hpp"
 #ifdef ENABLE_OPENGL
 
 #include "AirspaceRenderer.hpp"
@@ -33,12 +33,19 @@ public:
      look(_look), warning_manager(_warnings), settings(_settings)
   {
     glStencilMask(0xff);
+	GLenum err0 = glGetError(); if (err0 != GL_NO_ERROR) LogFormat("AEAE OpenGL error 0x%X", err0);
     glClear(GL_STENCIL_BUFFER_BIT);
+	GLenum err1 = glGetError(); if (err1 != GL_NO_ERROR) LogFormat("AFAF OpenGL error 0x%X", err1);
+
     glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
+	GLenum err2 = glGetError(); if (err2 != GL_NO_ERROR) LogFormat("AGAG OpenGL error 0x%X", err2);
+
   }
 
   ~AirspaceVisitorRenderer() {
     glStencilMask(0xff);
+	GLenum err3 = glGetError(); if (err3 != GL_NO_ERROR) LogFormat("AHAH OpenGL error 0x%X", err3);
+
   }
 
 private:
@@ -103,6 +110,8 @@ private:
         SetFillStencil();
         DrawPrepared();
         glColorMask(GL_TRUE, GL_TRUE, GL_TRUE, GL_TRUE);
+		GLenum err5 = glGetError(); if (err5 != GL_NO_ERROR) LogFormat("AIAI OpenGL error 0x%X", err5);
+
       }
 
       // fill interior without overpainting any previous outlines
@@ -117,6 +126,7 @@ private:
         ClearFillStencil();
         DrawPrepared();
         glColorMask(GL_TRUE, GL_TRUE, GL_TRUE, GL_TRUE);
+		GLenum err4 = glGetError(); if (err4 != GL_NO_ERROR) LogFormat("AJAJ OpenGL error 0x%X", err4);
       }
     }
 
@@ -154,8 +164,11 @@ private:
 
     // set bit 1 in stencil buffer, where an outline is drawn
     glStencilFunc(GL_ALWAYS, 3, 3);
+	GLenum err0 = glGetError(); if (err0 != GL_NO_ERROR) LogFormat("AKAK OpenGL error 0x%X", err0);
     glStencilMask(2);
+	GLenum err1 = glGetError(); if (err1 != GL_NO_ERROR) LogFormat("ALAL OpenGL error 0x%X", err1);
     glStencilOp(GL_KEEP, GL_KEEP, GL_REPLACE);
+	GLenum err2 = glGetError(); if (err2 != GL_NO_ERROR) LogFormat("AMAM OpenGL error 0x%X", err2);
 
     return true;
   }
@@ -168,9 +181,12 @@ private:
     // restrict drawing area and don't paint over previously drawn outlines
     if (check_fillstencil)
       glStencilFunc(GL_EQUAL, 1, 3);
+	  GLenum err1 = glGetError(); if (err1 != GL_NO_ERROR) LogFormat("ANAN OpenGL error 0x%X", err1);
     else
       glStencilFunc(GL_EQUAL, 0, 2);
+	  GLenum err2 = glGetError(); if (err2 != GL_NO_ERROR) LogFormat("AOAO OpenGL error 0x%X", err2);
     glStencilOp(GL_KEEP, GL_KEEP, GL_KEEP);
+	GLenum err0 = glGetError(); if (err0 != GL_NO_ERROR) LogFormat("APAP OpenGL error 0x%X", err0);
 
     canvas.Select(Brush(class_look.fill_color.WithAlpha(90)));
     canvas.SelectNullPen();
@@ -178,9 +194,13 @@ private:
 
   void SetFillStencil() {
     glColorMask(GL_FALSE, GL_FALSE, GL_FALSE, GL_FALSE);
+	GLenum err3 = glGetError(); if (err3 != GL_NO_ERROR) LogFormat("AQAQ OpenGL error 0x%X", err3);
     glStencilFunc(GL_ALWAYS, 3, 3);
+	GLenum err2 = glGetError(); if (err2 != GL_NO_ERROR) LogFormat("ARAR OpenGL error 0x%X", err2);
     glStencilMask(1);
+	GLenum err1 = glGetError(); if (err1 != GL_NO_ERROR) LogFormat("ASAS OpenGL error 0x%X", err1);
     glStencilOp(GL_KEEP, GL_KEEP, GL_REPLACE);
+	GLenum err0 = glGetError(); if (err0 != GL_NO_ERROR) LogFormat("ATAT OpenGL error 0x%X", err0);
 
     canvas.SelectHollowBrush();
     canvas.Select(look.thick_pen);
@@ -188,9 +208,13 @@ private:
 
   void ClearFillStencil() {
     glColorMask(GL_FALSE, GL_FALSE, GL_FALSE, GL_FALSE);
+	GLenum err1 = glGetError(); if (err1 != GL_NO_ERROR) LogFormat("AUAU OpenGL error 0x%X", err1);
     glStencilFunc(GL_ALWAYS, 3, 3);
+	GLenum err0 = glGetError(); if (err0 != GL_NO_ERROR) LogFormat("AVAV OpenGL error 0x%X", err0);
     glStencilMask(1);
+	GLenum err2 = glGetError(); if (err2 != GL_NO_ERROR) LogFormat("AWAW OpenGL error 0x%X", err2);
     glStencilOp(GL_KEEP, GL_KEEP, GL_ZERO);
+	GLenum err3 = glGetError(); if (err3 != GL_NO_ERROR) LogFormat("AXAX OpenGL error 0x%X", err3);
 
     canvas.SelectHollowBrush();
     canvas.Select(look.thick_pen);
@@ -214,6 +238,7 @@ public:
      look(_look), warning_manager(_warnings), settings(_settings)
   {
     glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
+	GLenum err0 = glGetError(); if (err0 != GL_NO_ERROR) LogFormat("AYAY OpenGL error 0x%X", err0);
   }
 
 private:

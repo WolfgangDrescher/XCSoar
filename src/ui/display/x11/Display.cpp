@@ -3,7 +3,7 @@
 
 #include "Display.hpp"
 #include "ui/dim/Size.hpp"
-
+#include "LogFile.hpp"
 #ifdef USE_EGL
 #include "ui/egl/System.hpp"
 #endif
@@ -57,6 +57,7 @@ Display::Display()
   int fb_cfg_count;
   fb_cfg = glXChooseFBConfig(display, screen,
                              attributes, &fb_cfg_count);
+GLenum err0 = glGetError(); if (err0 != GL_NO_ERROR) LogFormat("HBHB OpenGL error 0x%X", err0);
   if (fb_cfg == nullptr || fb_cfg_count == 0)
     throw std::runtime_error("Failed to retrieve framebuffer configuration for GLX");
 
@@ -71,11 +72,13 @@ Display::Display()
   glx_context = glXCreateNewContext(display, *fb_cfg,
                                     GLX_RGBA_TYPE,
                                     nullptr, true);
+									GLenum err0 = glGetError(); if (err0 != GL_NO_ERROR) LogFormat("HCHC OpenGL error 0x%X", err0);
   if (glx_context == nullptr)
     throw std::runtime_error("Failed to create GLX context");
 
   if (!glXMakeContextCurrent(display, 0, 0, glx_context))
     throw std::runtime_error("Failed to enable GLX context");
+
 #endif // USE_GLX
 }
 

@@ -19,12 +19,17 @@ Display::Display(EGLNativeDisplayType native_display)
 Display::~Display() noexcept
 {
   eglMakeCurrent(display, EGL_NO_SURFACE, EGL_NO_SURFACE, EGL_NO_CONTEXT);
+GLenum err1 = glGetError(); if (err1 != GL_NO_ERROR) LogFormat("GKGK OpenGL error 0x%X", err1);
+
 
   if (dummy_surface != EGL_NO_SURFACE)
     eglDestroySurface(display, dummy_surface);
+	GLenum err2 = glGetError(); if (err2 != GL_NO_ERROR) LogFormat("GKGK OpenGL error 0x%X", err2);
 
   eglDestroyContext(display, context);
+  GLenum err3 = glGetError(); if (err3 != GL_NO_ERROR) LogFormat("GKGK OpenGL error 0x%X", err3);
   eglTerminate(display);
+  GLenum err0 = glGetError(); if (err0 != GL_NO_ERROR) LogFormat("GKGK OpenGL error 0x%X", err0);
 }
 
 [[gnu::pure]]
@@ -33,9 +38,11 @@ GetConfigAttrib(EGLDisplay display, EGLConfig config,
                 int attribute, int default_value) noexcept
 {
   int value;
-  return eglGetConfigAttrib(display, config, attribute, &value)
+  int a = eglGetConfigAttrib(display, config, attribute, &value)
     ? value
     : default_value;
+	GLenum err0 = glGetError(); if (err0 != GL_NO_ERROR) LogFormat("GLGL OpenGL error 0x%X", err0);
+	return a;
 }
 
 inline void
@@ -44,6 +51,7 @@ Display::InitDisplay(EGLNativeDisplayType native_display)
   assert(display == EGL_NO_DISPLAY);
 
   display = eglGetDisplay(native_display);
+  GLenum err0 = glGetError(); if (err0 != GL_NO_ERROR) LogFormat("GLGL OpenGL error 0x%X", err0);
   if (display == EGL_NO_DISPLAY)
     throw std::runtime_error("eglGetDisplay(EGL_DEFAULT_DISPLAY) failed");
 
@@ -63,6 +71,8 @@ Display::InitDisplay(EGLNativeDisplayType native_display)
     throw std::runtime_error("eglBindAPI() failed");
 
   chosen_config = EGL::ChooseConfig(display);
+
+GLenum err0 = glGetError(); if (err0 != GL_NO_ERROR) LogFormat("GMGM OpenGL error 0x%X", err0);
 
   LogFormat("EGL config: RGB=%d/%d/%d alpha=%d depth=%d stencil=%d",
             GetConfigAttrib(display, chosen_config, EGL_RED_SIZE, 0),
@@ -86,11 +96,12 @@ Display::CreateContext()
 
   context = eglCreateContext(display, chosen_config,
                              EGL_NO_CONTEXT, context_attributes);
+GLenum err0 = glGetError(); if (err0 != GL_NO_ERROR) LogFormat("GNGN OpenGL error 0x%X", err0);
   if (!eglMakeCurrent(display, EGL_NO_SURFACE, EGL_NO_SURFACE, context)) {
     /* some old EGL implemenations do not support EGL_NO_SURFACE
        (error EGL_BAD_MATCH); this kludge uses a dummy 1x1 pbuffer
        surface to work around this */
-
+GLenum err0 = glGetError(); if (err0 != GL_NO_ERROR) LogFormat("GOGO OpenGL error 0x%X", err0);
     static constexpr int pbuffer_attributes[] = {
       EGL_WIDTH, 1,
       EGL_HEIGHT, 1,
@@ -99,6 +110,7 @@ Display::CreateContext()
 
     dummy_surface = eglCreatePbufferSurface(display, chosen_config,
                                             pbuffer_attributes);
+GLenum err0 = glGetError(); if (err0 != GL_NO_ERROR) LogFormat("GPGP OpenGL error 0x%X", err0);
     if (dummy_surface == EGL_NO_SURFACE)
       throw FmtRuntimeError("eglCreatePbufferSurface() failed: {:#x}", eglGetError());
 
@@ -111,6 +123,7 @@ Display::CreateWindowSurface(EGLNativeWindowType native_window)
 {
   auto surface = eglCreateWindowSurface(display, chosen_config,
                                         native_window, nullptr);
+GLenum err0 = glGetError(); if (err0 != GL_NO_ERROR) LogFormat("GQGQ OpenGL error 0x%X", err0);
   if (surface == EGL_NO_SURFACE)
     throw FmtRuntimeError("eglCreateWindowSurface() failed: {:#x}", eglGetError());
 

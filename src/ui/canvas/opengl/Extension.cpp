@@ -4,7 +4,7 @@
 #include "Extension.hpp"
 #include "ui/opengl/Features.hpp"
 #include "ui/opengl/System.hpp"
-
+#include "LogFile.hpp"
 #include <string.h>
 
 bool
@@ -14,6 +14,7 @@ OpenGL::IsExtensionSupported(const char *extension) noexcept
      http://www.opengl.org/resources/features/OGLextensions/ */
 
   const GLubyte *const extensions = glGetString(GL_EXTENSIONS);
+  GLenum err0 = glGetError(); if (err0 != GL_NO_ERROR) LogFormat("EBEB OpenGL error 0x%X", err0);
 #ifdef ANDROID
   /* some broken Android drivers are insane and return nullptr under
      certain conditions; under these conditions, the driver doesn't

@@ -8,6 +8,7 @@
 #include "system/Path.hpp"
 #include "ui/canvas/custom/UncompressedImage.hpp"
 #include "util/ScopeExit.hxx"
+#include "LogFile.hpp"
 
 #import <CoreGraphics/CoreGraphics.h>
 
@@ -35,12 +36,14 @@ CGImageToUncompressedImage(CGImageRef image) noexcept
   if ((8 == bits_per_pixel) &&
       (8 == bits_per_component) &&
       (CGColorSpaceGetModel(colorspace) == kCGColorSpaceModelMonochrome)) {
+		// LogFormat("===>appleUncompressedImage 8");
     row_size = width;
     format = UncompressedImage::Format::GRAY;
     static const CGColorSpaceRef grey_colorspace = CGColorSpaceCreateDeviceGray();
     bitmap_colorspace = grey_colorspace;
     bitmap_info = 0;
   } else {
+	// LogFormat("===>appleUncompressedImage NOT 8");
     static const CGColorSpaceRef rgb_colorspace = CGColorSpaceCreateDeviceRGB();
     bitmap_colorspace = rgb_colorspace;
     if ((24 == bits_per_pixel) && (8 == bits_per_component)) {
@@ -68,6 +71,7 @@ CGImageToUncompressedImage(CGImageRef image) noexcept
 
   CGContextDrawImage(bitmap, CGRectMake(0, 0, width, height), image);
 
+// LogFormat("===>CGBitmapContextCreate");
   return UncompressedImage(format, row_size, width, height,
                            std::move(uncompressed));
 }
@@ -75,6 +79,7 @@ CGImageToUncompressedImage(CGImageRef image) noexcept
 UncompressedImage
 LoadJPEGFile(Path path) noexcept
 {
+	// LogFormat("===>LoadJPEGFile");
   CGDataProviderRef data_provider = CGDataProviderCreateWithFilename(path.c_str());
   if (nullptr == data_provider)
     return {};
@@ -94,6 +99,7 @@ LoadJPEGFile(Path path) noexcept
 UncompressedImage
 LoadPNG(std::span<const std::byte> raw)
 {
+// LogFormat("===>LoadPNG raw");
   assert(raw.data() != nullptr);
 
   CGDataProviderRef data_provider = CGDataProviderCreateWithData(
@@ -103,6 +109,36 @@ LoadPNG(std::span<const std::byte> raw)
 
   CGImageRef image = CGImageCreateWithPNGDataProvider(
       data_provider, nullptr, false, kCGRenderingIntentDefault);
+
+// size_t width = CGImageGetWidth(image);
+// size_t height = CGImageGetHeight(image);
+// size_t bitsPerComponent = CGImageGetBitsPerComponent(image);
+// size_t bytesPerRow = CGImageGetBytesPerRow(image);
+// CGColorSpaceRef colorSpace = CGImageGetColorSpace(image);
+// CGBitmapInfo bitmapInfo = CGImageGetBitmapInfo(image);
+
+// LogFormat("Image width: %zu", width);
+// 		LogFormat("Image height: %zu", height);
+// 		LogFormat("Bits per component: %zu", bitsPerComponent);
+// 		LogFormat("Bytes per row: %zu", bytesPerRow);
+// 		LogFormat("Color space: %p", colorSpace);
+// 		LogFormat("Bitmap info: 0x%08X", bitmapInfo);
+
+		
+// if (colorSpace != nullptr) {
+// 	CFStringRef name = CGColorSpaceCopyName(colorSpace);
+// 	if (name) {
+// 		char buffer[128];
+// 		CFStringGetCString(name, buffer, sizeof(buffer), kCFStringEncodingUTF8);
+// 		// LogFormat("Color space name: %s", buffer);
+// 		CFRelease(name);
+// 	} else {
+// 		// LogFormat("Color space has no name (custom or device-dependent)");
+// 	}
+// } else {
+// 	// LogFormat("No color space set");
+// }
+
 
   UncompressedImage result = CGImageToUncompressedImage(image);
 
@@ -116,6 +152,7 @@ LoadPNG(std::span<const std::byte> raw)
 UncompressedImage
 LoadPNG(Path path) noexcept
 {
+	// LogFormat("===>LoadPNG path %s", path.c_str());
   CGDataProviderRef data_provider = CGDataProviderCreateWithFilename(path.c_str());
   if (nullptr == data_provider)
     return {};
@@ -128,6 +165,5 @@ LoadPNG(Path path) noexcept
   if (nullptr != image)
     CFRelease(image);
   CFRelease(data_provider);
-
   return result;
 }

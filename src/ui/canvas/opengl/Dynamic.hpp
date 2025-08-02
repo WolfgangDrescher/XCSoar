@@ -5,7 +5,7 @@
 
 #include "ui/opengl/SystemExt.hpp"
 #include "ui/opengl/Features.hpp"
-
+#include "LogFile.hpp"
 #if defined(GL_EXT_multi_draw_arrays)
 #define HAVE_DYNAMIC_MULTI_DRAW_ARRAYS
 #endif
@@ -37,6 +37,7 @@ static inline void MultiDrawElements(Args... args) noexcept {
   multi_draw_elements(args...);
 #else
   glMultiDrawElementsEXT(args...);
+  GLenum err0 = glGetError(); if (err0 != GL_NO_ERROR) LogFormat("EAEA OpenGL error 0x%X", err0);
 #endif
 }
 #endif /* GL_EXT_multi_draw_arrays */

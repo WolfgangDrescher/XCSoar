@@ -6,7 +6,7 @@
 #include "ui/opengl/SystemExt.hpp"
 #include "ui/opengl/Features.hpp"
 #include "Globals.hpp"
-
+#include "LogFile.hpp"
 #ifdef HAVE_DYNAMIC_MAPBUFFER
 #include "Dynamic.hpp"
 #endif
@@ -28,6 +28,7 @@ class GLBuffer {
 public:
   GLBuffer() noexcept {
     glGenBuffers(1, &id);
+	GLenum err0 = glGetError(); if (err0 != GL_NO_ERROR) LogFormat("BYBY OpenGL error 0x%X", err0);
 
 #ifndef NDEBUG
     p = nullptr;
@@ -43,16 +44,19 @@ public:
 #endif
 
     glDeleteBuffers(1, &id);
+	GLenum err0 = glGetError(); if (err0 != GL_NO_ERROR) LogFormat("BZBZ OpenGL error 0x%X", err0);
   }
 
   void Bind() noexcept {
     assert(p == nullptr);
 
     glBindBuffer(target, id);
+	GLenum err0 = glGetError(); if (err0 != GL_NO_ERROR) LogFormat("CACA OpenGL error 0x%X", err0);
   }
 
   static void Unbind() noexcept {
     glBindBuffer(target, 0);
+	GLenum err0 = glGetError(); if (err0 != GL_NO_ERROR) LogFormat("CBCB OpenGL error 0x%X", err0);
   }
 
   /**
@@ -60,6 +64,7 @@ public:
    */
   static void Data(GLsizeiptr size, const GLvoid *data) noexcept {
     glBufferData(target, size, data, usage);
+	GLenum err0 = glGetError(); if (err0 != GL_NO_ERROR) LogFormat("CDCD OpenGL error 0x%X", err0);
   }
 
   void Load(GLsizeiptr size, const GLvoid *data) noexcept {
@@ -72,9 +77,15 @@ public:
 #ifdef HAVE_DYNAMIC_MAPBUFFER
     return GLExt::map_buffer(target, GL_WRITE_ONLY_OES);
 #elif defined(GL_OES_mapbuffer)
-    return glMapBufferOES(target, GL_WRITE_ONLY_OES);
+// NOLOGGINGFORNOW
+    void *ptr =  glMapBufferOES(target, GL_WRITE_ONLY_OES);
+	GLenum err0 = glGetError(); if (err0 != GL_NO_ERROR) LogFormat("CECE OpenGL error 0x%X", err0);
+	return ptr;
 #else
-    return glMapBuffer(target, GL_WRITE_ONLY);
+// NOLOGGINGFORNOW
+    void *ptr2 =  glMapBuffer(target, GL_WRITE_ONLY);
+	GLenum err1 = glGetError(); if (err1 != GL_NO_ERROR) LogFormat("CFCF OpenGL error 0x%X", err1);
+	return ptr2;
 #endif
   }
 
@@ -83,8 +94,10 @@ public:
     GLExt::unmap_buffer(target);
 #elif defined(GL_OES_mapbuffer)
     glUnmapBufferOES(target);
+	GLenum err0 = glGetError(); if (err0 != GL_NO_ERROR) LogFormat("CGCG OpenGL error 0x%X", err0);
 #else
     glUnmapBuffer(target);
+	GLenum err1 = glGetError(); if (err1 != GL_NO_ERROR) LogFormat("CHCH OpenGL error 0x%X", err1);
 #endif
   }
 

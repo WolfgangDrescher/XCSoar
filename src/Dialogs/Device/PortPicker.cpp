@@ -26,6 +26,8 @@
 
 #include <cassert>
 
+#include "LogFile.hpp"
+
 class PortListItemRenderer final {
   TextRowRenderer row_renderer;
 
@@ -248,6 +250,8 @@ PortPickerWidget::OnDeviceDetected(Type type, const char *address,
     port_type = DeviceConfig::PortType::ANDROID_USB_SERIAL;
     break;
   }
+
+    // LogFormat("=====> DEBUG port_type %d", port_type);
 
   {
     const std::lock_guard lock{detected_mutex};

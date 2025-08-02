@@ -6,7 +6,7 @@
 #include "ui/canvas/Color.hpp"
 #include "ui/canvas/Features.hpp"
 #include "Screen/Debug.hpp"
-
+#include "LogFile.hpp"
 #include <cassert>
 
 #ifdef USE_GDI
@@ -165,6 +165,7 @@ public:
 private:
   void BindStyle() const noexcept {
     glLineWidth(width);
+	GLenum err0 = glGetError(); if (err0 != GL_NO_ERROR) LogFormat("BTBT OpenGL error 0x%X", err0);
 
     /* note: this ignores the "style" field; this needs to be done
        separately, with the "dashed_shader" */

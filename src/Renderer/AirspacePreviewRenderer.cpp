@@ -9,7 +9,7 @@
 #include "Look/AirspaceLook.hpp"
 #include "Geo/GeoBounds.hpp"
 #include "Projection/WindowProjection.hpp"
-
+#include "LogFile.hpp"
 #include <vector>
 
 static void
@@ -54,7 +54,10 @@ AirspacePreviewRenderer::PrepareFill(
 
 #ifdef ENABLE_OPENGL
   ::glEnable(GL_BLEND);
+  GLenum err0 = glGetError(); if (err0 != GL_NO_ERROR) LogFormat("ABAB OpenGL error 0x%X", err0);
   ::glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
+  GLenum err1 = glGetError(); if (err1 != GL_NO_ERROR) LogFormat("ACAC OpenGL error 0x%X", err1);
+
 
   Color color = class_look.fill_color;
   canvas.Select(Brush(color.WithAlpha(48)));
@@ -83,6 +86,8 @@ AirspacePreviewRenderer::UnprepareFill([[maybe_unused]] Canvas &canvas)
 {
 #ifdef ENABLE_OPENGL
   ::glDisable(GL_BLEND);
+  GLenum err0 = glGetError(); if (err0 != GL_NO_ERROR) LogFormat("ADAD OpenGL error 0x%X", err0);
+
 #elif defined(USE_GDI)
   canvas.SetTextColor(COLOR_BLACK);
   canvas.SetMixCopy();

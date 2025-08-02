@@ -5,7 +5,9 @@
 #include "Texture.hpp"
 #include "ui/canvas/custom/UncompressedImage.hpp"
 #include "util/Compiler.h"
-
+#include "LogFile.hpp"
+#include <SDL.h>
+#include "ui/opengl/System.hpp"
 GLTexture *
 ImportTexture(const UncompressedImage &image)
 {
@@ -40,7 +42,21 @@ ImportTexture(const UncompressedImage &image)
 #endif
   }
 
+
+// SDL_GLContext ctx = SDL_GL_GetCurrentContext();
+// if (ctx == NULL) {
+//     LogFormat("QWEQWE Kein gültiger OpenGL Kontext aktiv!");
+// } else {
+//     LogFormat("ASDASD OpenGL Kontext ist aktiv.");
+// }
+
+  GLenum err0 = glGetError(); if (err0 != GL_NO_ERROR) LogFormat("JJJbefore OpenGL error 0x%X", err0);
+
   glPixelStorei(GL_UNPACK_ALIGNMENT, 1);
+  					GLenum err = glGetError();
+if (err != GL_NO_ERROR) {
+  LogFormat("JJJ OpenGL error 0x%X", err);
+}
   return new GLTexture(internal_format, image.GetSize(),
                        format, type, image.GetData(), image.IsFlipped());
 }
@@ -54,6 +70,10 @@ ImportAlphaTexture(const UncompressedImage &image)
   const GLenum format = GL_ALPHA, type = GL_UNSIGNED_BYTE;
 
   glPixelStorei(GL_UNPACK_ALIGNMENT, 1);
+  					GLenum err = glGetError();
+if (err != GL_NO_ERROR) {
+  LogFormat("KKK OpenGL error 0x%X", err);
+}
   return new GLTexture(internal_format, image.GetSize(),
                        format, type, image.GetData(), image.IsFlipped());
 }

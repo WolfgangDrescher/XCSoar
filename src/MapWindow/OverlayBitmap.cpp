@@ -13,7 +13,7 @@
 #include "Math/Boost/Point.hpp"
 #include "system/Path.hpp"
 #include "util/StaticArray.hxx"
-
+#include "LogFile.hpp"
 #include <boost/geometry/geometries/register/ring.hpp>
 #include <boost/geometry/geometries/polygon.hpp>
 #include <boost/geometry/geometries/multi_polygon.hpp>
@@ -143,8 +143,11 @@ MapOverlayBitmap::Draw([[maybe_unused]] Canvas &canvas,
   const ScopeTextureConstantAlpha blend(use_bitmap_alpha, alpha);
 
   glEnableVertexAttribArray(OpenGL::Attribute::TEXCOORD);
+  GLenum err0 = glGetError(); if (err0 != GL_NO_ERROR) LogFormat("444 OpenGL error 0x%X", err0);
   glVertexAttribPointer(OpenGL::Attribute::TEXCOORD, 2, GL_FLOAT, GL_FALSE,
                         0, coord);
+	GLenum err1 = glGetError(); if (err1 != GL_NO_ERROR) LogFormat("555 OpenGL error 0x%X", err1);
+
 
   for (const auto &polygon : clipped) {
     const auto &ring = polygon.outer();
@@ -167,7 +170,10 @@ MapOverlayBitmap::Draw([[maybe_unused]] Canvas &canvas,
     }
 
     glDrawArrays(GL_TRIANGLE_FAN, 0, n);
+	GLenum err2 = glGetError(); if (err2 != GL_NO_ERROR) LogFormat("666 OpenGL error 0x%X", err2);
   }
 
   glDisableVertexAttribArray(OpenGL::Attribute::TEXCOORD);
+  GLenum err3 = glGetError(); if (err3 != GL_NO_ERROR) LogFormat("777 OpenGL error 0x%X", err3);
+
 }

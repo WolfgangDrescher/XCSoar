@@ -12,7 +12,7 @@
 #include "ui/canvas/Canvas.hpp"
 #include "Look/TaskLook.hpp"
 #include "Look/AirspaceLook.hpp"
-
+#include "LogFile.hpp"
 #ifdef USE_GDI
 #include "AirspaceRendererSettings.hpp"
 #endif
@@ -31,7 +31,9 @@ OZRenderer::Prepare(Canvas &canvas, Layer layer, int offset) const noexcept
     Color color = airspace_look.classes[AATASK].fill_color;
 #ifdef ENABLE_OPENGL
     glEnable(GL_BLEND);
+	GLenum err1 = glGetError(); if (err1 != GL_NO_ERROR) LogFormat("BGBG OpenGL error 0x%X", err1);
     glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
+	GLenum err0 = glGetError(); if (err0 != GL_NO_ERROR) LogFormat("BHBH OpenGL error 0x%X", err0);
 
     canvas.Select(Brush(color.WithAlpha(64)));
 #elif defined(USE_GDI)
@@ -66,6 +68,7 @@ OZRenderer::Finish([[maybe_unused]] Canvas &canvas, Layer layer) const noexcept
   if (layer == LAYER_SHADE) {
 #ifdef ENABLE_OPENGL
     glDisable(GL_BLEND);
+	GLenum err0 = glGetError(); if (err0 != GL_NO_ERROR) LogFormat("BIBI OpenGL error 0x%X", err0);
 #elif defined(USE_GDI)
     canvas.SetMixCopy();
 #endif /* GDI */

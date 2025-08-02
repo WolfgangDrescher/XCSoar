@@ -3,7 +3,7 @@
 
 #include "ConfigChooser.hpp"
 #include "lib/fmt/RuntimeError.hxx"
-
+#include "LogFile.hpp"
 #ifdef MESA_KMS
 #include "ui/canvas/egl/GBM.hpp"
 #endif
@@ -21,9 +21,11 @@ GetConfigAttrib(EGLDisplay display, EGLConfig config,
                 int attribute, int default_value) noexcept
 {
   int value;
-  return eglGetConfigAttrib(display, config, attribute, &value)
+  int a =  eglGetConfigAttrib(display, config, attribute, &value)
     ? value
     : default_value;
+	GLenum err0 = glGetError(); if (err0 != GL_NO_ERROR) LogFormat("GFGF OpenGL error 0x%X", err0);
+	return a;
 }
 
 [[gnu::pure]]
@@ -110,8 +112,10 @@ FindConfigWithAttribute(EGLDisplay display,
   for (EGLint i = 0; i < num_configs; ++i) {
     EGLint value;
     if (eglGetConfigAttrib(display, configs[i], attribute, &value) &&
-        value == expected_value)
-      return i;
+        value == expected_value) {
+GLenum err0 = glGetError(); if (err0 != GL_NO_ERROR) LogFormat("GHGH OpenGL error 0x%X", err0);
+			return i;
+		}
   }
 
   return -1;

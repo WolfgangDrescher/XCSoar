@@ -31,7 +31,9 @@ TopWindow::CancelMode() noexcept
 void
 TopWindow::Refresh() noexcept
 {
+GLenum errA = glGetError(); if (errA != GL_NO_ERROR) LogFormat("4444 SDL error 0x%X", errA);
   EventQueue::HandlePaintMessages();
+  GLenum errB = glGetError(); if (errB != GL_NO_ERROR) LogFormat("3333 SDL error 0x%X", errB);
 }
 
 bool
@@ -89,8 +91,10 @@ TopWindow::RunEventLoop() noexcept
 {
   EventLoop loop(*event_queue);
   Event event;
-  while (loop.Get(event))
-    loop.Dispatch(event);
+  while (loop.Get(event)) {
+	GLenum err5 = glGetError(); if (err5 != GL_NO_ERROR) LogFormat("JJJJ SDL error 0x%X", err5);
+	  loop.Dispatch(event);
+  }
 
   return event.msg.wParam;
 }

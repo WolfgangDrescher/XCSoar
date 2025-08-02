@@ -78,8 +78,10 @@ int main([[maybe_unused]] int argc, [[maybe_unused]] char **argv)
   TestThread thread(notify);
   thread.Start();
 
-  while (!quit && loop.Get(event))
-    loop.Dispatch(event);
+  while (!quit && loop.Get(event)) {
+		GLenum err5 = glGetError(); if (err5 != GL_NO_ERROR) LogFormat("KKKK SDL error 0x%X", err5);
+	  loop.Dispatch(event);
+  }
 
   ok1(quit);
 
