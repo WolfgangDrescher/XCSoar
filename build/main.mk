@@ -659,6 +659,8 @@ XCSOAR_SOURCES += \
 	$(SRC)/Apple/KeyboardDetection.cpp \
 	$(SRC)/Device/SmartDeviceSensors.cpp
 	$(SRC)/Device/AndroidSensors.cpp \
+	$(SRC)/Device/Port/AppleBluetoothPort.cpp \
+	$(SRC)/Device/Port/ApplePort.cpp \
 	$(SRC)/Apple/BluetoothHelper.mm \
 	$(SRC)/Apple/NativeDetectDeviceListener.mm \
 	$(SRC)/Apple/NativePortListener.cpp \
