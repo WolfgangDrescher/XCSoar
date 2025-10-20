@@ -6,6 +6,7 @@
 #include <TargetConditionals.h>
 #include "LogFile.hpp"
 #include "Services.hpp"
+#include "BluetoothHelper.hpp"
 #include "thread/Mutex.hxx"
 #import <AVFoundation/AVFoundation.h>
 
@@ -93,6 +94,12 @@ InitializeAppleServices()
 {
 #if TARGET_OS_IPHONE
   ActivateAudioSession();
+
+  // Setup bluetooth helper
+  bluetooth_helper = CreateBluetoothHelper();
+  if (!bluetooth_helper->HasBluetoothSupport()) {
+    bluetooth_helper = nullptr;
+  }
 #endif
 }
 
@@ -109,6 +116,12 @@ DeinitializeAppleServices()
   if (error) {
     LogFmt("AVAudioSession deinitialize error: {}",
            [[error localizedDescription] UTF8String]);
+  }
+
+  // Deinitialize bluetooth helper
+  if (bluetooth_helper) {
+    delete bluetooth_helper;
+    bluetooth_helper = nullptr;
   }
 #endif
 }

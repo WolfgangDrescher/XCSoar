@@ -668,6 +668,10 @@ XCSOAR_SOURCES += \
 	$(SRC)/Apple/PortBridge.cpp \
 	$(SRC)/Apple/Main.cpp \
 	$(SRC)/Apple/InternalSensors.cpp
+	$(SRC)/Apple/Services.cpp \
+	$(SRC)/Apple/SoundUtil.cpp \
+	$(SRC)/Apple/InternalSensors.cpp \
+	$(SRC)/Device/SmartDeviceSensors.cpp
 endif
 
 ifeq ($(TARGET),ANDROID)
