@@ -255,6 +255,12 @@ Install the required Homebrew packages via the provisioning script::
 
 Note that you always need to install the BASE packages and the specific IOS or MACOS packages.
 
+For iOS signing (only required if you want to debug on a real iPhone),
+create a file named `.env` in the project root containing::
+
+  PROFILE_PATH="/path/to/profile.mobileprovision"
+  CERTIFICATE_NAME="Apple Development: Your Name (XXXXXXXXXX)"
+
 To compile for iOS / AArch64, run::
 
   make TARGET=IOS64 ipa

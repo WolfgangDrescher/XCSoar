@@ -72,7 +72,9 @@ if [ "$TARGET" = "IOS64" ]; then
     echo "Signing iOS build..."
     if [ -f ".env" ]; then
         echo "Sourcing environment variables from $(pwd)/.env..."
+        set -a
         source .env
+        set +a
     else
         echo "No .env file found at $(pwd)/.env, skipping environment variable sourcing."
     fi
