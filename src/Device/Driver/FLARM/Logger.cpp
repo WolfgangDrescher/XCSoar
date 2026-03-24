@@ -8,9 +8,12 @@
 #include "io/BufferedOutputStream.hxx"
 #include "system/Path.hpp"
 #include "Operation/Operation.hpp"
+#include "LogFile.hpp"
+#include "time/TimeoutClock.hpp"
 
 #include <cstdlib>
 #include <cstring>
+#include <exception>
 
 static bool
 ParseDate(const char *str, BrokenDate &date)
@@ -249,7 +252,7 @@ FlarmDevice::SelectFlight(uint8_t record_number, OperationEnvironment &env)
 
   // Wait for an answer
   return WaitForACKOrNACK(header.sequence_number,
-                          env, std::chrono::seconds(1));
+                          env, std::chrono::seconds(5));
 }
 
 bool
@@ -290,31 +293,103 @@ FlarmDevice::DownloadFlight(Path path, OperationEnvironment &env)
   FileOutputStream fos(path);
   BufferedOutputStream os(fos);
 
+  constexpr auto total_download_timeout = std::chrono::minutes(2);
+  constexpr auto packet_timeout = std::chrono::seconds(10);
+  constexpr unsigned max_packet_retries = 3;
+  const TimeoutClock total_timeout(total_download_timeout);
+  unsigned last_progress = 0;
   env.SetProgressRange(100);
   while (true) {
-    // Create header for getting IGC file data
-    FLARM::FrameHeader header = PrepareFrameHeader(FLARM::MessageType::GETIGCDATA);
+    if (total_timeout.GetRemainingOrZero() <=
+        std::chrono::steady_clock::duration::zero()) {
+      LogFormat("FLARM download total timeout exceeded (%us)",
+                (unsigned)std::chrono::duration_cast<std::chrono::seconds>(
+                    total_download_timeout).count());
+      throw DeviceTimeout{"FLARM total download timeout"};
+    }
 
-    // Send request
-    SendStartByte();
-    SendFrameHeader(header, env, std::chrono::seconds(1));
-
-    // Wait for an answer and save the payload for further processing
     AllocatedArray<std::byte> data;
     uint16_t length;
-    bool ack = WaitForACKOrNACK(header.sequence_number, data,
-                                length, env,
-                                std::chrono::seconds(10)) == FLARM::MessageType::ACK;
+    FLARM::MessageType ack_result = FLARM::MessageType::ERROR;
+    unsigned retry_count = 0;
+    uint16_t request_sequence = 0;
+    while (retry_count < max_packet_retries) {
+      const auto total_remaining = total_timeout.GetRemainingOrZero();
+      if (total_remaining <= std::chrono::steady_clock::duration::zero()) {
+        LogFormat("FLARM download total timeout reached before request");
+        throw DeviceTimeout{"FLARM total download timeout"};
+      }
 
-    // If no ACK was received
-    if (!ack || length <= 3)
+      const auto wait_timeout = std::min(
+          std::chrono::duration_cast<std::chrono::steady_clock::duration>(
+              packet_timeout),
+          total_remaining);
+
+      // Sequence number shall increase for every transmitted frame.
+      FLARM::FrameHeader header =
+        PrepareFrameHeader(FLARM::MessageType::GETIGCDATA);
+      request_sequence = header.sequence_number;
+      LogFormat("FLARM download request: seq=%u retry=%u/%u wait_timeout=%us total_remaining=%us",
+                (unsigned)request_sequence,
+                retry_count + 1, max_packet_retries,
+                (unsigned)std::chrono::duration_cast<std::chrono::seconds>(
+                    wait_timeout).count(),
+                (unsigned)std::chrono::duration_cast<std::chrono::seconds>(
+                    total_remaining).count());
+
+      SendStartByte();
+      SendFrameHeader(header, env, std::chrono::seconds(1));
+
+      try {
+        ack_result = WaitForACKOrNACK(header.sequence_number, data,
+                                      length, env,
+                                      wait_timeout);
+      } catch (const DeviceTimeout &e) {
+        ++retry_count;
+        LogFormat("FLARM download packet timeout: seq=%u retry=%u/%u timeout=%us total_remaining=%us: %s",
+                  (unsigned)request_sequence,
+                  retry_count, max_packet_retries,
+                  (unsigned)std::chrono::duration_cast<std::chrono::seconds>(
+                      wait_timeout).count(),
+                  (unsigned)std::chrono::duration_cast<std::chrono::seconds>(
+                      total_timeout.GetRemainingOrZero()).count(),
+                  e.what());
+        if (retry_count < max_packet_retries)
+          continue;
+
+        throw;
+      }
+
+      if (ack_result == FLARM::MessageType::ACK && length > 3)
+        break;
+
+      ++retry_count;
+      LogFormat("FLARM download packet failed: seq=%u ack=%u length=%u retry=%u/%u",
+                (unsigned)request_sequence,
+                (unsigned)ack_result,
+                (unsigned)length,
+                retry_count, max_packet_retries);
+      if (retry_count < max_packet_retries) {
+        LogFormat("FLARM download packet retrying with new seq (previous=%u)",
+                  (unsigned)request_sequence);
+        continue;
+      }
+
       return false;
+    }
 
     length -= 3;
 
     // Read progress (in percent)
     const auto progress = static_cast<unsigned>(data[2]);
     env.SetProgressPosition(std::min(progress, 100u));
+    if (progress != last_progress) {
+      LogFormat("FLARM download progress: %u%% (seq=%u payload=%u)",
+                progress,
+                (unsigned)request_sequence,
+                (unsigned)length);
+      last_progress = progress;
+    }
 
     const char last_char = (char)data.back();
     bool is_last_packet = (last_char == 0x1A);
@@ -351,7 +426,21 @@ FlarmDevice::DownloadFlight(const RecordedFlightInfo &flight,
   try {
     if (DownloadFlight(path, env))
       return true;
+    LogFormat("FLARM download failed without exception for record=%u",
+              (unsigned)flight.internal.flarm);
+  } catch (const DeviceTimeout &e) {
+    LogFormat("FLARM download timeout for record=%u: %s",
+              (unsigned)flight.internal.flarm, e.what());
+    mode = Mode::UNKNOWN;
+    throw;
+  } catch (const std::exception &e) {
+    LogFormat("FLARM download exception for record=%u: %s",
+              (unsigned)flight.internal.flarm, e.what());
+    mode = Mode::UNKNOWN;
+    throw;
   } catch (...) {
+    LogFormat("FLARM download unknown exception for record=%u",
+              (unsigned)flight.internal.flarm);
     mode = Mode::UNKNOWN;
     throw;
   }

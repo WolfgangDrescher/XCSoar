@@ -20,8 +20,14 @@ ApplePort::ApplePort(PortListener *_listener, DataHandler &_handler,
 ApplePort::~ApplePort() noexcept
 {
   assert(bridge != nullptr);
-// TODO
-//   delete bridge;
+
+  // RX callbacks may still arrive asynchronously from CoreBluetooth.
+  // Detach listeners before this Port object is destroyed.
+  bridge->setInputListener(nullptr);
+  bridge->setListener(nullptr);
+
+  // The bridge is currently owned by IOSBluetoothManager connection maps.
+  // Deleting it here may race with in-flight callbacks.
 }
 
 PortState

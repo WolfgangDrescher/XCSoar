@@ -18,5 +18,8 @@
 @property(nonatomic, strong, nullable) NSString *pendingConnectionAddress;
 
 - (BOOL)writeData:(nonnull NSData *)data toDeviceAddress:(nonnull NSString *)address;
+- (int)portStateForDeviceAddress:(nonnull NSString *)address;
+- (BOOL)drainWritesForDeviceAddress:(nonnull NSString *)address
+                          timeoutMs:(NSUInteger)timeoutMs;
 
 @end

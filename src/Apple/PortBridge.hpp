@@ -7,8 +7,10 @@
 #include "LogFile.hpp"
 #include "NativeInputListener.hpp"
 #include "NativePortListener.hpp"
+#include <atomic>
 #include <cstddef>
 #include <span>
+#include <string>
 
 class PortBridge {
 public:
@@ -18,23 +20,19 @@ public:
   void setInputListener(DataHandler *handler);
   DataHandler *getInputListener();
 
-  int getState() { return static_cast<int>(PortState::READY); }
+  int getState();
 
-  bool drain() { return true; }
+  bool drain();
 
-  int getBaudRate() const { return -1; }
+  int getBaudRate() const;
 
-  bool setBaudRate(int baud_rate)
-  {
-    (void)baud_rate;
-    return false;
-  }
+  bool setBaudRate(int baud_rate);
 
   virtual std::size_t write(std::span<const std::byte> src);
 
 private:
-  const PortListener *portListener;
-  DataHandler *inputListener;
+  std::atomic<PortListener *> portListener{nullptr};
+  std::atomic<DataHandler *> inputListener{nullptr};
   std::string deviceAddress;
 };
 

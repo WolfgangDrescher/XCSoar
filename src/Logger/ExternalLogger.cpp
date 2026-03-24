@@ -27,6 +27,10 @@
 #include "time/BrokenDate.hpp"
 #include "Interface.hpp"
 #include "net/client/WeGlide/UploadIGCFile.hpp"
+#include "LogFile.hpp"
+
+#include <cassert>
+#include <exception>
 
 
 class DeclareJob {
@@ -242,6 +246,8 @@ ExternalLogger::DownloadFlightFrom(DeviceDescriptor &device)
 {
   MessageOperationEnvironment env;
 
+  assert(device.IsBorrowed());
+
   // Download the list of flights that the logger contains
   RecordedFlightList flight_list;
 
@@ -251,6 +257,8 @@ ExternalLogger::DownloadFlightFrom(DeviceDescriptor &device)
       break;
 
     case TriStateJobResult::ERROR:
+      LogFormat("%s: Failed to download flight list [1] (DoReadFlightList returned ERROR)",
+                __func__);
       ShowMessageBox(_("Failed to download flight list."),
                      _("Download flight"), MB_OK | MB_ICONERROR);
       return;
@@ -261,6 +269,8 @@ ExternalLogger::DownloadFlightFrom(DeviceDescriptor &device)
   } catch (OperationCancelled) {
     return;
   } catch (...) {
+    LogFormat("%s: Failed to download flight list [2] (exception in DoReadFlightList)",
+              __func__);
     ShowError(_("Failed to download flight list."),
               std::current_exception(),
               _("Download flight"));
@@ -292,6 +302,8 @@ ExternalLogger::DownloadFlightFrom(DeviceDescriptor &device)
         break;
 
       case TriStateJobResult::ERROR:
+        LogFormat("%s: Failed to download flight [3] (TriStateJobResult ERROR)",
+                  __func__);
         ShowMessageBox(_("Failed to download flight."),
                        _("Download flight"), MB_OK | MB_ICONERROR);
         continue;
@@ -301,7 +313,16 @@ ExternalLogger::DownloadFlightFrom(DeviceDescriptor &device)
       }
     } catch (OperationCancelled) {
       continue;
+    } catch (const std::exception &e) {
+      LogFormat("%s: Failed to download flight [4] (catch std::exception): %s",
+                __func__, e.what());
+      ShowError(_("Failed to download flight."),
+                std::current_exception(),
+                _("Download flight"));
+      continue;
     } catch (...) {
+      LogFormat("%s: Failed to download flight [4] (catch)",
+                __func__);
       ShowError(_("Failed to download flight."),
                 std::current_exception(),
                 _("Download flight"));

@@ -7,6 +7,7 @@
 #include "Device/Port/Port.hpp"
 #include "time/TimeoutClock.hpp"
 #include "util/SpanCast.hxx"
+#include "LogFile.hpp"
 
 #include <algorithm> // for std::find_if()
 
@@ -202,17 +203,29 @@ FlarmDevice::WaitForACKOrNACK(uint16_t sequence_number,
   // Receive frames until timeout or expected frame found
   while (!timeout.HasExpired()) {
     // Wait until the next start byte comes around
-    WaitForStartByte(env, timeout.GetRemainingOrZero());
+    try {
+      WaitForStartByte(env, timeout.GetRemainingOrZero());
+    } catch (const DeviceTimeout &e) {
+      LogFormat("FLARM ACK wait timeout while waiting for start byte: seq=%u: %s",
+                (unsigned)sequence_number, e.what());
+      throw;
+    }
 
     // Read the following FrameHeader
     FLARM::FrameHeader header;
-    if (!ReceiveFrameHeader(header, env, timeout.GetRemainingOrZero()))
+    if (!ReceiveFrameHeader(header, env, timeout.GetRemainingOrZero())) {
+      LogFormat("FLARM ACK wait: invalid frame header for seq=%u",
+                (unsigned)sequence_number);
       continue;
+    }
 
     // Read and check length of the FrameHeader
     length = header.length;
-    if (length <= sizeof(header))
+    if (length <= sizeof(header)) {
+      LogFormat("FLARM ACK wait: invalid frame length=%u for seq=%u",
+                (unsigned)length, (unsigned)sequence_number);
       continue;
+    }
 
     // Calculate payload length
     length -= sizeof(header);
@@ -220,28 +233,60 @@ FlarmDevice::WaitForACKOrNACK(uint16_t sequence_number,
     // Read payload and check length
     data.GrowDiscard(length);
     if (!ReceiveEscaped({data.data(), length},
-                        env, timeout.GetRemainingOrZero()))
+                        env, timeout.GetRemainingOrZero())) {
+      LogFormat("FLARM ACK wait: payload decode failed (seq=%u, header_seq=%u, type=%u, payload_len=%u)",
+                (unsigned)sequence_number,
+                (unsigned)header.sequence_number,
+                (unsigned)header.type,
+                (unsigned)length);
       continue;
+    }
 
     // Verify CRC
-    if (header.crc != FLARM::CalculateCRC(header, {data.data(), length}))
+    if (header.crc != FLARM::CalculateCRC(header, {data.data(), length})) {
+      LogFormat("FLARM ACK wait: CRC mismatch (seq=%u, header_seq=%u, type=%u, payload_len=%u)",
+                (unsigned)sequence_number,
+                (unsigned)header.sequence_number,
+                (unsigned)header.type,
+                (unsigned)length);
       continue;
+    }
 
     // Check message type
     if (header.type != FLARM::MessageType::ACK &&
-        header.type != FLARM::MessageType::NACK)
+        header.type != FLARM::MessageType::NACK) {
+      LogFormat("FLARM ACK wait: unexpected message type=%u (seq=%u, header_seq=%u, payload_len=%u)",
+                (unsigned)header.type,
+                (unsigned)sequence_number,
+                (unsigned)header.sequence_number,
+                (unsigned)length);
       continue;
+    }
 
     // Check payload length
-    if (length < 2)
+    if (length < 2) {
+      LogFormat("FLARM ACK wait: payload too short=%u (seq=%u, header_seq=%u, type=%u)",
+                (unsigned)length,
+                (unsigned)sequence_number,
+                (unsigned)header.sequence_number,
+                (unsigned)header.type);
       continue;
+    }
 
     // Check whether the received ACK is for the right sequence number
-    if (FromLE16(*((const uint16_t *)(const void *)data.data())) ==
-        sequence_number)
+    const uint16_t ack_sequence =
+      FromLE16(*((const uint16_t *)(const void *)data.data()));
+    if (ack_sequence == sequence_number)
       return (FLARM::MessageType)header.type;
+
+    LogFormat("FLARM ACK wait: sequence mismatch expected=%u got=%u type=%u payload_len=%u",
+              (unsigned)sequence_number,
+              (unsigned)ack_sequence,
+              (unsigned)header.type,
+              (unsigned)length);
   }
 
+  LogFormat("FLARM ACK wait: expired without match for seq=%u", (unsigned)sequence_number);
   return FLARM::MessageType::ERROR;
 }
 
