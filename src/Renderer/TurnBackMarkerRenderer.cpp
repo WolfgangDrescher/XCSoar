@@ -11,6 +11,7 @@
 #include "Geo/Math.hpp"
 #include "Screen/Layout.hpp"
 #include "Math/Screen.hpp"
+#include "Math/Util.hpp"
 #include "Computer/Settings.hpp"
 #include <cmath>
 
@@ -132,15 +133,39 @@ TurnBackMarkerRenderer::Draw(Canvas &canvas,
   }
 
   // --- Draw the TBM Symbol ---
-  BulkPixelPoint triangle[3];
-  triangle[0].x = 0;                      triangle[0].y = -Layout::Scale(5);
-  triangle[1].x = -Layout::Scale(4);      triangle[1].y = Layout::Scale(3);
-  triangle[2].x = Layout::Scale(4);       triangle[2].y = Layout::Scale(3);
+  // Track-local coords: -Y is ahead on track, +Y is toward the aircraft.
+  // Green bar at the limit, filled chevron aft, red bar ahead.
+  const int bar_half = Layout::Scale(4);
+  const int chev_spread = Layout::Scale(3);
+  // Equilateral triangle: depth = half-base * sqrt(3)
+  const int chev_depth = iround(double(chev_spread) * 1.7320508075688772);
+  const int far_gap = Layout::Scale(1);
 
-  PolygonRotateShift(std::span<BulkPixelPoint>(triangle, 3), *tbm_screen,
-                     basic.track - projection.GetScreenAngle());
+  BulkPixelPoint bar[2] = {
+    { -bar_half, 0 },
+    { bar_half, 0 },
+  };
+  BulkPixelPoint far_bar[2] = {
+    { -bar_half, -far_gap },
+    { bar_half, -far_gap },
+  };
+  BulkPixelPoint chev[3] = {
+    { 0, 0 },
+    { -chev_spread, chev_depth },
+    { chev_spread, chev_depth },
+  };
+
+  const Angle angle = basic.track - projection.GetScreenAngle();
+  PolygonRotateShift(std::span<BulkPixelPoint>(bar, 2), *tbm_screen, angle);
+  PolygonRotateShift(std::span<BulkPixelPoint>(far_bar, 2), *tbm_screen, angle);
+  PolygonRotateShift(std::span<BulkPixelPoint>(chev, 3), *tbm_screen, angle);
 
   canvas.Select(look.tbm_pen);
+  canvas.DrawLine(bar[0], bar[1]);
+
   canvas.Select(look.tbm_brush);
-  canvas.DrawPolygon(triangle, 3);
+  canvas.DrawPolygon(chev, 3);
+
+  canvas.Select(look.tbm_far_pen);
+  canvas.DrawLine(far_bar[0], far_bar[1]);
 }

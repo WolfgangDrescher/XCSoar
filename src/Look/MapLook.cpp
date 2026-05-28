@@ -58,6 +58,7 @@ MapLook::Initialise(const MapSettings &settings,
   // Create green pen and brush for the Turn Back Marker (TBM)
   tbm_pen.Create(Layout::ScalePenWidth(2), HasColors() ? COLOR_GREEN : COLOR_BLACK);
   tbm_brush.Create(HasColors() ? COLOR_GREEN : COLOR_BLACK);
+  tbm_far_pen.Create(Layout::ScalePenWidth(2), HasColors() ? COLOR_RED : COLOR_BLACK);
 
   contest_pens[0].Create(Layout::ScalePenWidth(1) + 2, COLOR_RED);
   contest_pens[1].Create(Layout::ScalePenWidth(1) + 1, COLOR_ORANGE);

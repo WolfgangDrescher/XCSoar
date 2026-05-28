@@ -14,7 +14,7 @@ struct ComputerSettings;
 
 /**
  * Renderer for the Turn Back Marker (TBM)
- * Displays a green triangle on the track line at the point where
+ * Displays a |< mark on the track line at the point where
  * the aircraft would reach zero altitude difference to the task.
  */
 class TurnBackMarkerRenderer {

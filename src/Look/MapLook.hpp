@@ -63,6 +63,7 @@ struct MapLook {
   /** Pen and brush for the Turn Back Marker (TBM) */
   Pen tbm_pen;
   Brush tbm_brush;
+  Pen tbm_far_pen;
 
   Pen contest_pens[3];
 
