@@ -39,6 +39,9 @@ struct InfoBoxLook {
   Font title_font;
   Font title_font_bold;
 
+  /** Smaller variant used by the OVERLAY border style. */
+  Font small_title_font;
+
   Color colors[6];
 
   void Initialise(bool inverse, bool use_colors,

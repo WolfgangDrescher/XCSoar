@@ -128,6 +128,7 @@ struct InfoBoxSettings {
     TAB,
     SHADED,
     GLASS,
+    OVERLAY,
   } border_style;
 
   Panel panels[MAX_PANELS];
