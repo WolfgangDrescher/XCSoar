@@ -3,6 +3,11 @@
 
 #include "GlassRenderer.hpp"
 #include "ui/canvas/Canvas.hpp"
+#include "ui/canvas/Brush.hpp"
+#include "ui/canvas/Pen.hpp"
+#include "ui/canvas/Util.hpp"
+#include "ui/canvas/Color.hpp"
+#include "Screen/Layout.hpp"
 
 #if defined(EYE_CANDY) && defined(ENABLE_OPENGL)
 
@@ -12,6 +17,10 @@
 
 #include <algorithm>
 
+#endif
+
+#ifdef ENABLE_OPENGL
+#include "ui/canvas/opengl/Scope.hpp"
 #endif
 
 void
@@ -51,5 +60,30 @@ DrawGlassBackground(Canvas &canvas, const PixelRect &rc, Color color) noexcept
                 "Array size mismatch");
 
   glDrawArrays(GL_TRIANGLE_STRIP, 0, ARRAY_SIZE(vertices));
+#endif
+}
+
+void
+DrawRoundedDarkBackground(Canvas &canvas, const PixelRect &rc,
+                          Color bg_color) noexcept
+{
+  const int margin = Layout::Scale(2);
+  PixelRect inner = rc;
+  inner.left += margin;
+  inner.right -= margin;
+  inner.top += margin;
+  inner.bottom -= margin;
+
+  const unsigned radius = Layout::Scale(4);
+
+#ifdef ENABLE_OPENGL
+  const ScopeAlphaBlend alpha_blend;
+  canvas.Select(Brush(bg_color));
+  canvas.Select(Pen(0, COLOR_BLACK));
+  RoundRect(canvas, inner, radius);
+#else
+  canvas.Select(Brush(bg_color));
+  canvas.Select(Pen(0, COLOR_BLACK));
+  RoundRect(canvas, inner, radius);
 #endif
 }

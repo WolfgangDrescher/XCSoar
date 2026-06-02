@@ -137,6 +137,14 @@ private:
   BatteryTimer battery_timer;
 
   PixelRect map_rect;
+
+  /**
+   * The area used for overlays (popup, buttons) — equals map_rect
+   * normally, but in OVERLAY InfoBox mode is the non-InfoBox area so
+   * that overlays don't end up behind the floating boxes.
+   */
+  PixelRect overlay_rect{0, 0, 0, 0};
+
   bool FullScreen = false;
 
   /**
@@ -272,12 +280,20 @@ private:
   }
 
   /**
-   * The visible #GlueMapWindow area.  After layout, this is
-   * #GlueMapWindow::GetPosition(); otherwise it is computed from
-   * #GetMainRect() and top/bottom widgets.
+   * The area available for map overlay elements (buttons, popups):
+   * the non-InfoBox area once the layout has been calculated;
+   * otherwise it is computed from #GetMainRect() and top/bottom
+   * widgets.
    */
   [[gnu::pure]]
   PixelRect GetMapAreaRect() const noexcept;
+
+  /**
+   * The main rect clipped to the non-InfoBox area: where overlay
+   * elements (popups, gauges) may be placed.
+   */
+  [[gnu::pure]]
+  PixelRect GetOverlayFreeRect() const noexcept;
 
   /**
    * Move top/bottom widgets and the map into the area returned by

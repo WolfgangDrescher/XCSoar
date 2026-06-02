@@ -166,6 +166,7 @@ protected:
   bool OnMouseDouble(PixelPoint p) noexcept override;
   bool OnMouseMove(PixelPoint p, unsigned keys) noexcept override;
 
-  /* methods from class LazyPaintWindow */
+  /* methods from class PaintWindow / LazyPaintWindow */
+  void OnPaint(Canvas &canvas) noexcept override;
   void OnPaintBuffer(Canvas &canvas) noexcept override;
 };

@@ -261,10 +261,28 @@ ComputeMapAreaRect(const PixelRect &main_rect,
 PixelRect
 MainWindow::GetMapAreaRect() const noexcept
 {
-  if (map != nullptr)
-    return map->GetPosition();
+  /* overlay_rect is set as soon as the layout has been calculated,
+     which happens before the map window is created; use it also for
+     the overlay buttons created during InitialiseConfigured() */
+  if (overlay_rect.GetWidth() > 0)
+    return overlay_rect;
 
   return ComputeMapAreaRect(GetMainRect(), top_widget, bottom_widget);
+}
+
+PixelRect
+MainWindow::GetOverlayFreeRect() const noexcept
+{
+  /* intersection of the main rect (excludes top/bottom widgets) and
+     the non-InfoBox area, so overlay elements stay clear of both */
+  PixelRect rc = GetMainRect();
+  if (!FullScreen && overlay_rect.GetWidth() > 0) {
+    rc.left = std::max(rc.left, overlay_rect.left);
+    rc.top = std::max(rc.top, overlay_rect.top);
+    rc.right = std::min(rc.right, overlay_rect.right);
+    rc.bottom = std::min(rc.bottom, overlay_rect.bottom);
+  }
+  return rc;
 }
 
 void
@@ -335,38 +353,38 @@ MainWindow::UpdateMapOverlayButtonLayout() noexcept
     show_menu_button->SetVisible(overlay_buttons_active);
     show_menu_button->SetEnabled(overlay_buttons_active);
     if (overlay_buttons_active)
-      show_menu_button->Move(GetShowMenuButtonRect(map->GetPosition()));
+      show_menu_button->Move(GetShowMenuButtonRect(GetMapAreaRect()));
   }
   if (show_quickmenu_button != nullptr) {
     show_quickmenu_button->SetVisible(overlay_buttons_active);
     show_quickmenu_button->SetEnabled(overlay_buttons_active);
     if (overlay_buttons_active)
-      show_quickmenu_button->Move(GetShowQuickMenuButtonRect(map->GetPosition()));
+      show_quickmenu_button->Move(GetShowQuickMenuButtonRect(GetMapAreaRect()));
   }
   if (show_zoom_out_button != nullptr) {
     show_zoom_out_button->SetVisible(overlay_buttons_active);
     show_zoom_out_button->SetEnabled(overlay_buttons_active);
     if (overlay_buttons_active)
-      show_zoom_out_button->Move(GetShowZoomButtonRect(map->GetPosition(),
+      show_zoom_out_button->Move(GetShowZoomButtonRect(GetMapAreaRect(),
                                                        ShowZoomButton::Sign::ZOOM_OUT));
   }
   if (show_zoom_in_button != nullptr) {
     show_zoom_in_button->SetVisible(overlay_buttons_active);
     show_zoom_in_button->SetEnabled(overlay_buttons_active);
     if (overlay_buttons_active)
-      show_zoom_in_button->Move(GetShowZoomButtonRect(map->GetPosition(),
+      show_zoom_in_button->Move(GetShowZoomButtonRect(GetMapAreaRect(),
                                                       ShowZoomButton::Sign::ZOOM_IN));
   }
 
 #ifdef ANDROID
   if (show_rotate_button != nullptr && overlay_buttons_active)
-    show_rotate_button->Move(GetShowRotateButtonRect(map->GetPosition()));
+    show_rotate_button->Move(GetShowRotateButtonRect(GetMapAreaRect()));
 #endif
 
   if (map != nullptr)
     /* keep the north arrow clear of the overlay buttons */
     map->SetTopRightMargin(overlay_buttons_active
-                           ? GetMapOverlayTopRightWidth(map->GetPosition())
+                           ? GetMapOverlayTopRightWidth(GetMapAreaRect())
                            : 0);
 
   /* Newly created overlay buttons are added after the map; keep the map
@@ -479,18 +497,32 @@ MainWindow::InitialiseConfigured()
 
   PixelRect rc = GetClientRect();
 
+  const bool is_rounded =
+    ui_settings.info_boxes.border_style == InfoBoxSettings::BorderStyle::OVERLAY;
+  PixelRect ib_rc = rc;
+  if (is_rounded)
+    ib_rc.Grow(-Layout::Scale(2));
+
   const InfoBoxLayout::Layout ib_layout =
-    InfoBoxLayout::Calculate(rc, ui_settings.info_boxes.geometry);
+    InfoBoxLayout::Calculate(ib_rc, ui_settings.info_boxes.geometry);
 
   assert(look != nullptr);
   look->InitialiseConfigured(CommonInterface::GetUISettings(),
                              Fonts::map, Fonts::map_bold,
                              ib_layout.control_size.width);
 
+  /* overlay_rect = area for popups/buttons (non-InfoBox area); in OVERLAY
+     mode use the un-shrunk remaining area so overlays stay out of the
+     floating boxes */
+  const InfoBoxLayout::Layout overlay_layout = is_rounded
+    ? InfoBoxLayout::Calculate(rc, ui_settings.info_boxes.geometry)
+    : ib_layout;
   InfoBoxManager::Create(*this, ib_layout, look->info_box);
-  map_rect = ib_layout.remaining;
+  map_rect = is_rounded ? rc : ib_layout.remaining;
+  overlay_rect = is_rounded ? overlay_layout.remaining : map_rect;
 
   menu_bar = new MenuBar(*this, look->dialog.button);
+
 
   ReinitialiseLayout_vario(ib_layout);
   ReinitialiseLayoutTA(rc, ib_layout);
@@ -519,9 +551,22 @@ MainWindow::InitialiseConfigured()
   map->SetMapSettings(CommonInterface::GetMapSettings());
   map->SetUIState(CommonInterface::GetUIState());
   map->Create(*this, map_rect);
+  /* shrink by the visual box gap so overlays and aircraft centering
+     are relative to the inner edge of the rounded boxes, not the
+     InfoBox window edges; in other modes pass an empty rect so the
+     map uses its own client rect */
+  PixelRect content_rc{0, 0, 0, 0};
+  if (is_rounded) {
+    content_rc = overlay_rect;
+    content_rc.Grow(-Layout::Scale(4));
+    /* #GlueMapWindow draws in its own client coordinates starting at
+       (0,0), but overlay_rect is in MainWindow coordinates */
+    content_rc.Offset(-map_rect.left, -map_rect.top);
+  }
+  map->SetContentRect(content_rc);
 
   popup = new PopupMessage(*this, look->dialog, ui_settings);
-  popup->Create(map_rect);
+  popup->Create(overlay_rect);
 }
 
 void
@@ -619,6 +664,23 @@ MainWindow::ReinitialiseLayout_vario(const InfoBoxLayout::Layout &layout) noexce
   // XXX vario->BringToTop();
 }
 
+/**
+ * Shift the rectangle so it lies within the given bounds, keeping its
+ * size.
+ */
+static void
+ShiftRectInto(PixelRect &rc, const PixelRect &bounds) noexcept
+{
+  if (rc.right > bounds.right)
+    rc.Offset(bounds.right - rc.right, 0);
+  if (rc.left < bounds.left)
+    rc.Offset(bounds.left - rc.left, 0);
+  if (rc.bottom > bounds.bottom)
+    rc.Offset(0, bounds.bottom - rc.bottom);
+  if (rc.top < bounds.top)
+    rc.Offset(0, bounds.top - rc.top);
+}
+
 void
 MainWindow::ReinitialiseLayoutTA(PixelRect rc,
                                  const InfoBoxLayout::Layout &layout) noexcept
@@ -681,6 +743,12 @@ MainWindow::ReinitialiseLayoutTA(PixelRect rc,
     break;
   }
   rc.top = rc.bottom - dia;
+
+  if (CommonInterface::GetUISettings().info_boxes.border_style ==
+      InfoBoxSettings::BorderStyle::OVERLAY)
+    /* keep the gauge inside the non-InfoBox area */
+    ShiftRectInto(rc, GetOverlayFreeRect());
+
   thermal_assistant.Move(rc);
 }
 
@@ -705,17 +773,27 @@ MainWindow::ReinitialiseLayout() noexcept
 
   const UISettings &ui_settings = CommonInterface::GetUISettings();
 
+  const bool is_rounded =
+    ui_settings.info_boxes.border_style == InfoBoxSettings::BorderStyle::OVERLAY;
+  PixelRect ib_rc = rc;
+  if (is_rounded)
+    ib_rc.Grow(-Layout::Scale(2));
+
   const InfoBoxLayout::Layout ib_layout =
-    InfoBoxLayout::Calculate(rc, ui_settings.info_boxes.geometry);
+    InfoBoxLayout::Calculate(ib_rc, ui_settings.info_boxes.geometry);
 
   look->ReinitialiseLayout(ib_layout.control_size.width, ui_settings.info_boxes.scale_title_font);
 
+  const InfoBoxLayout::Layout overlay_layout2 = is_rounded
+    ? InfoBoxLayout::Calculate(rc, ui_settings.info_boxes.geometry)
+    : ib_layout;
   InfoBoxManager::Create(*this, ib_layout, look->info_box);
   InfoBoxManager::ProcessTimer();
-  map_rect = ib_layout.remaining;
+  map_rect = is_rounded ? rc : ib_layout.remaining;
+  overlay_rect = is_rounded ? overlay_layout2.remaining : map_rect;
 
   if (popup != nullptr)
-    popup->UpdateLayout(GetMainRect());
+    popup->UpdateLayout(GetOverlayFreeRect());
 
   ReinitialiseLayout_vario(ib_layout);
 
@@ -730,6 +808,14 @@ MainWindow::ReinitialiseLayout() noexcept
       InfoBoxManager::Show();
 
     LayoutMapArea();
+    PixelRect content_rc{0, 0, 0, 0};
+    if (is_rounded) {
+      content_rc = overlay_rect;
+      content_rc.Grow(-Layout::Scale(4));
+      const PixelRect map_position = map->GetPosition();
+      content_rc.Offset(-map_position.left, -map_position.top);
+    }
+    map->SetContentRect(content_rc);
     map->FullRedraw();
   }
 
@@ -850,6 +936,12 @@ MainWindow::ReinitialiseLayout_flarm(PixelRect rc,
 
   ++rc.top;
   ++rc.left;
+
+  if (CommonInterface::GetUISettings().info_boxes.border_style ==
+      InfoBoxSettings::BorderStyle::OVERLAY)
+    /* keep the gauge inside the non-InfoBox area */
+    ShiftRectInto(rc, GetOverlayFreeRect());
+
   traffic_gauge.Move(rc);
 }
 
@@ -1368,10 +1460,21 @@ MainWindow::SetFullScreen(bool _full_screen) noexcept
   if (map != nullptr) {
     LayoutMapArea();
     UpdateMapOverlayButtonLayout();
+
+    PixelRect content_rc{0, 0, 0, 0};
+    if (!FullScreen &&
+        CommonInterface::GetUISettings().info_boxes.border_style ==
+        InfoBoxSettings::BorderStyle::OVERLAY) {
+      content_rc = overlay_rect;
+      content_rc.Grow(-Layout::Scale(4));
+      const PixelRect map_position = map->GetPosition();
+      content_rc.Offset(-map_position.left, -map_position.top);
+    }
+    map->SetContentRect(content_rc);
   }
 
   if (popup != nullptr)
-    popup->UpdateLayout(GetMainRect());
+    popup->UpdateLayout(GetOverlayFreeRect());
 
   // the repaint will be triggered by the DrawThread
 
