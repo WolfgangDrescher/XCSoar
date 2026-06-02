@@ -124,6 +124,14 @@ private:
   BatteryTimer battery_timer;
 
   PixelRect map_rect;
+
+  /**
+   * The area used for overlays (popup, buttons) — equals map_rect
+   * normally, but in OVERLAY InfoBox mode is the non-InfoBox area so
+   * that overlays don't end up behind the floating boxes.
+   */
+  PixelRect overlay_rect;
+
   bool FullScreen = false;
 
 #ifndef ENABLE_OPENGL

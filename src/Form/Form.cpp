@@ -401,6 +401,13 @@ WndForm::ShowModal()
     loop.Dispatch(event);
   } // End Modal Loop
 
+  /* Hide the dialog immediately so it no longer appears in the
+     window Z-order as a visible full-screen window.  Without this,
+     WindowList::Paint's optimisation would skip the map and InfoBoxes
+     for any frame rendered before the caller destroys this WndForm,
+     resulting in a one-frame flash of the dialog background. */
+  Hide();
+
   main_window.RemoveDialog(this);
 
 #ifdef USE_WINUSER

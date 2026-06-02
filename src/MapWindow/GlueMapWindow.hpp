@@ -92,6 +92,14 @@ class GlueMapWindow : public MapWindow {
    */
   unsigned int bottom_margin = 0;
 
+  /**
+   * The usable content area for overlays and aircraft centering.
+   * Normally equals GetClientRect(), but in OVERLAY InfoBox mode it
+   * is the non-InfoBox region so that overlays and the aircraft
+   * position are relative to the visible map area only.
+   */
+  PixelRect content_rect{0, 0, 0, 0};
+
 #ifndef ENABLE_OPENGL
   /**
    * This mutex protects the attributes that are read by the
@@ -143,6 +151,12 @@ public:
   void SetBottomMargin(unsigned margin) noexcept;
 
   void SetBottomMarginFactor(unsigned margin_factor) noexcept;
+
+  /**
+   * Override the content rect used for HUD overlay placement and for
+   * aircraft centering.  Pass an empty rect to reset to GetClientRect().
+   */
+  void SetContentRect(PixelRect rc) noexcept;
 
   /**
    * Update the blackboard from DeviceBlackboard and

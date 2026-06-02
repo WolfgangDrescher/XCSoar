@@ -18,3 +18,11 @@ class Color;
  */
 void
 DrawGlassBackground(Canvas &canvas, const PixelRect &rc, Color color) noexcept;
+
+/**
+ * Draw a rounded semi-transparent background for "rounded" style InfoBoxes.
+ * @param bg_color  Base color of the box (should have an alpha < 255 on OpenGL).
+ */
+void
+DrawRoundedDarkBackground(Canvas &canvas, const PixelRect &rc,
+                          Color bg_color) noexcept;

@@ -277,6 +277,13 @@ GlueMapWindow::SetBottomMargin(unsigned margin) noexcept
 }
 
 void
+GlueMapWindow::SetContentRect(PixelRect rc) noexcept
+{
+  content_rect = rc;
+  QuickRedraw();
+}
+
+void
 GlueMapWindow::SetBottomMarginFactor(unsigned margin_factor) noexcept
 {
   if (follow_mode != FOLLOW_PAN || Layout::landscape) {

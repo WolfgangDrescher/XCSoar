@@ -8,6 +8,7 @@
 #include "Look/Colors.hpp"
 #include "Input/InputEvents.hpp"
 #include "Renderer/GlassRenderer.hpp"
+#include "ui/canvas/Brush.hpp"
 #include "Renderer/UnitSymbolRenderer.hpp"
 #include "Screen/Layout.hpp"
 #include "ui/canvas/Canvas.hpp"
@@ -51,14 +52,27 @@ InfoBoxWindow::PaintTitle(Canvas &canvas)
 
   if (settings.border_style == InfoBoxSettings::BorderStyle::SHADED)
     canvas.DrawFilledRectangle(title_rect, look.caption_background_color);
+  else if (settings.border_style == InfoBoxSettings::BorderStyle::OVERLAY)
+    ; /* no shaded title bar for rounded style */
 
   const bool is_selected = HasFocus() || dragging || force_draw_selector;
-  if (is_selected)
+  if (settings.border_style == InfoBoxSettings::BorderStyle::OVERLAY) {
+    if (data.title_color > 0)
+      canvas.SetTextColor(look.GetTitleColor(data.title_color));
+    else {
+      const Color label_color = look.inverse
+        ? Color(0xd8, 0xd8, 0xd8)
+        : Color(0x30, 0x30, 0x30);
+      canvas.SetTextColor(label_color);
+    }
+  } else if (is_selected)
     canvas.SetTextColor(look.title.fg_color);
   else
     canvas.SetTextColor(look.GetTitleColor(data.title_color));
 
-  const Font &font = is_selected ? look.title_font_bold : look.title_font;
+  const Font &font = (settings.border_style == InfoBoxSettings::BorderStyle::OVERLAY)
+    ? look.small_title_font
+    : (is_selected ? look.title_font_bold : look.title_font);
   canvas.Select(font);
 
   PixelSize tsize = canvas.CalcTextSize(data.title);
@@ -104,7 +118,15 @@ InfoBoxWindow::PaintValue(Canvas &canvas, [[maybe_unused]] Color background_colo
   if (data.value.empty())
     return;
 
-  canvas.SetTextColor(look.GetValueColor(data.value_color));
+  if (settings.border_style == InfoBoxSettings::BorderStyle::OVERLAY) {
+    /* use special colors (blue, green, etc.) if set; fall back to
+       readable gray for the default case */
+    if (data.value_color > 0)
+      canvas.SetTextColor(look.GetValueColor(data.value_color));
+    else
+      canvas.SetTextColor(look.inverse ? COLOR_WHITE : COLOR_BLACK);
+  } else
+    canvas.SetTextColor(look.GetValueColor(data.value_color));
 
   canvas.Select(look.value_font);
   int ascent_height = look.value_font.GetAscentHeight();
@@ -143,9 +165,21 @@ InfoBoxWindow::PaintComment(Canvas &canvas)
   if (data.comment.empty())
     return;
 
-  canvas.SetTextColor(look.GetCommentColor(data.comment_color));
+  if (settings.border_style == InfoBoxSettings::BorderStyle::OVERLAY) {
+    if (data.comment_color > 0)
+      canvas.SetTextColor(look.GetCommentColor(data.comment_color));
+    else {
+      const Color label_color = look.inverse
+        ? Color(0xd8, 0xd8, 0xd8)
+        : Color(0x30, 0x30, 0x30);
+      canvas.SetTextColor(label_color);
+    }
+  } else
+    canvas.SetTextColor(look.GetCommentColor(data.comment_color));
 
-  const Font &font = look.title_font;
+  const Font &font = (settings.border_style == InfoBoxSettings::BorderStyle::OVERLAY)
+    ? look.small_title_font
+    : look.title_font;
   canvas.Select(font);
 
   PixelSize tsize = canvas.CalcTextSize(data.comment);
@@ -166,9 +200,28 @@ InfoBoxWindow::Paint(Canvas &canvas)
     : (is_selected
        ? look.focused_background_color
        : look.background_color);
-  
+
   const PixelRect rc = GetClientRect();
-  if (settings.border_style == InfoBoxSettings::BorderStyle::GLASS)
+  if (settings.border_style == InfoBoxSettings::BorderStyle::OVERLAY) {
+#ifdef ENABLE_OPENGL
+    Color box_color;
+    if (pressed)
+      box_color = look.pressed_background_color.WithAlpha(0xe4);
+    else if (is_selected)
+      box_color = look.focused_background_color.WithAlpha(0xe4);
+    else if (look.inverse)
+      box_color = Color(0x28, 0x28, 0x28).WithAlpha(0xe4);
+    else
+      box_color = Color(0xf8, 0xf8, 0xf8).WithAlpha(0xe4);
+#else
+    const Color box_color = pressed
+      ? look.pressed_background_color
+      : (is_selected
+         ? look.focused_background_color
+         : (look.inverse ? Color(0x28, 0x28, 0x28) : Color(0xf8, 0xf8, 0xf8)));
+#endif
+    DrawRoundedDarkBackground(canvas, rc, box_color);
+  } else if (settings.border_style == InfoBoxSettings::BorderStyle::GLASS)
     DrawGlassBackground(canvas, rc, background_color);
   else
     canvas.DrawFilledRectangle(rc, background_color);
@@ -188,7 +241,8 @@ InfoBoxWindow::Paint(Canvas &canvas)
   PaintComment(canvas);
   PaintValue(canvas, background_color);
 
-  if (border_kind != 0) {
+  if (border_kind != 0 &&
+      settings.border_style != InfoBoxSettings::BorderStyle::OVERLAY) {
     canvas.Select(look.border_pen);
 
     const int width = canvas.GetWidth(),
@@ -302,17 +356,25 @@ InfoBoxWindow::OnResize(PixelSize new_size) noexcept
 
   PixelRect rc = GetClientRect();
 
-  if (border_kind & BORDERLEFT)
-    rc.left += look.border_width;
+  if (settings.border_style == InfoBoxSettings::BorderStyle::OVERLAY) {
+    const int m = Layout::Scale(2);
+    rc.left += m;
+    rc.right -= m;
+    rc.top += m;
+    rc.bottom -= m;
+  } else {
+    if (border_kind & BORDERLEFT)
+      rc.left += look.border_width;
 
-  if (border_kind & BORDERRIGHT)
-    rc.right -= look.border_width;
+    if (border_kind & BORDERRIGHT)
+      rc.right -= look.border_width;
 
-  if (border_kind & BORDERTOP)
-    rc.top += look.border_width;
+    if (border_kind & BORDERTOP)
+      rc.top += look.border_width;
 
-  if (border_kind & BORDERBOTTOM)
-    rc.bottom -= look.border_width;
+    if (border_kind & BORDERBOTTOM)
+      rc.bottom -= look.border_width;
+  }
 
   title_rect = rc;
   title_rect.bottom = rc.top + look.title_font.GetHeight();
@@ -443,6 +505,19 @@ InfoBoxWindow::OnMouseMove(PixelPoint p, [[maybe_unused]] unsigned keys) noexcep
   }
 
   return false;
+}
+
+void
+InfoBoxWindow::OnPaint(Canvas &canvas) noexcept
+{
+  if (settings.border_style == InfoBoxSettings::BorderStyle::OVERLAY) {
+    /* bypass the FBO buffer and paint directly onto the shared
+       framebuffer so the map shows through the gaps around the rounded box */
+    canvas.SetBackgroundTransparent();
+    Paint(canvas);
+  } else {
+    LazyPaintWindow::OnPaint(canvas);
+  }
 }
 
 void

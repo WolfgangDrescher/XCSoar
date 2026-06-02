@@ -33,7 +33,7 @@ InfoBoxSettings::SetDefaults() noexcept
 
   use_colors = true;
   theme = Theme::FOLLOW_GLOBAL;
-  border_style = BorderStyle::SHADED;
+  border_style = BorderStyle::OVERLAY;
 
   for (unsigned i = 0; i < MAX_PANELS; ++i)
     panels[i].Clear();

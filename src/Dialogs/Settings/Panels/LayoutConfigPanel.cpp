@@ -134,6 +134,8 @@ static constexpr StaticEnumChoice infobox_border_list[] = {
     N_("Shaded"), nullptr /* TODO: help text */ },
   { InfoBoxSettings::BorderStyle::GLASS,
     N_("Glass"), nullptr /* TODO: help text */ },
+  { InfoBoxSettings::BorderStyle::OVERLAY,
+    N_("Overlay"), N_("Semi-transparent rounded boxes floating over the map. Use Look > Screen Layout > Dark Mode to switch between a dark and a light box color.") },
   nullptr
 };
 

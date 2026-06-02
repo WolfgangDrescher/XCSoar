@@ -59,12 +59,15 @@ InfoBoxLook::ReinitialiseLayout(unsigned width, unsigned scale_title_font)
   border_pen.Create(border_width, border_color);
   unit_fraction_pen.Create(Layout::ScaleFinePenWidth(1), value.fg_color);
 
+  const unsigned title_max_width = (width * scale_title_font) / 100U;
   FontDescription title_font_d(8);
-  AutoSizeFont(title_font_d, (width * scale_title_font) / 100U,
-               "1234567890A");
-
+  AutoSizeFont(title_font_d, title_max_width, "1234567890A");
   title_font.Load(title_font_d);
   title_font_bold.Load(title_font_d.WithBold(true));
+
+  FontDescription small_title_font_d(7);
+  AutoSizeFont(small_title_font_d, title_max_width * 82 / 100, "1234567890A");
+  small_title_font.Load(small_title_font_d);
 
   FontDescription value_font_d(10, true);
   AutoSizeFont(value_font_d, width, "1234m");

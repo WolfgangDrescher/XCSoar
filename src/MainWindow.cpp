@@ -248,7 +248,7 @@ PixelRect
 MainWindow::GetMapAreaRect() const noexcept
 {
   if (map != nullptr)
-    return map->GetPosition();
+    return overlay_rect;
 
   return ComputeMapAreaRect(GetMainRect(), top_widget, bottom_widget);
 }
@@ -355,25 +355,39 @@ MainWindow::InitialiseConfigured()
 
   PixelRect rc = GetClientRect();
 
+  const bool is_rounded =
+    ui_settings.info_boxes.border_style == InfoBoxSettings::BorderStyle::OVERLAY;
+  PixelRect ib_rc = rc;
+  if (is_rounded)
+    ib_rc.Grow(-Layout::Scale(2));
+
   const InfoBoxLayout::Layout ib_layout =
-    InfoBoxLayout::Calculate(rc, ui_settings.info_boxes.geometry);
+    InfoBoxLayout::Calculate(ib_rc, ui_settings.info_boxes.geometry);
 
   assert(look != nullptr);
   look->InitialiseConfigured(CommonInterface::GetUISettings(),
                              Fonts::map, Fonts::map_bold,
                              ib_layout.control_size.width);
 
+  /* overlay_rect = area for popups/buttons (non-InfoBox area); in OVERLAY
+     mode use the un-shrunk remaining area so overlays stay out of the
+     floating boxes */
+  const InfoBoxLayout::Layout overlay_layout = is_rounded
+    ? InfoBoxLayout::Calculate(rc, ui_settings.info_boxes.geometry)
+    : ib_layout;
   InfoBoxManager::Create(*this, ib_layout, look->info_box);
-  map_rect = ib_layout.remaining;
+  map_rect = is_rounded ? rc : ib_layout.remaining;
+  overlay_rect = is_rounded ? overlay_layout.remaining : map_rect;
 
   menu_bar = new MenuBar(*this, look->dialog.button);
+
 
   ReinitialiseLayout_vario(ib_layout);
   ReinitialiseLayoutTA(rc, ib_layout);
   ReinitialiseLayout_flarm(rc, ib_layout);
 
   const UISettings &settings = CommonInterface::GetUISettings();
-  const PixelRect map_area_rect = GetMapAreaRect();
+  const PixelRect map_area_rect = overlay_rect;
 
   if (settings.show_menu_button) {
     show_menu_button = new ShowMenuButton();
@@ -412,9 +426,16 @@ MainWindow::InitialiseConfigured()
   map->SetMapSettings(CommonInterface::GetMapSettings());
   map->SetUIState(CommonInterface::GetUIState());
   map->Create(*this, map_rect);
+  /* shrink by the visual box gap so overlays and aircraft centering
+     are relative to the inner edge of the rounded boxes, not the
+     InfoBox window edges */
+  PixelRect content_rc = overlay_rect;
+  if (is_rounded)
+    content_rc.Grow(-Layout::Scale(4));
+  map->SetContentRect(content_rc);
 
   popup = new PopupMessage(*this, look->dialog, ui_settings);
-  popup->Create(map_rect);
+  popup->Create(overlay_rect);
 }
 
 void
@@ -560,14 +581,24 @@ MainWindow::ReinitialiseLayout() noexcept
 
   const UISettings &ui_settings = CommonInterface::GetUISettings();
 
+  const bool is_rounded =
+    ui_settings.info_boxes.border_style == InfoBoxSettings::BorderStyle::OVERLAY;
+  PixelRect ib_rc = rc;
+  if (is_rounded)
+    ib_rc.Grow(-Layout::Scale(2));
+
   const InfoBoxLayout::Layout ib_layout =
-    InfoBoxLayout::Calculate(rc, ui_settings.info_boxes.geometry);
+    InfoBoxLayout::Calculate(ib_rc, ui_settings.info_boxes.geometry);
 
   look->ReinitialiseLayout(ib_layout.control_size.width, ui_settings.info_boxes.scale_title_font);
 
+  const InfoBoxLayout::Layout overlay_layout2 = is_rounded
+    ? InfoBoxLayout::Calculate(rc, ui_settings.info_boxes.geometry)
+    : ib_layout;
   InfoBoxManager::Create(*this, ib_layout, look->info_box);
   InfoBoxManager::ProcessTimer();
-  map_rect = ib_layout.remaining;
+  map_rect = is_rounded ? rc : ib_layout.remaining;
+  overlay_rect = is_rounded ? overlay_layout2.remaining : map_rect;
 
   if (popup != nullptr)
     popup->UpdateLayout(GetMainRect());
@@ -585,6 +616,10 @@ MainWindow::ReinitialiseLayout() noexcept
       InfoBoxManager::Show();
 
     LayoutMapArea();
+    PixelRect content_rc = overlay_rect;
+    if (is_rounded)
+      content_rc.Grow(-Layout::Scale(4));
+    map->SetContentRect(content_rc);
     map->FullRedraw();
   }
 

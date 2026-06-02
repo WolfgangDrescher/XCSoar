@@ -408,7 +408,8 @@ GlueMapWindow::OnPaintBuffer(Canvas &canvas) noexcept
 
   MapWindow::OnPaintBuffer(canvas);
 
-  DrawMapScale(canvas, GetClientRect(), render_projection);
+  DrawMapScale(canvas, content_rect.IsEmpty() ? GetClientRect() : content_rect,
+               render_projection);
   if (IsPanning())
     DrawPanInfo(canvas);
 
@@ -454,13 +455,15 @@ GlueMapWindow::Render(Canvas &canvas, const PixelRect &rc) noexcept
   MapWindow::Render(canvas, rc);
 
   if (IsNearSelf()) {
+    /* use content_rect so overlays appear in the non-InfoBox area */
+    const PixelRect hud_rc = content_rect.IsEmpty() ? rc : content_rect;
     draw_sw.Mark("DrawGlueMisc");
     if (GetMapSettings().show_thermal_profile)
-      DrawThermalBand(canvas, rc);
-    DrawStallRatio(canvas, rc);
-    DrawFlightMode(canvas, rc);
-    DrawFinalGlide(canvas, rc);
-    DrawVario(canvas, rc);
-    DrawGPSStatus(canvas, rc, Basic());
+      DrawThermalBand(canvas, hud_rc);
+    DrawStallRatio(canvas, hud_rc);
+    DrawFlightMode(canvas, hud_rc);
+    DrawFinalGlide(canvas, hud_rc);
+    DrawVario(canvas, hud_rc);
+    DrawGPSStatus(canvas, hud_rc, Basic());
   }
 }
