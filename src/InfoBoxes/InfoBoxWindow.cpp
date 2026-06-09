@@ -15,6 +15,8 @@
 #include "ui/event/KeyCode.hpp"
 #include "Dialogs/dlgInfoBoxAccess.hpp"
 #include "InfoBoxes/InfoBoxManager.hpp"
+#include "UIGlobals.hpp"
+#include "ui/window/SingleWindow.hpp"
 #include "Asset.hpp"
 
 #include <algorithm>
@@ -206,21 +208,29 @@ InfoBoxWindow::Paint(Canvas &canvas)
 #ifdef ENABLE_OPENGL
     Color box_color;
     if (pressed)
-      box_color = look.pressed_background_color.WithAlpha(0xe4);
+      box_color = look.pressed_background_color;
     else if (is_selected)
-      box_color = look.focused_background_color.WithAlpha(0xe4);
+      box_color = look.focused_background_color;
     else if (look.inverse)
-      box_color = Color(0x28, 0x28, 0x28).WithAlpha(0xe4);
+      box_color = Color(0x28, 0x28, 0x28);
     else
-      box_color = Color(0xf8, 0xf8, 0xf8).WithAlpha(0xe4);
+      box_color = Color(0xf8, 0xf8, 0xf8);
+    /* when a dialog is open it paints before InfoBoxes in Z-order;
+       alpha-blending would composite with dialog content instead of the
+       map, making the dialog visible through the InfoBox background.
+       Fall back to an opaque solid fill so the dialog is fully covered. */
+    if (UIGlobals::GetMainWindow().HasDialog())
+      canvas.DrawFilledRectangle(rc, box_color);
+    else
+      DrawRoundedDarkBackground(canvas, rc, box_color.WithAlpha(0xe4));
 #else
     const Color box_color = pressed
       ? look.pressed_background_color
       : (is_selected
          ? look.focused_background_color
          : (look.inverse ? Color(0x28, 0x28, 0x28) : Color(0xf8, 0xf8, 0xf8)));
-#endif
     DrawRoundedDarkBackground(canvas, rc, box_color);
+#endif
   } else if (settings.border_style == InfoBoxSettings::BorderStyle::GLASS)
     DrawGlassBackground(canvas, rc, background_color);
   else
