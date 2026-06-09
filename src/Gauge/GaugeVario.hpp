@@ -140,6 +140,8 @@ protected:
     return blackboard.GetUISettings().vario;
   }
 
+  [[nodiscard]] bool IsOverlay() const noexcept;
+
 protected:
   /* virtual methods from class Window */
   virtual void OnResize(PixelSize new_size) noexcept override;
