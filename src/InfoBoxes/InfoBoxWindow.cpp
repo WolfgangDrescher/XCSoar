@@ -215,14 +215,19 @@ InfoBoxWindow::Paint(Canvas &canvas)
       box_color = Color(0x28, 0x28, 0x28);
     else
       box_color = Color(0xf8, 0xf8, 0xf8);
-    /* when a dialog is open it paints before InfoBoxes in Z-order;
-       alpha-blending would composite with dialog content instead of the
-       map, making the dialog visible through the InfoBox background.
-       Fall back to an opaque solid fill so the dialog is fully covered. */
-    if (UIGlobals::GetMainWindow().HasDialog())
-      canvas.DrawFilledRectangle(rc, box_color);
-    else
-      DrawRoundedDarkBackground(canvas, rc, box_color.WithAlpha(0xe4));
+    /* When a full-screen dialog (e.g. Settings panel) is open it is the
+       paint-loop start point, so the map is not painted and the framebuffer
+       behind InfoBoxes contains dialog content.  Alpha-blending would then
+       make that dialog bleed through.  Use an opaque fill in that case only;
+       small floating dialogs (InfoBox access, MacCready, etc.) are not
+       full-screen so the map is still painted first — keep transparency. */
+    {
+      const auto &mw = UIGlobals::GetMainWindow();
+      if (mw.HasDialog() && mw.IsTopDialogFullScreen())
+        canvas.DrawFilledRectangle(rc, box_color);
+      else
+        DrawRoundedDarkBackground(canvas, rc, box_color.WithAlpha(0xe4));
+    }
 #else
     const Color box_color = pressed
       ? look.pressed_background_color
