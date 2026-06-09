@@ -5,11 +5,20 @@
 #include "Look/VarioLook.hpp"
 #include "ui/canvas/Canvas.hpp"
 #include "Screen/Layout.hpp"
+#include "Renderer/GlassRenderer.hpp"
 #include "Renderer/UnitSymbolRenderer.hpp"
 #include "Math/FastRotation.hpp"
 #include "Units/Units.hpp"
 #include "Units/Descriptor.hpp"
+#include "InfoBoxes/InfoBoxSettings.hpp"
 #include "lib/fmt/ToBuffer.hxx"
+
+#ifdef ENABLE_OPENGL
+#include "ui/canvas/opengl/Scissor.hpp"
+#include "UIGlobals.hpp"
+#include "ui/window/SingleWindow.hpp"
+#include <optional>
+#endif
 
 #include <algorithm> // for std::clamp()
 
@@ -25,13 +34,13 @@ GaugeVario::BallastGeometry::BallastGeometry(const VarioLook &look,
   PixelSize tSize;
 
   // position of ballast label
-  label_pos.x = 1;
+  label_pos.x = rc.left + 1;
   label_pos.y = rc.top + 2
     + look.label_font.GetCapitalHeight() * 2
     - look.label_font.GetAscentHeight();
 
   // position of ballast value
-  value_pos.x = 1;
+  value_pos.x = rc.left + 1;
   value_pos.y = rc.top + 1
     + look.label_font.GetCapitalHeight()
     - look.label_font.GetAscentHeight();
@@ -71,12 +80,12 @@ GaugeVario::BugsGeometry::BugsGeometry(const VarioLook &look,
 {
   PixelSize tSize;
 
-  label_pos.x = 1;
+  label_pos.x = rc.left + 1;
   label_pos.y = rc.bottom - 2
     - look.label_font.GetCapitalHeight()
     - look.label_font.GetAscentHeight();
 
-  value_pos.x = 1;
+  value_pos.x = rc.left + 1;
   value_pos.y = rc.bottom - 1
     - look.label_font.GetAscentHeight();
 
@@ -157,6 +166,13 @@ GaugeVario::GaugeVario(const FullBlackboard &_blackboard,
   Create(parent, rc, style);
 }
 
+bool
+GaugeVario::IsOverlay() const noexcept
+{
+  return blackboard.GetUISettings().info_boxes.border_style
+    == InfoBoxSettings::BorderStyle::OVERLAY;
+}
+
 static constexpr int
 WidthToHeight(int width) noexcept
 {
@@ -172,7 +188,8 @@ TransformRotatedPoint(IntPoint2D pt, IntPoint2D offset) noexcept
 inline void
 GaugeVario::RenderBackground(Canvas &canvas, const PixelRect &rc) noexcept
 {
-  canvas.Clear(look.background_color);
+  if (!IsOverlay())
+    canvas.Clear(look.background_color);
 
   canvas.Select(look.arc_pen);
 
@@ -250,9 +267,43 @@ void
 GaugeVario::OnPaintBuffer(Canvas &canvas) noexcept
 {
   const PixelRect rc = GetClientRect();
+  const bool overlay = IsOverlay();
+
+  PixelRect content_rc = rc;
+  if (overlay) {
+    const int m = Layout::Scale(2);
+    content_rc.Grow(-m);
+  }
+
+  /* In OVERLAY mode draw the semi-transparent rounded box first (before
+     the scissor so the full rounded shape including the corner areas is
+     filled), then clip all content rendering to the inner rect so nothing
+     spills outside the visible background. */
+  if (overlay) {
+#ifdef ENABLE_OPENGL
+    const Color box_color = look.inverse
+      ? Color(0x28, 0x28, 0x28)
+      : Color(0xf8, 0xf8, 0xf8);
+    if (UIGlobals::GetMainWindow().HasDialog())
+      canvas.DrawFilledRectangle(rc, box_color);
+    else
+      DrawRoundedDarkBackground(canvas, rc, box_color.WithAlpha(0xe4));
+#else
+    const Color box_color = look.inverse
+      ? Color(0x28, 0x28, 0x28)
+      : Color(0xf8, 0xf8, 0xf8);
+    DrawRoundedDarkBackground(canvas, rc, box_color);
+#endif
+  }
+
+#ifdef ENABLE_OPENGL
+  std::optional<GLCanvasScissor> scissor;
+  if (overlay)
+    scissor.emplace(content_rc);
+#endif
 
   if (!IsPersistent() || background_dirty) {
-    RenderBackground(canvas, rc);
+    RenderBackground(canvas, content_rc);
     background_dirty = false;
   }
 
@@ -271,7 +322,7 @@ GaugeVario::OnPaintBuffer(Canvas &canvas) noexcept
   }
 
   if (Settings().show_speed_to_fly)
-    RenderSpeedToFly(canvas, rc.right - 11, (rc.top + rc.bottom) / 2);
+    RenderSpeedToFly(canvas, content_rc.right - 11, (content_rc.top + content_rc.bottom) / 2);
   else
     RenderClimb(canvas);
 
@@ -302,28 +353,43 @@ GaugeVario::OnPaintBuffer(Canvas &canvas) noexcept
       ival_av = ValueToNeedlePos(Calculated().average);
   }
 
-  // clear items first
+  /* In OVERLAY mode the background is fully redrawn each frame (map
+     paints first, then DrawRoundedDarkBackground), so there is no need
+     to erase the previous needle/line positions with opaque background
+     colour pens — doing so would leave visible opaque streaks through
+     the semi-transparent gauge face. */
+  if (!overlay) {
+    // clear items first
+    if (Settings().show_average_needle) {
+      if (!IsPersistent() || ival_av != ival_last)
+        RenderNeedle(canvas, ival_last, true, true);
 
-  if (Settings().show_average_needle) {
-    if (!IsPersistent() || ival_av != ival_last)
-      RenderNeedle(canvas, ival_last, true, true);
+      ival_last = ival_av;
+    }
 
-    ival_last = ival_av;
-  }
+    if (!IsPersistent() || (sval != sval_last) || (ival != vval_last))
+      RenderVarioLine(canvas, vval_last, sval_last, true);
 
-  if (!IsPersistent() || (sval != sval_last) || (ival != vval_last))
-    RenderVarioLine(canvas, vval_last, sval_last, true);
+    sval_last = sval;
+    if (Settings().show_thermal_average_needle) {
+        if (!IsPersistent() || ival_av_thermal != ival_av_last)
+            RenderNeedle(canvas, ival_av_last, false, true);
 
-  sval_last = sval;
-  if (Settings().show_thermal_average_needle) {
-      if (!IsPersistent() || ival_av_thermal != ival_av_last)
-          RenderNeedle(canvas, ival_av_last, false, true);
+        ival_av_last = ival_av_thermal;
+    } else {
+        if (!IsPersistent() || ival != vval_last)
+          RenderNeedle(canvas, vval_last, false, true);
 
-      ival_av_last = ival_av_thermal;
+        vval_last = ival;
+    }
   } else {
-      if (!IsPersistent() || ival != vval_last)
-        RenderNeedle(canvas, vval_last, false, true);
-
+    /* Overlay mode: just advance the tracking state without clearing. */
+    if (Settings().show_average_needle)
+      ival_last = ival_av;
+    sval_last = sval;
+    if (Settings().show_thermal_average_needle)
+      ival_av_last = ival_av_thermal;
+    else
       vval_last = ival;
   }
 
@@ -771,7 +837,12 @@ GaugeVario::OnResize(PixelSize new_size) noexcept
 {
   AntiFlickerWindow::OnResize(new_size);
 
-  geometry = {look, GetClientRect()};
+  PixelRect rc = GetClientRect();
+  if (IsOverlay()) {
+    const int m = Layout::Scale(2);
+    rc.Grow(-m);
+  }
+  geometry = {look, rc};
 
   /* trigger reinitialisation */
   background_dirty = true;
