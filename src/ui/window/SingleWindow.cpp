@@ -20,6 +20,15 @@ SingleWindow::RemoveDialog([[maybe_unused]] WndForm *dialog) noexcept
   dialogs.pop_front();
 }
 
+bool
+SingleWindow::IsTopDialogFullScreen() const noexcept
+{
+  assert(HasDialog());
+  const PixelSize screen = GetSize();
+  const PixelSize dialog = dialogs.front()->GetSize();
+  return dialog.width >= screen.width && dialog.height >= screen.height;
+}
+
 void
 SingleWindow::CancelDialog() noexcept
 {

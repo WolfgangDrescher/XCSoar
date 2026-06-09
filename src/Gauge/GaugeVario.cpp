@@ -284,10 +284,13 @@ GaugeVario::OnPaintBuffer(Canvas &canvas) noexcept
     const Color box_color = look.inverse
       ? Color(0x28, 0x28, 0x28)
       : Color(0xf8, 0xf8, 0xf8);
-    if (UIGlobals::GetMainWindow().HasDialog())
-      canvas.DrawFilledRectangle(rc, box_color);
-    else
-      DrawRoundedDarkBackground(canvas, rc, box_color.WithAlpha(0xe4));
+    {
+      const auto &mw = UIGlobals::GetMainWindow();
+      if (mw.HasDialog() && mw.IsTopDialogFullScreen())
+        canvas.DrawFilledRectangle(rc, box_color);
+      else
+        DrawRoundedDarkBackground(canvas, rc, box_color.WithAlpha(0xe4));
+    }
 #else
     const Color box_color = look.inverse
       ? Color(0x28, 0x28, 0x28)

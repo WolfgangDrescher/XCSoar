@@ -76,6 +76,14 @@ public:
     return *dialogs.front();
   }
 
+  /**
+   * Returns true when the top-most dialog covers the entire window
+   * (i.e. a full-screen dialog like the Settings panel).  Small
+   * floating dialogs (InfoBox access, etc.) return false.
+   */
+  [[gnu::pure]]
+  bool IsTopDialogFullScreen() const noexcept;
+
 #ifndef USE_WINUSER
 protected:
   [[gnu::pure]]
