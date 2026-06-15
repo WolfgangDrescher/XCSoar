@@ -34,6 +34,14 @@ class VarioSynthesiser final : public ToneSynthesiser {
    */
   size_t audible_remaining, silence_remaining;
 
+  /**
+   * The current position of the volume envelope, ranging from 0
+   * (silent) to the "fade_samples" value used in Synthesise()
+   * (full volume).  This is used to fade the tone in/out smoothly
+   * to avoid clicking noise.
+   */
+  unsigned fade = 0;
+
   bool dead_band_enabled;
 
   /**

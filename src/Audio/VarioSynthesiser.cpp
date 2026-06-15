@@ -77,12 +77,10 @@ VarioSynthesiser::UnsafeSetSilence()
   audible_count = 0;
   silence_count = 1;
 
-  if (audible_remaining > 0)
-    /* quit the current period as early as possible; the method
-       Synthesise() will take care for finishing the current sine
-       wave to avoid clicking noise */
-    audible_remaining = 1;
-
+  /* quit the current period as early as possible; the volume
+     envelope in Synthesise() will fade out smoothly to avoid
+     clicking noise */
+  audible_remaining = 0;
   silence_remaining = 0;
 }
 
@@ -94,47 +92,44 @@ VarioSynthesiser::Synthesise(int16_t *buffer, size_t n)
 
   assert(audible_count > 0 || silence_count > 0);
 
-  if (silence_count == 0) {
-    /* magic value for "continuous tone" */
-    ToneSynthesiser::Synthesise(buffer, n);
-    return;
-  }
+  /* generate the raw tone for the whole buffer; the volume envelope
+     below fades it in and out to avoid clicking noise */
+  ToneSynthesiser::Synthesise(buffer, n);
 
-  while (n > 0) {
-    if (audible_remaining > 0) {
-      /* generate a period of audible tone */
+  /* number of samples used to ramp the volume envelope between
+     silence and full volume; applying this envelope continuously
+     (regardless of the waveform phase) avoids clicking noise both
+     at the begin/end of each beep and at abrupt mode changes
+     (e.g. when switching between climbing and sinking) */
+  const unsigned fade_samples = std::max(1u, sample_rate / 200);
 
-      unsigned o = silence_count > 0
-        ? std::min(n, audible_remaining)
-        : n;
-      ToneSynthesiser::Synthesise(buffer, o);
-      buffer += o;
-      n -= o;
-      audible_remaining -= o;
+  for (size_t i = 0; i < n; ++i) {
+    unsigned target;
 
-      if (audible_remaining == 0 && silence_remaining > 0) {
-        /* finish the current sine wave to avoid clicking noise */
-        audible_remaining = ToZero();
-        if (audible_remaining == 0)
-          /* finished, we can now emit a period of silence */
-          Restart();
+    if (silence_count == 0)
+      /* continuous tone while sinking */
+      target = fade_samples;
+    else {
+      if (audible_remaining == 0 && silence_remaining == 0) {
+        /* period finished, begin next one */
+        audible_remaining = audible_count;
+        silence_remaining = silence_count;
       }
-    } else if (silence_remaining > 0) {
-      /* generate a period of silence (climbing) */
 
-      unsigned o = audible_count > 0
-        ? std::min(n, silence_remaining)
-        : n;
-      /* the "silence" PCM sample value is zero */
-      std::fill_n(buffer, o, 0);
-      buffer += o;
-      n -= o;
-      silence_remaining -= o;
-    } else {
-      /* period finished, begin next one */
-
-      audible_remaining = audible_count;
-      silence_remaining = silence_count;
+      if (audible_remaining > 0) {
+        --audible_remaining;
+        target = fade_samples;
+      } else {
+        --silence_remaining;
+        target = 0;
+      }
     }
+
+    if (fade < target)
+      ++fade;
+    else if (fade > target)
+      --fade;
+
+    buffer[i] = (int32_t)buffer[i] * (int)fade / (int)fade_samples;
   }
 }
