@@ -26,6 +26,15 @@ private:
   std::list<PCMData> queued_data;
   unsigned offset;
 
+  /**
+   * The current position of the volume envelope, ranging from 0
+   * (silent) to the "fade_samples" value used in GetData() (full
+   * volume).  This is used to fade the sound in/out smoothly to
+   * avoid a clicking noise when it starts or stops while being
+   * mixed with other audio.
+   */
+  unsigned fade = 0;
+
 public:
   /**
    * Add a #PCMData buffer to the queue.

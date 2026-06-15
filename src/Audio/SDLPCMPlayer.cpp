@@ -25,17 +25,20 @@ SDLPCMPlayer::Start(PCMDataSource &_source)
 {
   const unsigned new_sample_rate = _source.GetSampleRate();
 
-  if ((nullptr != source) && (device > 0)) {
-    if (source->GetSampleRate() == new_sample_rate) {
-      /* already open, just change the synthesiser */
-      SDL_LockAudioDevice(device);
-      source = &_source;
-      SDL_PauseAudioDevice(device, 0);
-      SDL_UnlockAudioDevice(device);
-    }
-
-    Stop();
+  if (nullptr != source && device > 0 &&
+      source->GetSampleRate() == new_sample_rate) {
+    /* already open with a matching sample rate: just change the
+       source and resume playback, without closing and reopening the
+       audio device, which would cause an audible click in whatever
+       is currently playing (e.g. the vario tone) */
+    SDL_LockAudioDevice(device);
+    source = &_source;
+    SDL_UnlockAudioDevice(device);
+    SDL_PauseAudioDevice(device, 0);
+    return true;
   }
+
+  Stop();
 
   SDL_AudioSpec wanted, actual;
   wanted.freq = static_cast<int>(new_sample_rate);

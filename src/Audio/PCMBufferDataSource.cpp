@@ -32,21 +32,44 @@ PCMBufferDataSource::GetData(int16_t *buffer, size_t n)
 
   const std::lock_guard protect{lock};
 
+  /* number of samples used to ramp the volume envelope between
+     silence and full volume; this avoids a clicking noise when this
+     sound starts or stops while being mixed with other audio */
+  const size_t fade_samples = std::max<size_t>(1, GetSampleRate() / 200);
+
   while ((copied < n) && !queued_data.empty()) {
     PCMData &current_pcm_data = queued_data.front();
     size_t current_available = current_pcm_data.size() - offset;
     size_t max = n - copied;
-    if (current_available > max) {
-      std::copy(current_pcm_data.data() + offset,
-                current_pcm_data.data() + offset + max,
-                buffer + copied);
-      offset += max;
-      return n;
-    } else {
-      std::copy(current_pcm_data.data() + offset,
-                current_pcm_data.data() + offset + current_available,
-                buffer + copied);
-      copied += current_available;
+    size_t to_copy = std::min(current_available, max);
+
+    std::copy(current_pcm_data.data() + offset,
+              current_pcm_data.data() + offset + to_copy,
+              buffer + copied);
+
+    /* total number of samples left in the queue, used to fade out
+       towards the end of the last chunk */
+    size_t total_remaining = current_available;
+    auto it = queued_data.begin();
+    for (++it; it != queued_data.end(); ++it)
+      total_remaining += it->size();
+
+    for (size_t i = 0; i < to_copy; ++i) {
+      const unsigned target =
+        total_remaining - i <= fade_samples ? 0 : fade_samples;
+
+      if (fade < target)
+        ++fade;
+      else if (fade > target)
+        --fade;
+
+      buffer[copied + i] = (int32_t)buffer[copied + i] * (int)fade / (int)fade_samples;
+    }
+
+    copied += to_copy;
+    offset += to_copy;
+
+    if (offset == current_pcm_data.size()) {
       queued_data.pop_front();
       offset = 0;
     }
