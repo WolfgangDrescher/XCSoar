@@ -15,7 +15,7 @@ The open-source glide computer for cross-country, competition, and training flig
   ---
   color: neutral
   size: xl
-  to: /user-manual/introduction/overview
+  to: /user-manual/installation/getting-started
   trailing-icon: i-lucide-arrow-right
   ---
   Get started
