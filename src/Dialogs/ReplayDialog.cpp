@@ -10,6 +10,7 @@
 #include "BackendComponents.hpp"
 #include "Components.hpp"
 #include "Replay/Replay.hpp"
+#include "NMEA/CirclingInfo.hpp"
 #include "Form/DataField/Base.hpp"
 #include "Language/Language.hpp"
 
@@ -33,6 +34,8 @@ public:
     dialog.AddButton(_("Stop"), [this](){ OnStopClicked(); });
     dialog.AddButton("+10'", [this](){ OnFastForwardClicked(); });
     dialog.AddButton(_("Seek"), [this](){ OnSeekClicked(); });
+    dialog.AddButton(_("Next Circling"), [this](){ OnSeekNextCirclingClicked(); });
+    dialog.AddButton(_("Next Cruise"), [this](){ OnSeekNextCruiseClicked(); });
   }
 
 private:
@@ -40,6 +43,8 @@ private:
   void OnStartClicked() noexcept;
   void OnFastForwardClicked() noexcept;
   void OnSeekClicked() noexcept;
+  void OnSeekNextCirclingClicked() noexcept;
+  void OnSeekNextCruiseClicked() noexcept;
 
 public:
   /* virtual methods from class Widget */
@@ -112,6 +117,34 @@ ReplayControlWidget::OnSeekClicked() noexcept
         minutes, *backend_components->merge_thread,
         *backend_components->calculation_thread))
     ShowMessageBox(_("Could not seek replay."), _("Replay"), MB_OK);
+}
+
+inline void
+ReplayControlWidget::OnSeekNextCirclingClicked() noexcept
+{
+  if (backend_components == nullptr ||
+      backend_components->merge_thread == nullptr ||
+      backend_components->calculation_thread == nullptr)
+    return;
+
+  if (!replay.SeekToNextFlightMode(
+        CirclingMode::CLIMB, *backend_components->merge_thread,
+        *backend_components->calculation_thread))
+    ShowMessageBox(_("Could not find next circling phase."), _("Replay"), MB_OK);
+}
+
+inline void
+ReplayControlWidget::OnSeekNextCruiseClicked() noexcept
+{
+  if (backend_components == nullptr ||
+      backend_components->merge_thread == nullptr ||
+      backend_components->calculation_thread == nullptr)
+    return;
+
+  if (!replay.SeekToNextFlightMode(
+        CirclingMode::CRUISE, *backend_components->merge_thread,
+        *backend_components->calculation_thread))
+    ShowMessageBox(_("Could not find next cruise phase."), _("Replay"), MB_OK);
 }
 
 void

@@ -9,6 +9,8 @@
 #include "time/Stamp.hpp"
 #include "system/Path.hpp"
 
+#include "NMEA/CirclingInfo.hpp"
+
 class DeviceBlackboard;
 class Logger;
 class ProtectedTaskManager;
@@ -128,6 +130,14 @@ public:
   bool SeekToFlightElapsedMinutes(unsigned minutes,
                                   MergeThread &merge_thread,
                                   CalculationThread &calculation_thread) noexcept;
+
+  /**
+   * Replay forward from the current position until the flight mode
+   * changes to the requested state (circling or cruise).
+   */
+  bool SeekToNextFlightMode(CirclingMode mode,
+                            MergeThread &merge_thread,
+                            CalculationThread &calculation_thread) noexcept;
 
 private:
   void OnTimer();

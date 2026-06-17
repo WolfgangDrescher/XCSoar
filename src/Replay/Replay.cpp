@@ -204,6 +204,77 @@ Replay::SeekToFlightElapsedMinutes(unsigned minutes,
 }
 
 bool
+Replay::SeekToNextFlightMode(CirclingMode mode,
+                              MergeThread &merge_thread,
+                              CalculationThread &calculation_thread) noexcept
+{
+  if (!IsActive() || !virtual_time.IsDefined())
+    return false;
+
+  timer.Cancel();
+
+  struct ScopedSuspend final {
+    MergeThread &merge_thread;
+    CalculationThread &calculation_thread;
+
+    ScopedSuspend(MergeThread &m, CalculationThread &c) noexcept
+      :merge_thread(m), calculation_thread(c)
+    {
+      calculation_thread.Suspend();
+      merge_thread.Suspend();
+    }
+
+    ~ScopedSuspend() noexcept
+    {
+      merge_thread.Resume();
+      calculation_thread.Resume();
+    }
+  } suspend{merge_thread, calculation_thread};
+
+  const bool already_in_target = device_blackboard.Calculated().turn_mode == mode;
+  bool passed_current_phase = !already_in_target;
+  bool found = false;
+
+  while (true) {
+    if (!replay->Update(next_data))
+      break;
+
+    if (!next_data.time_available)
+      continue;
+
+    ApplyReplayFix(device_blackboard, merge_thread, calculation_thread,
+                   next_data);
+
+    if (cli != nullptr)
+      cli->Update(next_data.time, next_data.location,
+                  next_data.gps_altitude, next_data.pressure_altitude);
+
+    const auto current = device_blackboard.Calculated().turn_mode;
+    if (!passed_current_phase && current != mode)
+      passed_current_phase = true;
+
+    if (passed_current_phase && current == mode) {
+      found = true;
+      break;
+    }
+  }
+
+  if (found) {
+    virtual_time = next_data.time;
+    fast_forward = TimeStamp::Undefined();
+    clock.Update();
+
+    CommonInterface::ReadBlackboardBasic(device_blackboard.Basic());
+    TriggerCalculatedUpdate();
+    TriggerVarioUpdate();
+
+    timer.Schedule(std::chrono::milliseconds(100));
+  }
+
+  return found;
+}
+
+bool
 Replay::Update()
 {
   if (replay == nullptr)

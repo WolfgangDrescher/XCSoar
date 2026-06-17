@@ -7,6 +7,7 @@
 #include "Util.hxx"
 #include "system/Path.hpp"
 #include "Replay/Replay.hpp"
+#include "NMEA/CirclingInfo.hpp"
 #include "Components.hpp"
 #include "BackendComponents.hpp"
 
@@ -77,6 +78,38 @@ l_replay_seek_to_flight_minutes(lua_State *L)
 }
 
 static int
+l_replay_seek_to_next_circling(lua_State *L)
+{
+  if (backend_components == nullptr ||
+      backend_components->merge_thread == nullptr ||
+      backend_components->calculation_thread == nullptr)
+    return luaL_error(L, "Replay seek unavailable");
+
+  const bool ok =
+    backend_components->replay->SeekToNextFlightMode(
+      CirclingMode::CLIMB, *backend_components->merge_thread,
+      *backend_components->calculation_thread);
+  Lua::Push(L, ok);
+  return 1;
+}
+
+static int
+l_replay_seek_to_next_cruise(lua_State *L)
+{
+  if (backend_components == nullptr ||
+      backend_components->merge_thread == nullptr ||
+      backend_components->calculation_thread == nullptr)
+    return luaL_error(L, "Replay seek unavailable");
+
+  const bool ok =
+    backend_components->replay->SeekToNextFlightMode(
+      CirclingMode::CRUISE, *backend_components->merge_thread,
+      *backend_components->calculation_thread);
+  Lua::Push(L, ok);
+  return 1;
+}
+
+static int
 l_replay_start(lua_State *L)
 {
   if (lua_gettop(L) != 1)
@@ -106,6 +139,8 @@ static constexpr struct luaL_Reg settings_funcs[] = {
   {"set_time_scale", l_replay_settimescale},
   {"fast_forward", l_replay_fastforward},
   {"seek_to_flight_minutes", l_replay_seek_to_flight_minutes},
+  {"seek_to_next_circling", l_replay_seek_to_next_circling},
+  {"seek_to_next_cruise", l_replay_seek_to_next_cruise},
   {"start", l_replay_start},
   {"stop", l_replay_stop},
   {nullptr, nullptr}
