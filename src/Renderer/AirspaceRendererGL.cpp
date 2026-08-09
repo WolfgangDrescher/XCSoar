@@ -5,6 +5,7 @@
 
 #include "AirspaceRenderer.hpp"
 #include "AirspaceRendererSettings.hpp"
+#include "GeoCircleRenderer.hpp"
 #include "Projection/WindowProjection.hpp"
 #include "ui/canvas/Canvas.hpp"
 #include "MapWindow/MapCanvas.hpp"
@@ -48,8 +49,9 @@ private:
       settings.classes[as_type_or_class];
     const AirspaceClassLook &class_look = look.classes[as_type_or_class];
 
-    auto screen_center = projection.GeoToScreen(airspace.GetReferenceLocation());
-    unsigned screen_radius = projection.GeoToScreenDistance(airspace.GetRadius());
+    const GeoPoint &center = airspace.GetReferenceLocation();
+    const double radius = airspace.GetRadius();
+    unsigned screen_radius = projection.GeoToScreenDistance(radius);
 
     if (!warning_manager.IsAcked(airspace) &&
         class_settings.fill_mode !=
@@ -63,21 +65,21 @@ private:
           class_settings.fill_mode ==
           AirspaceClassRendererSettings::FillMode::ALL) {
         // fill whole circle
-        canvas.DrawCircle(screen_center, screen_radius);
+        DrawGeoCircle(canvas, projection, center, radius);
       } else {
         // draw a ring inside the circle
         Color color = class_look.fill_color;
         Pen pen_donut(look.thick_pen.GetWidth() / 2, color.WithAlpha(90));
         canvas.SelectHollowBrush();
         canvas.Select(pen_donut);
-        canvas.DrawCircle(screen_center,
-                          screen_radius - look.thick_pen.GetWidth() / 4);
+        DrawGeoCircle(canvas, projection, center,
+                      radius - projection.DistancePixelsToMeters(look.thick_pen.GetWidth() / 4));
       }
     }
 
     // draw outline
     if (SetupOutline(airspace))
-      canvas.DrawCircle(screen_center, screen_radius);
+      DrawGeoCircle(canvas, projection, center, radius);
   }
 
   void VisitPolygon(const AirspacePolygon &airspace) {
@@ -218,17 +220,17 @@ public:
 
 private:
   void VisitCircle(const AirspaceCircle &airspace) {
-    auto screen_center = projection.GeoToScreen(airspace.GetReferenceLocation());
-    unsigned screen_radius = projection.GeoToScreenDistance(airspace.GetRadius());
+    const GeoPoint &center = airspace.GetReferenceLocation();
+    const double radius = airspace.GetRadius();
 
     if (!warning_manager.IsAcked(airspace) && SetupInterior(airspace)) {
       const GLEnable<GL_BLEND> blend;
-      canvas.DrawCircle(screen_center, screen_radius);
+      DrawGeoCircle(canvas, projection, center, radius);
     }
 
     // draw outline
     if (SetupOutline(airspace))
-      canvas.DrawCircle(screen_center, screen_radius);
+      DrawGeoCircle(canvas, projection, center, radius);
   }
 
   void VisitPolygon(const AirspacePolygon &airspace) {

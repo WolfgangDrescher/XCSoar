@@ -2,6 +2,7 @@
 // Copyright The XCSoar Project
 
 #include "OZRenderer.hpp"
+#include "GeoCircleRenderer.hpp"
 #include "Task/ObservationZones/KeyholeZone.hpp"
 #include "Task/ObservationZones/CylinderZone.hpp"
 #include "Task/ObservationZones/AnnularSectorZone.hpp"
@@ -88,10 +89,8 @@ OZRenderer::Draw(Canvas &canvas, Layer layer, const Projection &projection,
 
     auto p_center = projection.GeoToScreen(oz.GetReference());
     if (layer != LAYER_ACTIVE)
-      canvas.DrawSegment(p_center,
-                         projection.GeoToScreenDistance(oz.GetRadius()),
-                         oz.GetStartRadial() - projection.GetScreenAngle(),
-                         oz.GetEndRadial() - projection.GetScreenAngle());
+      DrawGeoSegment(canvas, projection, oz.GetReference(), oz.GetRadius(),
+                     oz.GetStartRadial(), oz.GetEndRadial());
     else {
       auto p_start = projection.GeoToScreen(oz.GetSectorStart());
       auto p_end = projection.GeoToScreen(oz.GetSectorEnd());
@@ -106,11 +105,8 @@ OZRenderer::Draw(Canvas &canvas, Layer layer, const Projection &projection,
   case ObservationZone::Shape::CYLINDER: {
     const CylinderZone &oz = (const CylinderZone &)_oz;
 
-    if (layer != LAYER_INACTIVE) {
-      auto p_center = projection.GeoToScreen(oz.GetReference());
-      canvas.DrawCircle(p_center,
-                    projection.GeoToScreenDistance(oz.GetRadius()));
-    }
+    if (layer != LAYER_INACTIVE)
+      DrawGeoCircle(canvas, projection, oz.GetReference(), oz.GetRadius());
 
     break;
   }
@@ -123,10 +119,8 @@ OZRenderer::Draw(Canvas &canvas, Layer layer, const Projection &projection,
     if (layer != LAYER_INACTIVE) {
       auto p_center = projection.GeoToScreen(oz.GetReference());
 
-      canvas.DrawSegment(p_center,
-                         projection.GeoToScreenDistance(oz.GetRadius()),
-                         oz.GetStartRadial() - projection.GetScreenAngle(),
-                         oz.GetEndRadial() - projection.GetScreenAngle());
+      DrawGeoSegment(canvas, projection, oz.GetReference(), oz.GetRadius(),
+                     oz.GetStartRadial(), oz.GetEndRadial());
 
       auto p_start = projection.GeoToScreen(oz.GetSectorStart());
       auto p_end = projection.GeoToScreen(oz.GetSectorEnd());
@@ -141,24 +135,18 @@ OZRenderer::Draw(Canvas &canvas, Layer layer, const Projection &projection,
   case ObservationZone::Shape::BGAFIXEDCOURSE:
   case ObservationZone::Shape::BGAENHANCEDOPTION: {
     const KeyholeZone &oz = (const KeyholeZone &)_oz;
-    auto p_center = projection.GeoToScreen(oz.GetReference());
-    canvas.DrawKeyhole(p_center,
-                       projection.GeoToScreenDistance(oz.GetInnerRadius()),
-                       projection.GeoToScreenDistance(oz.GetRadius()),
-                       oz.GetStartRadial() - projection.GetScreenAngle(),
-                       oz.GetEndRadial() - projection.GetScreenAngle());
+    DrawGeoKeyhole(canvas, projection, oz.GetReference(),
+                   oz.GetInnerRadius(), oz.GetRadius(),
+                   oz.GetStartRadial(), oz.GetEndRadial());
 
     break;
   }
 
   case ObservationZone::Shape::ANNULAR_SECTOR: {
     const AnnularSectorZone &oz = (const AnnularSectorZone &)_oz;
-    auto p_center = projection.GeoToScreen(oz.GetReference());
-    canvas.DrawAnnulus(p_center,
-                       projection.GeoToScreenDistance(oz.GetInnerRadius()),
-                       projection.GeoToScreenDistance(oz.GetRadius()),
-                       oz.GetStartRadial() - projection.GetScreenAngle(),
-                       oz.GetEndRadial() - projection.GetScreenAngle());
+    DrawGeoAnnulus(canvas, projection, oz.GetReference(),
+                   oz.GetInnerRadius(), oz.GetRadius(),
+                   oz.GetStartRadial(), oz.GetEndRadial());
   }
 
   }

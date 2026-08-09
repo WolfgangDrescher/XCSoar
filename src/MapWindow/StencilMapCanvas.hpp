@@ -51,6 +51,13 @@ public:
 
   void DrawCircle(const PixelPoint &center, unsigned radius);
 
+  /**
+   * Draws a circle around a geographic center with a radius in
+   * meters; unlike the screen-space overload, this stays correct when
+   * the #Projection is tilted.
+   */
+  void DrawCircle(const GeoPoint &center, double radius);
+
   void Begin();
 
   /**

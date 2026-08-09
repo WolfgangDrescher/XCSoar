@@ -610,9 +610,10 @@ $(eval $(call link-program,TestFilteredVarioComputer,TEST_FILTERED_VARIO_COMPUTE
 
 TEST_PROJECTION_SOURCES = \
 	$(SRC)/Projection/Projection.cpp \
+	$(SRC)/Projection/GeoCircle.cpp \
 	$(TEST_SRC_DIR)/tap.c \
 	$(TEST_SRC_DIR)/TestProjection.cpp
-TEST_PROJECTION_DEPENDS = MATH
+TEST_PROJECTION_DEPENDS = GEO MATH
 TEST_PROJECTION_CPPFLAGS = $(SCREEN_CPPFLAGS)
 $(eval $(call link-program,TestProjection,TEST_PROJECTION))
 
@@ -2127,6 +2128,8 @@ RUN_MAP_WINDOW_SOURCES = \
 	$(SRC)/Renderer/AirspaceRenderer.cpp \
 	$(SRC)/Renderer/AirspaceRendererGL.cpp \
 	$(SRC)/Renderer/AirspaceRendererOther.cpp \
+	$(SRC)/Renderer/GeoCircleRenderer.cpp \
+	$(SRC)/Projection/GeoCircle.cpp \
 	$(SRC)/Renderer/AirspaceLabelList.cpp \
 	$(SRC)/Renderer/AirspaceLabelRenderer.cpp \
 	$(SRC)/Renderer/BestCruiseArrowRenderer.cpp \
@@ -2537,6 +2540,8 @@ RUN_ANALYSIS_SOURCES = \
 	$(SRC)/Renderer/AirspaceRenderer.cpp \
 	$(SRC)/Renderer/AirspaceRendererGL.cpp \
 	$(SRC)/Renderer/AirspaceRendererOther.cpp \
+	$(SRC)/Renderer/GeoCircleRenderer.cpp \
+	$(SRC)/Projection/GeoCircle.cpp \
 	$(SRC)/Renderer/TransparentRendererCache.cpp \
 	$(SRC)/Renderer/GradientRenderer.cpp \
 	$(SRC)/Renderer/ChartRenderer.cpp \

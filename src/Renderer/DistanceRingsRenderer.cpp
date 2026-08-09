@@ -3,8 +3,10 @@
 
 #include "DistanceRingsRenderer.hpp"
 #include "TextInBox.hpp"
+#include "GeoCircleRenderer.hpp"
 #include "ui/canvas/Canvas.hpp"
 #include "Projection/WindowProjection.hpp"
+#include "Geo/Math.hpp"
 #include "Look/MapLook.hpp"
 #include "Screen/Layout.hpp"
 #include "Formatter/UserUnits.hpp"
@@ -135,11 +137,18 @@ DrawDistanceRings(Canvas &canvas,
     if (radius_px < Layout::Scale(MIN_RING_RADIUS_PX))
       continue;
 
-    canvas.DrawCircle(aircraft_px, radius_px);
+    DrawGeoCircle(canvas, projection, aircraft_pos, radius_m);
 
-    // Label at topmost point of the ring on screen
-    const int label_center_x = aircraft_px.x;
-    const int label_center_y = aircraft_px.y - (int)radius_px;
+    /* Label at the top of the ring; with a tilted projection that is
+       not simply the center offset by the screen radius, so project
+       the northern point of the ring as the map sees it */
+    const PixelPoint label_anchor = projection.HasScreenTilt()
+      ? projection.GeoToScreen(FindLatitudeLongitude(aircraft_pos,
+                                                     projection.GetScreenAngle(),
+                                                     radius_m))
+      : aircraft_px.At(0, -(int)radius_px);
+    const int label_center_x = label_anchor.x;
+    const int label_center_y = label_anchor.y;
 
     const double user_val = Units::ToUserUnit(radius_m, Units::GetUserDistanceUnit());
     char buf[32];

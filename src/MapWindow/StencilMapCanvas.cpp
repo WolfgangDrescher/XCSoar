@@ -7,6 +7,7 @@
 #include "ui/canvas/Canvas.hpp"
 #include "Projection/WindowProjection.hpp"
 #include "Renderer/AirspaceRendererSettings.hpp"
+#include "Projection/GeoCircle.hpp"
 #include "Geo/SearchPointVector.hpp"
 
 StencilMapCanvas::StencilMapCanvas(Canvas &_buffer, Canvas &_stencil,
@@ -67,6 +68,22 @@ StencilMapCanvas::DrawCircle(const PixelPoint &center, unsigned radius)
   buffer.DrawCircle(center, radius);
   if (use_stencil)
     stencil.DrawCircle(center, radius);
+}
+
+void
+StencilMapCanvas::DrawCircle(const GeoPoint &center, double radius)
+{
+  if (!proj.HasScreenTilt()) {
+    DrawCircle(proj.GeoToScreen(center), proj.GeoToScreenDistance(radius));
+    return;
+  }
+
+  BulkPixelPoint *screen = pixel_points_buffer.get(MAX_GEO_CIRCLE_SEGMENTS);
+  const unsigned n = ProjectGeoCircle(proj, center, radius, screen);
+
+  buffer.DrawPolygon(screen, n);
+  if (use_stencil)
+    stencil.DrawPolygon(screen, n);
 }
 
 bool

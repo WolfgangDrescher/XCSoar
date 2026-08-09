@@ -357,6 +357,7 @@ XCSOAR_SOURCES := \
 	$(SRC)/Geo/Geoid.cpp \
 	$(SRC)/Projection/Projection.cpp \
 	$(SRC)/Projection/WindowProjection.cpp \
+	$(SRC)/Projection/GeoCircle.cpp \
 	$(SRC)/Projection/CompareProjection.cpp \
 	$(SRC)/Renderer/ChartRenderer.cpp \
 	$(SRC)/Renderer/BackgroundRenderer.cpp \
@@ -368,6 +369,7 @@ XCSOAR_SOURCES := \
 	$(SRC)/Renderer/AirspaceRenderer.cpp \
 	$(SRC)/Renderer/AirspaceRendererGL.cpp \
 	$(SRC)/Renderer/AirspaceRendererOther.cpp \
+	$(SRC)/Renderer/GeoCircleRenderer.cpp \
 	$(SRC)/Renderer/AirspaceLabelList.cpp \
 	$(SRC)/Renderer/AirspaceLabelRenderer.cpp \
 	$(SRC)/Renderer/AirspaceListRenderer.cpp \

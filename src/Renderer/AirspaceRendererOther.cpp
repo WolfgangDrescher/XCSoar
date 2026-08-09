@@ -53,9 +53,7 @@ public:
 
 private:
   void VisitCircle(const AirspaceCircle &airspace) {
-    auto center = proj.GeoToScreen(airspace.GetReferenceLocation());
-    unsigned radius = proj.GeoToScreenDistance(airspace.GetRadius());
-    DrawCircle(center, radius);
+    DrawCircle(airspace.GetReferenceLocation(), airspace.GetRadius());
   }
 
   void VisitPolygon(const AirspacePolygon &airspace) {

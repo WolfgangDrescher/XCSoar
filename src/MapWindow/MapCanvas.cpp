@@ -4,6 +4,7 @@
 #include "MapCanvas.hpp"
 #include "ui/canvas/Canvas.hpp"
 #include "Projection/WindowProjection.hpp"
+#include "Renderer/GeoCircleRenderer.hpp"
 #include "Screen/Layout.hpp"
 #include "Math/Screen.hpp"
 #include "Geo/SearchPointVector.hpp"
@@ -33,9 +34,7 @@ MapCanvas::DrawLineWithOffset(GeoPoint a, GeoPoint b) noexcept
 void
 MapCanvas::DrawCircle(const GeoPoint &center, double radius) noexcept
 {
-  auto screen_center = projection.GeoToScreen(center);
-  unsigned screen_radius = projection.GeoToScreenDistance(radius);
-  canvas.DrawCircle(screen_center, screen_radius);
+  DrawGeoCircle(canvas, projection, center, radius);
 }
 
 void
