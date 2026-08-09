@@ -37,6 +37,9 @@ Version 7.46 - not yet released
   - documentation: document the release and post-release version workflow
   - macOS/iOS: read TESTING=y from darwin/.env, so Xcode builds can
     produce the testing flavour
+* replay (mockup / experimental — not release-ready)
+  - Replay dialog: seek to a chosen number of minutes after the first fix,
+    restarting the file and applying every merged fix (dense snail trail)
 
 Version 7.45 - 2026-08-15
 * highlights
