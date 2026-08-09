@@ -58,7 +58,9 @@ static constexpr char solid_vertex_shader[] =
     varying vec4 colorvar;
     void main() {
       gl_Position = modelview * position;
-      gl_Position.xy += translate;
+      /* scale by w so the translation stays correct when the
+         modelview contains a perspective (tilted map) component */
+      gl_Position.xy += translate * gl_Position.w;
       gl_Position = projection * gl_Position;
       colorvar = color;
     }

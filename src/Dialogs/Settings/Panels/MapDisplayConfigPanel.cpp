@@ -13,6 +13,8 @@
 enum ControlIndex {
   OrientationCruise,
   OrientationCircling,
+  MAP_TILT,
+  MAP_TILT_ANGLE,
   CirclingZoom,
   MAP_SHIFT_BIAS,
   GliderScreenPosition,
@@ -68,6 +70,8 @@ MapDisplayConfigPanel::UpdateVisibilities()
   SetRowVisible(MAP_SHIFT_BIAS,
                 orientation == MapOrientation::NORTH_UP ||
                 orientation == MapOrientation::WIND_UP);
+
+  SetRowVisible(MAP_TILT_ANGLE, GetValueBoolean(MAP_TILT));
 }
 
 void
@@ -75,7 +79,8 @@ MapDisplayConfigPanel::OnModified(DataField &df) noexcept
 {
   if (IsDataField(OrientationCruise, df) ||
       IsDataField(OrientationCircling, df) ||
-      IsDataField(MAP_SHIFT_BIAS, df)) {
+      IsDataField(MAP_SHIFT_BIAS, df) ||
+      IsDataField(MAP_TILT, df)) {
     UpdateVisibilities();
   }
 }
@@ -100,6 +105,15 @@ MapDisplayConfigPanel::Prepare(ContainerWindow &parent,
           orientation_list,
           (unsigned)settings_map.circling_orientation,
           this);
+
+  AddBoolean(_("Map tilt"),
+             _("If enabled, then the map is shown in a tilted perspective view instead of straight top-down. Only applied while the map is not oriented north-up."),
+             settings_map.tilt_enabled, this);
+
+  AddInteger(_("Tilt angle"),
+             _("Determines how far the map is tilted away from the top-down view."),
+             "%d °", "%d", MAP_TILT_ANGLE_MIN, MAP_TILT_ANGLE_MAX, 5,
+             settings_map.tilt_angle);
 
   AddBoolean(_("Circling zoom"),
              _("If enabled, then the map will zoom in automatically when entering circling mode and zoom out automatically when leaving circling mode."),
@@ -145,6 +159,12 @@ MapDisplayConfigPanel::Save(bool &_changed) noexcept
 
   changed |= SaveValueEnum(OrientationCircling, ProfileKeys::OrientationCircling,
                            settings_map.circling_orientation);
+
+  changed |= SaveValue(MAP_TILT, ProfileKeys::MapTiltEnabled,
+                       settings_map.tilt_enabled);
+
+  changed |= SaveValueInteger(MAP_TILT_ANGLE, ProfileKeys::MapTiltAngle,
+                              settings_map.tilt_angle);
 
   changed |= SaveValueEnum(MAP_SHIFT_BIAS, ProfileKeys::MapShiftBias,
                            settings_map.map_shift_bias);

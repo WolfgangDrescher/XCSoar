@@ -5,6 +5,7 @@
 
 #include "Geo/GeoPoint.hpp"
 #include "Math/FastRotation.hpp"
+#include "Math/Point2D.hpp"
 #include "Math/Util.hpp"
 #include "ui/dim/Point.hpp"
 
@@ -31,6 +32,11 @@
  *
  * ScreenRotation: By calling SetScreenAngle() the rotation angle for the
  * conversions can be set.
+ *
+ * ScreenTilt: By calling SetScreenTilt() the map plane is tilted away
+ * from the viewer around the horizontal screen axis through the
+ * ScreenOrigin, resulting in a perspective ("bird's eye") view: the
+ * area above the ScreenOrigin appears compressed and farther away.
  */
 class Projection
 {
@@ -50,6 +56,18 @@ class Projection
    * rotation in the conversion functions
    */
   FastIntegerRotation screen_rotation;
+
+  /** The tilt angle of the map plane (zero = plain top-down view) */
+  Angle screen_tilt = Angle::Zero();
+
+  /** Cosine of the tilt angle (vertical compression factor) */
+  double tilt_cos = 1;
+
+  /**
+   * Perspective foreshortening factor [1/px]: sin(tilt) divided by
+   * the virtual camera distance.  Zero disables the tilt entirely.
+   */
+  double tilt_foreshortening = 0;
 
   /** The earth's radius in screen coordinates (px) */
   double draw_scale;
@@ -196,4 +214,51 @@ public:
   FastRowRotation GetScreenAngleRotation(int y) const noexcept {
     return FastRowRotation(screen_rotation, y);
   }
+
+  /**
+   * Is a perspective tilt currently applied?
+   */
+  bool HasScreenTilt() const noexcept {
+    return tilt_foreshortening > 0;
+  }
+
+  /**
+   * Returns the current tilt angle of the map plane
+   */
+  Angle GetScreenTilt() const noexcept {
+    return screen_tilt;
+  }
+
+  double GetTiltCos() const noexcept {
+    return tilt_cos;
+  }
+
+  double GetTiltForeshortening() const noexcept {
+    return tilt_foreshortening;
+  }
+
+  /**
+   * Tilts the map plane around the horizontal screen axis through the
+   * ScreenOrigin.
+   *
+   * @param tilt the tilt angle (zero disables the tilt)
+   * @param perspective_distance the virtual camera distance [px];
+   * must be large enough to keep the horizon above the top edge of
+   * the screen
+   */
+  void SetScreenTilt(Angle tilt, double perspective_distance) noexcept;
+
+protected:
+  /**
+   * Applies the perspective tilt to an untilted screen offset
+   * (relative to the ScreenOrigin, y pointing down).
+   */
+  [[gnu::pure]]
+  DoublePoint2D ApplyScreenTilt(DoublePoint2D v) const noexcept;
+
+  /**
+   * Reverses the perspective tilt; inverse of ApplyScreenTilt().
+   */
+  [[gnu::pure]]
+  DoublePoint2D InverseScreenTilt(DoublePoint2D v) const noexcept;
 };

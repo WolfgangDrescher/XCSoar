@@ -35,5 +35,20 @@ ToGLM(const WindowProjection &projection, const GeoPoint &reference) noexcept
                           glm::vec3(GLfloat(projection_delta.longitude.Native()),
                                     GLfloat(projection_delta.latitude.Native()),
                                     0.));
+
+  if (projection.HasScreenTilt()) {
+    /* apply the same perspective transformation as
+       Projection::ApplyScreenTilt(), expressed as a homography in
+       screen coordinates around the ScreenOrigin; the GPU performs
+       the perspective division on gl_Position */
+    glm::mat4 tilt(1);
+    tilt[1][1] = GLfloat(projection.GetTiltCos());
+    tilt[1][3] = GLfloat(-projection.GetTiltForeshortening());
+
+    const glm::vec3 origin(screen_origin.x, screen_origin.y, 0);
+    matrix = glm::translate(glm::mat4(1), origin) * tilt *
+      glm::translate(glm::mat4(1), -origin) * matrix;
+  }
+
   return matrix;
 }

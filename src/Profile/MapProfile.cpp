@@ -82,6 +82,13 @@ Profile::Load(const ProfileMap &map, MapSettings &settings)
       settings.cruise_orientation = (MapOrientation)Temp;
   }
 
+  map.Get(ProfileKeys::MapTiltEnabled, settings.tilt_enabled);
+
+  if (unsigned Temp; map.Get(ProfileKeys::MapTiltAngle, Temp))
+    settings.tilt_angle = std::clamp(Temp,
+                                     unsigned(MAP_TILT_ANGLE_MIN),
+                                     unsigned(MAP_TILT_ANGLE_MAX));
+
   if (!orientation_found) {
     unsigned Temp = 1;
     map.Get(ProfileKeys::DisplayUpValue, Temp);

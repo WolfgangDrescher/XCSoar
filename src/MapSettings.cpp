@@ -37,6 +37,8 @@ MapSettings::SetDefaults() noexcept
   map_shift_bias = MapShiftBias::NONE;
   circling_orientation = MapOrientation::NORTH_UP;
   cruise_orientation = MapOrientation::NORTH_UP;
+  tilt_enabled = false;
+  tilt_angle = 40;
   circling_scale = 0.5;
   cruise_scale = 1 / 60.;
   show_flarm_on_map = true;

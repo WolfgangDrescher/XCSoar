@@ -605,6 +605,12 @@ type=gesture
 data=LU
 event=GotoLookup recent
 
+mode=default
+type=gesture
+data=RU
+event=MapTilt show
+event=MapTilt toggle
+
 ###
 
 mode=default

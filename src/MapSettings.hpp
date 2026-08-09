@@ -108,6 +108,10 @@ enum class WindArrowStyle: uint8_t {
   NO_ARROW,
 };
 
+/** Valid range for MapSettings::tilt_angle [degrees] */
+static constexpr uint8_t MAP_TILT_ANGLE_MIN = 10;
+static constexpr uint8_t MAP_TILT_ANGLE_MAX = 60;
+
 struct MapSettings {
   /** Map zooms in on circling */
   bool circle_zoom_enabled;
@@ -136,6 +140,15 @@ struct MapSettings {
   /** Orientation of the map (North up, Track up, etc.) */
   MapOrientation cruise_orientation;
   MapOrientation circling_orientation;
+
+  /**
+   * Show the map in a tilted perspective view instead of straight
+   * top-down?  Only applied while the map is not oriented north-up.
+   */
+  bool tilt_enabled;
+
+  /** Tilt angle of the perspective view [degrees] */
+  uint8_t tilt_angle;
 
   /** Map scale in cruise mode [px/m] */
   double cruise_scale;

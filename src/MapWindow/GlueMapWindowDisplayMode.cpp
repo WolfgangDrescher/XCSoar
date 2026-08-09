@@ -331,6 +331,7 @@ GlueMapWindow::UpdateScreenAngle() noexcept
     manual_rotation = false;
 #endif
     visible_projection.SetScreenAngle(Angle::Zero());
+    visible_projection.UpdateScreenTilt(Angle::Zero());
     OnProjectionModified();
     compass_visible = false;
     return;
@@ -343,6 +344,8 @@ GlueMapWindow::UpdateScreenAngle() noexcept
   if (manual_rotation) {
     if (IsPanning() || GestureOwnsMap()) {
       visible_projection.SetScreenAngle(manual_rotation_angle);
+      /* the tilted view would distort the manual twist gesture */
+      visible_projection.UpdateScreenTilt(Angle::Zero());
       OnProjectionModified();
       compass_visible = true;
       return;
@@ -374,6 +377,16 @@ GlueMapWindow::UpdateScreenAngle() noexcept
     // normal, glider forward
     visible_projection.SetScreenAngle(
       basic.track_available ? basic.track : Angle::Zero());
+
+  /* the perspective view only makes sense while the map rotates with
+     the glider; with north-up, "far away" at the top of the screen
+     would be arbitrary */
+  const Angle tilt = settings.tilt_enabled &&
+    orientation != MapOrientation::NORTH_UP
+    ? Angle::Degrees(std::clamp(settings.tilt_angle,
+                                MAP_TILT_ANGLE_MIN, MAP_TILT_ANGLE_MAX))
+    : Angle::Zero();
+  visible_projection.UpdateScreenTilt(tilt);
 
   OnProjectionModified();
 

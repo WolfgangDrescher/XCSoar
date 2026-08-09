@@ -505,6 +505,57 @@ InputEvents::eventOrientationCircling(const char *misc)
   ActionInterface::SendMapSettings(true);
 }
 
+// eventMapTilt - control the tilted (perspective) map view
+// misc:
+//	toggle - Switch the tilted view on/off
+//	on - Turn on if not already
+//	off - Turn off if not already
+//	show - Shows the current state
+//	+ - Increase the tilt angle
+//	- - Decrease the tilt angle
+//	n - Set the tilt angle to n degrees (and turn on)
+void
+InputEvents::eventMapTilt(const char *misc)
+{
+  MapSettings &settings_map = CommonInterface::SetMapSettings();
+
+  if (StringIsEqual(misc, "toggle"))
+    settings_map.tilt_enabled = !settings_map.tilt_enabled;
+  else if (StringIsEqual(misc, "on"))
+    settings_map.tilt_enabled = true;
+  else if (StringIsEqual(misc, "off"))
+    settings_map.tilt_enabled = false;
+  else if (StringIsEqual(misc, "show")) {
+    if (settings_map.tilt_enabled) {
+      StaticString<64> buffer;
+      buffer.Format("%s: %u °", _("Map tilt"),
+                    unsigned(settings_map.tilt_angle));
+      Message::AddMessage(buffer);
+    } else
+      Message::AddMessage(_("Map tilt off"));
+    return;
+  } else if (StringIsEqual(misc, "+")) {
+    settings_map.tilt_enabled = true;
+    settings_map.tilt_angle = std::min<uint8_t>(settings_map.tilt_angle + 5,
+                                                MAP_TILT_ANGLE_MAX);
+  } else if (StringIsEqual(misc, "-")) {
+    settings_map.tilt_angle = std::max<uint8_t>(settings_map.tilt_angle - 5,
+                                                MAP_TILT_ANGLE_MIN);
+  } else {
+    char *endptr;
+    unsigned angle = strtoul(misc, &endptr, 10);
+    if (endptr == misc)
+      return;
+
+    settings_map.tilt_enabled = true;
+    settings_map.tilt_angle = std::clamp(angle,
+                                         unsigned(MAP_TILT_ANGLE_MIN),
+                                         unsigned(MAP_TILT_ANGLE_MAX));
+  }
+
+  ActionInterface::SendMapSettings(true);
+}
+
 /* Event_TerrainToplogy Changes
    0       Show
    1       Topography = ON

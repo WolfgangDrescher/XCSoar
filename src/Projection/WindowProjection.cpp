@@ -63,3 +63,21 @@ WindowProjection::UpdateScreenBounds() noexcept
 
   screen_bounds = GetGeoQuadrilateral().GetBounds();
 }
+
+void
+WindowProjection::UpdateScreenTilt(Angle tilt) noexcept
+{
+  if (tilt <= Angle::Zero()) {
+    SetScreenTilt(Angle::Zero(), 0);
+    return;
+  }
+
+  /* the horizon of the tilted plane lies distance/tan(tilt) above
+     the ScreenOrigin; scaling the camera distance with tan(tilt)
+     guarantees it stays at least 1.5 screen heights away, i.e. safely
+     off-screen for all tilt angles */
+  const double height = GetScreenSize().height;
+  const double distance = 1.5 * height * std::max(1., tilt.tan());
+
+  SetScreenTilt(tilt, distance);
+}

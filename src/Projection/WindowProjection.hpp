@@ -163,6 +163,15 @@ public:
   /** Updates the cached screen_bounds member */
   void UpdateScreenBounds() noexcept;
 
+  /**
+   * Tilts the map plane by the given angle, choosing a perspective
+   * camera distance relative to the screen size which keeps the
+   * horizon safely above the top edge of the screen.
+   *
+   * @param tilt the tilt angle (zero disables the tilt)
+   */
+  void UpdateScreenTilt(Angle tilt) noexcept;
+
 protected:
   [[gnu::pure]]
   int GetMapResolutionFactor() const noexcept {
