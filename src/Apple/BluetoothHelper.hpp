@@ -3,40 +3,64 @@
 
 #pragma once
 
-#include "BluetoothHelperBase.hpp"
-#include "DetectDeviceListener.hpp"
-#include "IOSBluetoothManager.h"
-#include "NativeDetectDeviceListener.h"
-#include "PortBridge.hpp"
-
 @class IOSBluetoothManager;
 
-class SensorListener;
+class DetectDeviceListener;
+class PortBridge;
 
-class BluetoothHelperIOS : public BluetoothHelper {
-public:
-  BluetoothHelperIOS();
-  virtual ~BluetoothHelperIOS();
-
-  [[gnu::pure]] bool HasBluetoothSupport() const noexcept override;
-  [[gnu::pure]] bool IsEnabled() const noexcept override;
-  [[gnu::pure]] const char *
-  GetNameFromAddress(const char *address) const noexcept override;
-
-  NativeDetectDeviceListener *
-  AddDetectDeviceListener(DetectDeviceListener &l) noexcept override;
-  void
-  RemoveDetectDeviceListener(NativeDetectDeviceListener *l) noexcept override;
-
-  void connectSensor(const char *address, SensorListener &listener) override;
-  PortBridge *connect(const char *address) override;
-  PortBridge *connectHM10(const char *address) override;
-  PortBridge *createServer() override;
-  
-  IOSBluetoothManager *getManager() const { return manager; }
-
-private:
+/**
+ * The iOS counterpart of Android's #BluetoothHelper: provides
+ * Bluetooth LE device discovery and GATT serial port connections via
+ * CoreBluetooth.
+ *
+ * All methods may be called from any thread except the CoreBluetooth
+ * dispatch queue (see #IOSBluetoothManager).
+ */
+class BluetoothHelper final {
   IOSBluetoothManager *manager;
-};
 
-extern "C" BluetoothHelper *CreateBluetoothHelper();
+public:
+  BluetoothHelper() noexcept;
+  ~BluetoothHelper() noexcept;
+
+  BluetoothHelper(const BluetoothHelper &) = delete;
+  BluetoothHelper &operator=(const BluetoothHelper &) = delete;
+
+  /**
+   * Is Bluetooth switched on?
+   */
+  [[gnu::pure]]
+  bool IsEnabled() const noexcept;
+
+  /**
+   * @param address the identifier UUID of the peripheral
+   * @return the peripheral's name or nullptr if it is unknown; the
+   * returned string is never freed
+   */
+  [[gnu::pure]]
+  const char *GetNameFromAddress(const char *address) const noexcept;
+
+  /**
+   * Start scanning for Bluetooth devices.  Call
+   * RemoveDetectDeviceListener() with the same listener when you're
+   * done.
+   */
+  void AddDetectDeviceListener(DetectDeviceListener &l) noexcept;
+
+  /**
+   * Stop scanning for Bluetooth devices.
+   *
+   * @param l the listener passed to AddDetectDeviceListener()
+   */
+  void RemoveDetectDeviceListener(DetectDeviceListener &l) noexcept;
+
+  /**
+   * Open a GATT serial port connection to the given peripheral.  The
+   * connection is established asynchronously; this method never
+   * returns nullptr, and problems are reported through the bridge's
+   * #PortState.
+   *
+   * The returned object is owned by the caller.
+   */
+  PortBridge *connect(const char *address) noexcept;
+};

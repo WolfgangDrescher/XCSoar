@@ -133,6 +133,9 @@ DeviceDescriptor::GetState() const noexcept
 #endif
 
 #ifdef __APPLE__
+  if (internal_sensors != nullptr)
+    /* the Apple InternalSensors implementation has no state
+       tracking */
     return PortState::READY;
 #endif
 
@@ -362,12 +365,6 @@ DeviceDescriptor::OpenBluetoothSensor()
     return true;
 
   java_sensor = new Java::GlobalCloseable(factory.OpenBluetoothSensor(config, *this));
-  return true;
-#elif defined(__APPLE__)
-  if (is_simulator())
-    return true;
-
-  factory.OpenBluetoothSensor(config, *this);
   return true;
 #else
   return false;

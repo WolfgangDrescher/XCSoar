@@ -3,8 +3,6 @@
 
 #pragma once
 
-#include "util/Compiler.h"
-
 #include <memory>
 #include <tchar.h>
 
@@ -13,16 +11,10 @@ class Port;
 class PortListener;
 class DataHandler;
 
-std::unique_ptr<Port>
-OpenAppleBluetoothPort(BluetoothHelper &bluetooth_helper,
-                         const TCHAR *address, PortListener *_listener,
-                         DataHandler &_handler);
-
-std::unique_ptr<Port>
-OpenAppleBluetoothServerPort(BluetoothHelper &bluetooth_helper,
-                               PortListener *_listener, DataHandler &_handler);
-
+/**
+ * Open a serial port connection to a Bluetooth LE (GATT) device.
+ */
 std::unique_ptr<Port>
 OpenAppleBleHm10Port(BluetoothHelper &bluetooth_helper,
-                       const TCHAR *address, PortListener *_listener,
-                       DataHandler &_handler);
+                     const TCHAR *address, PortListener *_listener,
+                     DataHandler &_handler);
