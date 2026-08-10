@@ -736,6 +736,9 @@ Version 7.44 - 2026-03-22
   - make App Store ready with signing
   - add third-party notice for ANGLE
 * iOS
+  - add Bluetooth LE support: device discovery and serial port
+    connections (HM-10, Nordic UART and compatible bridges) via
+    CoreBluetooth #1815
   - Improve audio support: prevent ducking and enable sound playback even when the phone is muted
   - implement access to iPhone barometric altitude sensor
   - add background location management to prevent crashes

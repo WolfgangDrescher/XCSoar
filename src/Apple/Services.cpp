@@ -28,10 +28,7 @@ InitializeAppleServices()
   }
 
   // Setup bluetooth helper
-  bluetooth_helper = CreateBluetoothHelper();
-  if (!bluetooth_helper->HasBluetoothSupport()) {
-    bluetooth_helper = nullptr;
-  }
+  bluetooth_helper = new BluetoothHelper();
 #endif
 }
 

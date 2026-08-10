@@ -39,6 +39,9 @@ DeviceConfig::IsAvailable() const noexcept
   case PortType::ANDROID_USB_SERIAL:
     return IsAndroid() || IsApple();
 
+  case PortType::BLE_HM10:
+    return IsAndroid() || IsIOS();
+
   case PortType::IOIOUART:
   case PortType::DROIDSOAR_V2:
   case PortType::NUNCHUCK:
@@ -167,7 +170,7 @@ DeviceConfig::BluetoothNameStartsWith([[maybe_unused]] const char *prefix) const
                                          bluetooth_mac.c_str());
   return name != nullptr && StringStartsWith(name, prefix);
 #elif defined(__APPLE__)
-  if (port_type != PortType::RFCOMM)
+  if (port_type != PortType::BLE_HM10)
     return false;
 
   if (bluetooth_helper == nullptr)
@@ -275,13 +278,6 @@ DeviceConfig::GetPortName(char *buffer, size_t max_size) const noexcept
     if (bluetooth_helper != nullptr) {
       const char *name2 =
         bluetooth_helper->GetNameFromAddress(Java::GetEnv(), name);
-      if (name2 != nullptr)
-        name = name2;
-    }
-#elif defined(__APPLE__)
-    if (bluetooth_helper != nullptr) {
-      const char *name2 =
-        bluetooth_helper->GetNameFromAddress(name);
       if (name2 != nullptr)
         name = name2;
     }

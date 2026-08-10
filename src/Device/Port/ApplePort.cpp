@@ -5,23 +5,22 @@
 #include "Apple/PortBridge.hpp"
 
 #include <cassert>
-#include <stdexcept>
 
 ApplePort::ApplePort(PortListener *_listener, DataHandler &_handler,
-                         PortBridge *_bridge)
+                     PortBridge *_bridge) noexcept
   :BufferedPort(_listener, _handler), bridge(_bridge)
 {
   assert(bridge != nullptr);
 
-  bridge->setListener(_listener);
-  bridge->setInputListener(this);
+  bridge->SetListener(_listener);
+  bridge->SetInputListener(this);
 }
 
 ApplePort::~ApplePort() noexcept
 {
   assert(bridge != nullptr);
-// TODO
-//   delete bridge;
+
+  delete bridge;
 }
 
 PortState
@@ -29,7 +28,7 @@ ApplePort::GetState() const noexcept
 {
   assert(bridge != nullptr);
 
-  return (PortState)bridge->getState();
+  return bridge->GetState();
 }
 
 bool
@@ -37,24 +36,20 @@ ApplePort::Drain()
 {
   assert(bridge != nullptr);
 
-  return bridge->drain();
+  return bridge->Drain();
 }
 
 unsigned
 ApplePort::GetBaudrate() const noexcept
 {
-  assert(bridge != nullptr);
-
-  return bridge->getBaudRate();
+  return 0;
 }
 
 void
-ApplePort::SetBaudrate(unsigned baud_rate)
+ApplePort::SetBaudrate([[maybe_unused]] unsigned baud_rate)
 {
-  assert(bridge != nullptr);
-
-  if (!bridge->setBaudRate(baud_rate))
-    throw std::runtime_error{"Failed to set baud rate"};
+  /* a BLE GATT bridge has no configurable baud rate; accept the
+     request silently, like Android's HM10Port */
 }
 
 std::size_t
@@ -62,5 +57,5 @@ ApplePort::Write(std::span<const std::byte> src)
 {
   assert(bridge != nullptr);
 
-  return bridge->write(src);
+  return bridge->Write(src);
 }

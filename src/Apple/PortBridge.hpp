@@ -4,41 +4,156 @@
 #pragma once
 
 #include "Device/Port/State.hpp"
-#include "LogFile.hpp"
-#include "NativeInputListener.hpp"
-#include "NativePortListener.hpp"
+#include "thread/Cond.hxx"
+#include "thread/Mutex.hxx"
+#include "util/StaticFifoBuffer.hxx"
+
+#import <CoreBluetooth/CoreBluetooth.h>
+
 #include <cstddef>
 #include <span>
 
-class PortBridge {
+@class IOSBluetoothManager;
+
+class PortListener;
+class DataHandler;
+
+/**
+ * The iOS counterpart of Android's #PortBridge: glue between the C++
+ * #Port world and a CoreBluetooth GATT connection.  One instance
+ * exists per opened BLE serial port; it is owned by an #ApplePort.
+ *
+ * The #IOSBluetoothManager keeps a registry of all bridges and
+ * forwards CoreBluetooth delegate callbacks to the matching instance;
+ * all On*() methods and SendPendingChunks() are invoked on the
+ * manager's serial dispatch queue.  The remaining methods may be
+ * called from any thread.
+ *
+ * Writes are buffered and sent in chunks of at most one MTU, pacing
+ * the transmission with CoreBluetooth's flow control (see
+ * SendPendingChunks()), like Android's HM10WriteBuffer.
+ */
+class PortBridge final {
+  IOSBluetoothManager *const manager;
+
+  NSString *const address;
+
+  /* the following fields are only accessed on the manager's dispatch
+     queue */
+
+  CBPeripheral *peripheral = nil;
+
+  /** the characteristic which notifies us about received data */
+  CBCharacteristic *rx_characteristic = nil;
+
+  /** the characteristic we write outgoing data to */
+  CBCharacteristic *tx_characteristic = nil;
+
+  CBCharacteristicWriteType write_type = CBCharacteristicWriteWithResponse;
+
+  /** maximum number of payload bytes per GATT write */
+  std::size_t chunk_size = 20;
+
+  /** number of services with unfinished characteristic discovery */
+  NSUInteger pending_characteristic_discoveries = 0;
+
+  /**
+   * A write-with-response is in flight; wait for OnWriteCompleted()
+   * before sending the next chunk.
+   */
+  bool write_pending = false;
+
+  /* the following fields are protected by the mutex */
+
+  mutable Mutex mutex;
+  Cond cond;
+
+  StaticFifoBuffer<std::byte, 4096> write_buffer;
+
+  PortState state = PortState::LIMBO;
+
+  bool closed = false;
+
+  PortListener *listener = nullptr;
+  DataHandler *handler = nullptr;
+
 public:
-  PortBridge(const char *deviceAddress);
+  PortBridge(IOSBluetoothManager *manager, NSString *address) noexcept;
 
-  void setListener(PortListener *listener);
-  void setInputListener(DataHandler *handler);
-  DataHandler *getInputListener();
+  /**
+   * Unregisters this bridge from the manager and disconnects from the
+   * peripheral.
+   */
+  ~PortBridge() noexcept;
 
-  int getState() { return static_cast<int>(PortState::READY); }
+  PortBridge(const PortBridge &) = delete;
+  PortBridge &operator=(const PortBridge &) = delete;
 
-  bool drain() { return true; }
-
-  int getBaudRate() const { return -1; }
-
-  bool setBaudRate(int baud_rate)
-  {
-    (void)baud_rate;
-    return false;
+  NSString *GetAddress() const noexcept {
+    return address;
   }
 
-  virtual std::size_t write(std::span<const std::byte> src);
+  /**
+   * May only be called on the manager's dispatch queue.
+   */
+  CBPeripheral *GetPeripheral() const noexcept {
+    return peripheral;
+  }
+
+  void SetListener(PortListener *listener) noexcept;
+  void SetInputListener(DataHandler *handler) noexcept;
+
+  [[gnu::pure]]
+  PortState GetState() const noexcept;
+
+  /**
+   * Wait (with timeout) until all buffered data has been sent.
+   *
+   * @return false on error or timeout
+   */
+  bool Drain() noexcept;
+
+  /**
+   * Copy data to the write buffer.  Blocks (with timeout) while the
+   * buffer is full.
+   *
+   * @return the number of bytes accepted
+   */
+  std::size_t Write(std::span<const std::byte> src) noexcept;
+
+  /* callbacks invoked by #IOSBluetoothManager on its dispatch
+     queue */
+
+  void OnPeripheralAttached(CBPeripheral *peripheral) noexcept;
+  void OnConnected() noexcept;
+  void OnDisconnected() noexcept;
+  void OnServicesDiscovered(NSError *error) noexcept;
+  void OnCharacteristicsDiscovered(NSError *error) noexcept;
+  void OnDataReceived(CBCharacteristic *characteristic,
+                      NSData *value) noexcept;
+  void OnWriteCompleted(NSError *error) noexcept;
+  void OnReadyToSendWriteWithoutResponse() noexcept;
+
+  /**
+   * Send as many chunks from the write buffer as flow control
+   * currently permits.
+   */
+  void SendPendingChunks() noexcept;
 
 private:
-  const PortListener *portListener;
-  DataHandler *inputListener;
-  std::string deviceAddress;
-};
+  void SetState(PortState new_state) noexcept;
 
-class iOSPortBridge : public PortBridge {
-public:
-  std::size_t write(std::span<const std::byte> src) override;
+  /**
+   * Report an error to the #PortListener and enter the FAILED state.
+   */
+  void Error(const char *msg) noexcept;
+
+  /**
+   * Pick the RX/TX characteristics after service/characteristic
+   * discovery has finished.
+   */
+  void SelectCharacteristics() noexcept;
+
+  [[gnu::pure]]
+  bool CanSendChunk() const noexcept;
 };

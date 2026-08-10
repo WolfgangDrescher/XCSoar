@@ -8,8 +8,8 @@
 class PortBridge;
 
 /**
- * A #Port implementation which transmits data over a Bluetooth RFCOMM
- * socket.
+ * A #Port implementation which transmits data over a Bluetooth LE
+ * GATT connection (see Apple/PortBridge.hpp).
  */
 class ApplePort : public BufferedPort
 {
@@ -17,7 +17,7 @@ class ApplePort : public BufferedPort
 
 public:
   ApplePort(PortListener *_listener, DataHandler &_handler,
-              PortBridge *bridge);
+            PortBridge *bridge) noexcept;
   ~ApplePort() noexcept override;
 
   /* virtual methods from class Port */

@@ -6,7 +6,11 @@
 #include <cstdint>
 
 /**
- * C++ wrapper for the Java class BluetoothAdapter.LeScanCallback.
+ * A listener interface which receives callbacks about detected
+ * (Bluetooth) devices.  This is a copy of the Android declaration
+ * (src/Android/DetectDeviceListener.hpp) so shared code like the port
+ * picker can use the same interface on both platforms; keep the two
+ * in sync.
  */
 class DetectDeviceListener {
 public:
