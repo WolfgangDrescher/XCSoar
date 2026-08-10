@@ -555,6 +555,8 @@ Version 7.44 - 2026-03-22
   - make App Store ready with signing
   - add third-party notice for ANGLE
 * iOS
+  - keep the app awake while a flight download or declaration is in
+    progress, so iOS does not suspend it and abort the transfer
   - add Bluetooth LE support: device discovery and serial port
     connections (HM-10, Nordic UART and compatible bridges) via
     CoreBluetooth #1815

@@ -39,6 +39,7 @@
 
 #ifdef __APPLE__
 #include "Apple/InternalSensors.hpp"
+#include "Apple/Services.hpp"
 #endif
 
 #include <cassert>
@@ -724,6 +725,14 @@ DeviceDescriptor::Borrow() noexcept
     return false;
 
   borrowed = true;
+
+#ifdef __APPLE__
+  /* a borrowed device means a bulk operation (flight download,
+     declaration, ...) is in progress; keep the app awake so iOS
+     does not suspend it and stall the transfer */
+  BeginAppleBulkTransfer();
+#endif
+
   return true;
 }
 
@@ -735,6 +744,10 @@ DeviceDescriptor::Return() noexcept
 
   borrowed = false;
   assert(!IsOccupied());
+
+#ifdef __APPLE__
+  EndAppleBulkTransfer();
+#endif
 
   /* if the caller has disabled the NMEA while the device was
      borrowed, we may not have received new values for some time, but
