@@ -253,6 +253,10 @@ Version 7.45 - not yet released
     from folders with non-English characters on Windows
   - fix crash when scrolling the Weather → RASP settings page #2828
 * devices
+  - FLARM: more robust flight download over slow links (e.g.
+    Bluetooth LE bridges): wait for the connection before entering
+    binary mode, longer ping window, and retries when selecting a
+    flight so single lost frames no longer drop flights from the list
   - Condor 3: Spectate.json multiplayer traffic driver (Condor3Spectate)
     shows other gliders on the FLARM radar and map
   - Condor3UDP: stop deriving track from ground-velocity vx/vy (caused

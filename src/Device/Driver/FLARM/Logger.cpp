@@ -237,19 +237,36 @@ FlarmDevice::ReadFlightInfo(RecordedFlightInfo &flight,
 FLARM::MessageType
 FlarmDevice::SelectFlight(uint8_t record_number, OperationEnvironment &env)
 {
-  // Create header for selecting a log record
+  static constexpr unsigned max_attempts = 3;
+
   std::byte data[] = { static_cast<std::byte>(record_number) };
-  FLARM::FrameHeader header = PrepareFrameHeader(FLARM::MessageType::SELECTRECORD,
-                                                 std::span{data});
 
-  // Send request
-  SendStartByte();
-  SendFrameHeader(header, env, std::chrono::seconds(1));
-  SendEscaped(std::span{data}, env, std::chrono::seconds(1));
+  /* retry with a fresh frame on timeout; over high-latency links
+     such as Bluetooth LE bridges, a single short timeout is not
+     always enough, and a lost frame would otherwise silently drop a
+     flight from the list (cf. the LX Nano download improvements,
+     #1813) */
+  for (unsigned attempt = 1;; ++attempt) {
+    // Create header for selecting a log record
+    FLARM::FrameHeader header =
+      PrepareFrameHeader(FLARM::MessageType::SELECTRECORD, std::span{data});
 
-  // Wait for an answer
-  return WaitForACKOrNACK(header.sequence_number,
-                          env, std::chrono::seconds(1));
+    // Send request
+    SendStartByte();
+    SendFrameHeader(header, env, std::chrono::seconds(1));
+    SendEscaped(std::span{data}, env, std::chrono::seconds(1));
+
+    // Wait for an answer
+    try {
+      const auto result = WaitForACKOrNACK(header.sequence_number,
+                                           env, std::chrono::seconds(2));
+      if (result != FLARM::MessageType::ERROR || attempt >= max_attempts)
+        return result;
+    } catch (const DeviceTimeout &) {
+      if (attempt >= max_attempts)
+        throw;
+    }
+  }
 }
 
 bool
