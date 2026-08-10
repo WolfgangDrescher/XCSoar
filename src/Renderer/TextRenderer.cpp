@@ -41,7 +41,14 @@ TextRenderer::Draw(Canvas &canvas, PixelRect rc,
 #ifdef USE_GDI
   if (vcenter) {
     const unsigned height = GetHeight(canvas, rc, text);
-    int top = (rc.top + rc.bottom - height) / 2;
+    TEXTMETRIC tm;
+    unsigned block = height;
+    /* Single-line captions: center on ascent so empty descent does
+       not push the ink above the visual mid-line. */
+    if (::GetTextMetrics(canvas, &tm) &&
+        height <= (unsigned)tm.tmHeight)
+      block = tm.tmAscent;
+    int top = (rc.top + rc.bottom - (int)block) / 2;
     if (top > rc.top)
       rc.top = top;
   }

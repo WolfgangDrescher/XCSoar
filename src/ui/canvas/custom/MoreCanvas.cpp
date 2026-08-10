@@ -180,9 +180,19 @@ Canvas::DrawFormattedText(const PixelRect r, const std::string_view text,
     return lines * skip;
   }
 
-  int y = (format & DT_VCENTER) && lines < max_lines
-    ? (r.top + r.bottom - lines * skip) / 2
-    : r.top;
+  /* Vertical center using ascent for the last/only line so Latin
+     labels (little descent) sit optically in the middle.  Full
+     line-spacing would leave empty descent space below the ink and
+     make button captions look too high. */
+  int y = r.top;
+  if (format & DT_VCENTER) {
+    const unsigned block_height =
+      (lines - 1) * skip + font->GetAscentHeight();
+    if (r.GetHeight() > 0 &&
+        block_height <= (unsigned)r.GetHeight())
+      y = (r.top + r.bottom - (int)block_height) / 2;
+  }
+
   for (size_t i = 0; i < len; i += strlen(duplicated + i) + 1) {
     if (duplicated[i] != '\0') {
       int x;

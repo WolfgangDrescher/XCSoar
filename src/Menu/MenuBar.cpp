@@ -29,7 +29,12 @@ GetButtonPosition(unsigned i, PixelRect rc)
   const bool portrait = screen_height > screen_width;
 
   unsigned width = std::max(1u, screen_width / (portrait ? 4u : 5u));
-  unsigned height = MenuBar::GetButtonHeight(screen_height, portrait);
+  unsigned height;
+  if (!portrait && i >= 1 && i < 5)
+    /* Four mode buttons fill the left column (buttonmenu.png). */
+    height = std::max(1u, screen_height / 4u);
+  else
+    height = MenuBar::GetButtonHeight(screen_height, portrait);
 
   if (i == 0) {
     rc.left = rc.right;
@@ -50,6 +55,33 @@ GetButtonPosition(unsigned i, PixelRect rc)
 
   rc.right = rc.left + width;
   rc.bottom = rc.top + height;
+
+  /* Gaps only between neighbours; stay flush to the screen edge
+     (buttonmenu.png: left column hard against the left border). */
+  const int gap = std::max(2, int(height / 10));
+  const int half = std::max(1, gap / 2);
+
+  if (i >= 1 && i < 5) {
+    if (portrait) {
+      if (i > 1)
+        rc.left += half;
+      if (i < 4)
+        rc.right -= half;
+      rc.top += half;
+    } else {
+      if (i > 1)
+        rc.top += half;
+      if (i < 4)
+        rc.bottom -= half;
+    }
+  } else if (i >= 5) {
+    if (i > 5)
+      rc.top += half;
+    rc.bottom -= half;
+    if (portrait)
+      rc.left += half;
+  }
+
   return rc;
 }
 
@@ -68,11 +100,14 @@ MenuBar::MenuBar(ContainerWindow &parent, const ButtonLook &_look)
 
   WindowStyle style;
   style.Hide();
-  style.Border();
 
   for (unsigned i = 0; i < MAX_BUTTONS; ++i) {
     PixelRect button_rc = GetButtonPosition(i, rc);
     buttons[i].Create(parent, look, "", button_rc, style);
+#ifndef USE_WINUSER
+    /* Let the map show through rounded corners / translucent fill. */
+    buttons[i].SetTransparent();
+#endif
   }
 }
 
