@@ -54,6 +54,14 @@ FlarmDevice::BinaryMode(OperationEnvironment &env)
   if (mode == Mode::BINARY)
     return true;
 
+  /* especially on Bluetooth LE ports, the connection may not be
+     established yet (e.g. iOS is still connecting to the
+     peripheral, which has no timeout); wait for it (cancellable)
+     instead of wasting the ping attempts below on a dead link
+     (cf. the LX Nano download improvements, #1813) */
+  if (!port.WaitConnected(env))
+    return false;
+
   port.StopRxThread();
 
   // "Binary mode is engaged by sending the text command "$PFLAX"
@@ -67,7 +75,11 @@ FlarmDevice::BinaryMode(OperationEnvironment &env)
   // of time (around 1.5 sec). Due to that it is recommended to issue new pings
   // for a certain time until the ping is ACKed properly or a timeout occurs.
   for (unsigned i = 0; i < 10; ++i) {
-    if (BinaryPing(env, std::chrono::milliseconds(500))) {
+    /* give slow links (small ATT MTU, long connection interval) some
+       more time after the first attempts */
+    const auto timeout = std::chrono::milliseconds(i < 5 ? 500 : 1000);
+
+    if (BinaryPing(env, timeout)) {
       // We are now in binary mode and have verified that with a binary ping
 
       // Remember that we should now be in binary mode (for further assert() calls)
