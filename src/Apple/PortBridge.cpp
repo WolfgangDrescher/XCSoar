@@ -348,23 +348,43 @@ PortBridge::SelectCharacteristics() noexcept
     ? CBCharacteristicWriteWithoutResponse
     : CBCharacteristicWriteWithResponse;
 
-  /* limit all writes to the size of one ATT packet (MTU minus the
-     ATT header); larger writes would be fragmented by iOS, which
-     many BLE UART bridges cannot handle */
+  /* iOS negotiates the ATT MTU automatically right after
+     connecting; unlike Android (BluetoothGatt.requestMtu()), an
+     application cannot request a larger one.
+     maximumWriteValueLengthForType: reflects the negotiated result:
+     for writes without response it is the MTU minus the 3 byte ATT
+     header.  If a peripheral stays at the small default, that limit
+     is imposed by the bridge firmware (often configurable there,
+     e.g. "AT+MTU" on HM-10 clones). */
   const std::size_t max_wor = [peripheral
     maximumWriteValueLengthForType:CBCharacteristicWriteWithoutResponse];
   const std::size_t max_wr = [peripheral
     maximumWriteValueLengthForType:write_type];
+
+  /* limit all writes to the size of one ATT packet (MTU minus the
+     ATT header); larger writes would be fragmented by iOS, which
+     many BLE UART bridges cannot handle */
   chunk_size = std::clamp(std::min(max_wor, max_wr),
                           std::size_t(20), std::size_t(512));
 
+  const unsigned att_mtu = unsigned(max_wor) + 3;
+
   [peripheral setNotifyValue:YES forCharacteristic:rx];
 
-  LogFormat("Bluetooth: %s is ready (rx=%s tx=%s chunk=%u)",
+  LogFormat("Bluetooth: %s is ready (rx=%s tx=%s %s mtu=%u chunk=%u)",
             address.UTF8String,
             rx.UUID.UUIDString.UTF8String,
             tx.UUID.UUIDString.UTF8String,
-            unsigned(chunk_size));
+            write_type == CBCharacteristicWriteWithoutResponse
+            ? "write-without-response" : "write-with-response",
+            att_mtu, unsigned(chunk_size));
+
+  if (att_mtu <= 23)
+    /* the peer kept the Bluetooth LE default MTU; bulk transfers
+       such as IGC flight downloads will be slow */
+    LogFormat("Bluetooth: %s negotiated only the minimum ATT MTU;"
+              " check the bridge firmware settings for a larger MTU",
+              address.UTF8String);
 
   SetState(PortState::READY);
 
