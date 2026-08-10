@@ -74,6 +74,44 @@ NordicUartTxCharacteristic() noexcept
   return uuid;
 }
 
+/**
+ * The Microchip/ISSC transparent UART service (e.g. BlueFly Vario
+ * BLE).
+ */
+[[gnu::pure]]
+static inline CBUUID *
+IsscUartService() noexcept
+{
+  static CBUUID *const uuid =
+    [CBUUID UUIDWithString:@"49535343-FE7D-4AE5-8FA9-9FAFD205E455"];
+  return uuid;
+}
+
+/**
+ * The ISSC UART "RX" characteristic; the central writes data to it.
+ */
+[[gnu::pure]]
+static inline CBUUID *
+IsscUartRxCharacteristic() noexcept
+{
+  static CBUUID *const uuid =
+    [CBUUID UUIDWithString:@"49535343-8841-43F4-A8D4-ECBE34729BB3"];
+  return uuid;
+}
+
+/**
+ * The ISSC UART "TX" characteristic; the central receives
+ * notifications from it.
+ */
+[[gnu::pure]]
+static inline CBUUID *
+IsscUartTxCharacteristic() noexcept
+{
+  static CBUUID *const uuid =
+    [CBUUID UUIDWithString:@"49535343-1E4D-4BD9-BA61-23C647249616"];
+  return uuid;
+}
+
 [[gnu::pure]]
 static inline CBUUID *
 HeartRateService() noexcept
@@ -102,6 +140,7 @@ SerialServiceUuids() noexcept
   static NSArray<CBUUID *> *const uuids = @[
     Hm10Service(),
     NordicUartService(),
+    IsscUartService(),
   ];
   return uuids;
 }

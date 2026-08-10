@@ -8,9 +8,11 @@
 #include "io/BufferedOutputStream.hxx"
 #include "system/Path.hpp"
 #include "Operation/Operation.hpp"
+#include "Operation/Cancelled.hpp"
 
 #include <cstdlib>
 #include <cstring>
+#include <span>
 
 static bool
 ParseDate(const char *str, BrokenDate &date)
@@ -302,14 +304,16 @@ FlarmDevice::ReadFlightList(RecordedFlightList &flight_list,
 }
 
 bool
-FlarmDevice::DownloadFlight(Path path, OperationEnvironment &env)
+FlarmDevice::DownloadFlight(BufferedOutputStream &os, std::size_t &offset,
+                            OperationEnvironment &env)
 {
   static constexpr unsigned get_igcdata_retries = 3;
 
-  FileOutputStream fos(path);
-  BufferedOutputStream os(fos);
+  /* the FLARM binary protocol cannot seek inside a flight record;
+     after a restarted transfer, the part which was already saved is
+     discarded instead of being written twice */
+  std::size_t skip = offset;
 
-  env.SetProgressRange(100);
   while (true) {
     // Create header for getting IGC file data
     FLARM::FrameHeader header = PrepareFrameHeader(FLARM::MessageType::GETIGCDATA);
@@ -353,14 +357,22 @@ FlarmDevice::DownloadFlight(Path path, OperationEnvironment &env)
       length--;
 
     // Read IGC data
-    os.Write({data.data() + 3, length});
+    std::span<const std::byte> payload{data.data() + 3, length};
+
+    if (skip > 0) {
+      const std::size_t n = std::min(skip, payload.size());
+      payload = payload.subspan(n);
+      skip -= n;
+    }
+
+    if (!payload.empty()) {
+      os.Write(payload);
+      offset += payload.size();
+    }
 
     if (is_last_packet)
       break;
   }
-
-  os.Flush();
-  fos.Commit();
 
   return true;
 }
@@ -370,21 +382,49 @@ bool
 FlarmDevice::DownloadFlight(const RecordedFlightInfo &flight,
                             Path path, OperationEnvironment &env)
 {
-  if (!BinaryMode(env))
-    return false;
+  /* how often to restart the transfer after a mid-transfer failure;
+     the equivalent of the resumable LX Nano downloads (#1813) - the
+     FLARM binary protocol cannot resume at an offset, so the
+     transfer is restarted and the already saved part is skipped */
+  static constexpr unsigned session_attempts = 3;
 
-  FLARM::MessageType ack_result = SelectFlight(flight.internal.flarm, env);
+  FileOutputStream fos(path);
+  BufferedOutputStream os(fos);
 
-  // If no ACK was received -> cancel
-  if (ack_result != FLARM::MessageType::ACK)
-    return false;
+  env.SetProgressRange(100);
 
-  try {
-    if (DownloadFlight(path, env))
-      return true;
-  } catch (...) {
+  std::size_t offset = 0;
+
+  for (unsigned attempt = 1;; ++attempt) {
+    try {
+      if (!BinaryMode(env))
+        return false;
+
+      // If no ACK was received -> cancel
+      if (SelectFlight(flight.internal.flarm, env) != FLARM::MessageType::ACK)
+        return false;
+
+      if (DownloadFlight(os, offset, env)) {
+        os.Flush();
+        fos.Commit();
+        return true;
+      }
+    } catch (OperationCancelled &) {
+      mode = Mode::UNKNOWN;
+      throw;
+    } catch (...) {
+      mode = Mode::UNKNOWN;
+
+      if (attempt >= session_attempts)
+        throw;
+    }
+
+    if (attempt >= session_attempts)
+      break;
+
+    /* force BinaryMode() to re-establish the (possibly dead) binary
+       session before the next attempt */
     mode = Mode::UNKNOWN;
-    throw;
   }
 
   mode = Mode::UNKNOWN;

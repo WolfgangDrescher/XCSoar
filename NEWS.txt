@@ -257,6 +257,9 @@ Version 7.45 - not yet released
     Bluetooth LE bridges): wait for the connection before entering
     binary mode, longer ping window, and retries when selecting a
     flight so single lost frames no longer drop flights from the list
+  - FLARM: automatically restart an interrupted flight download and
+    skip the already saved part instead of failing the whole
+    transfer
   - Condor 3: Spectate.json multiplayer traffic driver (Condor3Spectate)
     shows other gliders on the FLARM radar and map
   - Condor3UDP: stop deriving track from ground-velocity vx/vy (caused
@@ -746,8 +749,8 @@ Version 7.44 - 2026-03-22
   - keep Bluetooth LE connections and transfers alive while the app
     is briefly in the background (bluetooth-central background mode)
   - add Bluetooth LE support: device discovery and serial port
-    connections (HM-10, Nordic UART and compatible bridges) via
-    CoreBluetooth #1815
+    connections (HM-10, Nordic UART, Microchip/ISSC and compatible
+    bridges) via CoreBluetooth #1815
   - Improve audio support: prevent ducking and enable sound playback even when the phone is muted
   - implement access to iPhone barometric altitude sensor
   - add background location management to prevent crashes
