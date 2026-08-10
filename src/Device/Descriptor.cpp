@@ -132,13 +132,6 @@ DeviceDescriptor::GetState() const noexcept
     return PortState::READY;
 #endif
 
-#ifdef __APPLE__
-  if (internal_sensors != nullptr)
-    /* the Apple InternalSensors implementation has no state
-       tracking */
-    return PortState::READY;
-#endif
-
   return PortState::FAILED;
 }
 

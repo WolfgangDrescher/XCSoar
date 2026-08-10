@@ -80,7 +80,7 @@ FeaturesFromAdvertisedServices(NSArray<CBUUID *> *serviceUuids) noexcept
         [uuid isEqual:BluetoothUuids::NordicUartService()])
       /* any BLE UART service can be used with the generic "BLE port"
          implementation */
-      features |= DetectDeviceListener::FEATURE_HM10;
+      features |= DetectDeviceListener::FEATURE_BLE_SERIAL;
     else if ([uuid isEqual:BluetoothUuids::HeartRateService()])
       features |= DetectDeviceListener::FEATURE_HEART_RATE;
     else if ([uuid isEqual:BluetoothUuids::FlytecSensboxService()])
@@ -188,7 +188,7 @@ FeaturesFromAdvertisedServices(NSArray<CBUUID *> *serviceUuids) noexcept
         discoveredPeripherals[address] = peripheral;
         if (peripheralFeatures[address] == nil)
           peripheralFeatures[address] =
-            @(DetectDeviceListener::FEATURE_HM10);
+            @(DetectDeviceListener::FEATURE_BLE_SERIAL);
       }
     }
 
@@ -201,7 +201,7 @@ FeaturesFromAdvertisedServices(NSArray<CBUUID *> *serviceUuids) noexcept
 
       uint64_t features = peripheralFeatures[address].unsignedLongLongValue;
       if (features == 0)
-        features = DetectDeviceListener::FEATURE_HM10;
+        features = DetectDeviceListener::FEATURE_BLE_SERIAL;
 
       listener->OnDeviceDetected(DetectDeviceListener::Type::BLUETOOTH_LE,
                                  address.UTF8String, name.UTF8String,
@@ -334,7 +334,7 @@ FeaturesFromAdvertisedServices(NSArray<CBUUID *> *serviceUuids) noexcept
     /* BLE UART bridges often do not advertise their serial service
        UUID; assume any other named peripheral may be usable as a
        serial port */
-    features = DetectDeviceListener::FEATURE_HM10;
+    features = DetectDeviceListener::FEATURE_BLE_SERIAL;
   }
 
   peripheralFeatures[address] = @(features);

@@ -100,10 +100,10 @@ OpenPortInternal(EventLoop &event_loop, Cares::Channel &cares,
 
     if (bluetooth_helper == nullptr)
       throw std::runtime_error("Bluetooth not available");
-                         
-    return OpenAndroidBleHm10Port(*bluetooth_helper,
-                                  config.bluetooth_mac,
-                                  listener, handler);
+
+    return OpenAndroidBleSerialPort(*bluetooth_helper,
+                                    config.bluetooth_mac,
+                                    listener, handler);
 #elif defined(__APPLE__)
     if (config.bluetooth_mac.empty())
       throw std::runtime_error("No Bluetooth MAC configured");
@@ -111,7 +111,7 @@ OpenPortInternal(EventLoop &event_loop, Cares::Channel &cares,
     if (bluetooth_helper == nullptr)
       throw std::runtime_error("Bluetooth not available");
 
-    return OpenAppleBleHm10Port(*bluetooth_helper, config.bluetooth_mac,
+    return OpenAppleBleSerialPort(*bluetooth_helper, config.bluetooth_mac,
                                 listener, handler);
 #else
     throw std::runtime_error("Bluetooth not available");
