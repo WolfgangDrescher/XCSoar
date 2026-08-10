@@ -372,6 +372,33 @@ To compile for iOS / ARMv7, run::
 
   make TARGET=IOS32 ipa
 
+iOS background modes and App Review
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+``Data/iOS/Info.plist.in.xml`` declares several ``UIBackgroundModes``.
+When submitting to the App Store, App Review usually asks for a
+justification for each of them:
+
+* ``location``: XCSoar is a flight computer which records the flight
+  (IGC logger) and keeps navigation calculations running; losing GPS
+  fixes while the app is briefly in the background would corrupt the
+  flight log.
+* ``audio``: XCSoar generates continuous vario sounds which pilots
+  rely on while the display is off or another app is in the
+  foreground.
+* ``bluetooth-central``: XCSoar receives safety-relevant data
+  (FLARM collision warnings, GPS positions, barometric altitude)
+  from external Bluetooth LE devices and downloads flight logs from
+  them; these connections and transfers must survive short phone
+  locks and app switches.
+
+Note that while the app is in the background, iOS only delivers
+results for *filtered* Bluetooth LE scans (with a service UUID
+list).  XCSoar scans unfiltered, but only while the port picker
+dialog is open, which is a foreground activity; established
+connections and pending connection requests are not affected by this
+limitation.
+
 Compiling for macOS (with Homebrew)
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 

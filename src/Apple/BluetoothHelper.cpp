@@ -123,7 +123,12 @@ FeaturesFromAdvertisedServices(NSArray<CBUUID *> *serviceUuids) noexcept
   if (want_scan && !centralManager.isScanning)
     /* unlike Android, scan without a service UUID filter: many BLE
        UART bridges do not advertise their serial service UUID, and
-       iOS applications cannot enumerate bonded devices */
+       iOS applications cannot enumerate bonded devices; note that
+       unfiltered scans yield no results while the app is in the
+       background (the "bluetooth-central" background mode only
+       permits filtered scans there), which is fine because scanning
+       is a foreground activity (port picker), and pending
+       connectPeripheral requests are not affected */
     [centralManager scanForPeripheralsWithServices:nil options:nil];
   else if (!want_scan && centralManager.isScanning)
     [centralManager stopScan];
