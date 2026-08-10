@@ -461,6 +461,7 @@ Version 7.44 - 2026-03-22
   - Add new InfoBox 'Alternate 2 altitude difference' (Altn 2 AltD)
   - Show transponder mode (if available) in transponder code InfoBox
   - add helpers on infoboxes for Argentinean contests 95% distance rule
+  - Port monitor: also show data written to the device
   - Popup messages now appear at the top of the map
   - add status messages for user actions and state changes (alternates, task abort, task armed, final glide mode, terrain/topography visibility, airspace visibility)
   - improve task resume: report failure reasons and allow resuming goto when no ordered task exists
