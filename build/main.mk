@@ -636,17 +636,10 @@ XCSOAR_SOURCES += \
 	$(SRC)/Apple/PathProvider.cpp \
 	$(SRC)/Apple/InternalSensors.cpp \
 	$(SRC)/Apple/KeyboardDetection.cpp \
-	$(SRC)/Device/SmartDeviceSensors.cpp
-	$(SRC)/Device/AndroidSensors.cpp \
-	$(SRC)/Device/Port/AppleBluetoothPort.cpp \
-	$(SRC)/Device/Port/ApplePort.cpp \
 	$(SRC)/Apple/BluetoothHelper.cpp \
 	$(SRC)/Apple/PortBridge.cpp \
-	$(SRC)/Apple/Main.cpp \
-	$(SRC)/Apple/InternalSensors.cpp
-	$(SRC)/Apple/Services.cpp \
-	$(SRC)/Apple/SoundUtil.cpp \
-	$(SRC)/Apple/InternalSensors.cpp \
+	$(SRC)/Device/Port/AppleBluetoothPort.cpp \
+	$(SRC)/Device/Port/ApplePort.cpp \
 	$(SRC)/Device/SmartDeviceSensors.cpp
 endif
 

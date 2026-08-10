@@ -127,7 +127,6 @@
 
 #ifdef __APPLE__
 #include "Apple/Services.hpp"
-#include "Apple/Main.hpp"
 #endif
 
 #ifdef HAVE_EDL

@@ -8,9 +8,9 @@
 #include <cassert>
 
 std::unique_ptr<Port>
-OpenAppleBleHm10Port(BluetoothHelper &bluetooth_helper,
-                     const TCHAR *address, PortListener *listener,
-                     DataHandler &handler)
+OpenAppleBleSerialPort(BluetoothHelper &bluetooth_helper,
+                       const char *address, PortListener *listener,
+                       DataHandler &handler)
 {
   assert(address != nullptr);
 

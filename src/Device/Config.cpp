@@ -32,14 +32,13 @@ DeviceConfig::IsAvailable() const noexcept
     return true;
 
   case PortType::RFCOMM:
-  case PortType::BLE_SERIAL:
   case PortType::BLE_SENSOR:
   case PortType::RFCOMM_SERVER:
   case PortType::GLIDER_LINK:
   case PortType::ANDROID_USB_SERIAL:
-    return IsAndroid() || IsApple();
+    return IsAndroid();
 
-  case PortType::BLE_HM10:
+  case PortType::BLE_SERIAL:
     return IsAndroid() || IsIOS();
 
   case PortType::IOIOUART:
@@ -170,7 +169,7 @@ DeviceConfig::BluetoothNameStartsWith([[maybe_unused]] const char *prefix) const
                                          bluetooth_mac.c_str());
   return name != nullptr && StringStartsWith(name, prefix);
 #elif defined(__APPLE__)
-  if (port_type != PortType::BLE_HM10)
+  if (port_type != PortType::BLE_SERIAL)
     return false;
 
   if (bluetooth_helper == nullptr)
