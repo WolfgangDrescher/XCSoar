@@ -42,6 +42,14 @@ static constexpr Color COLOR_DIALOG_GRADIENT_TOP =
   Color(0xf0, 0xeb, 0xd4);
 
 /**
+ * Flat "card" button face (light mode). Near-white, not Win95 grey.
+ */
+static constexpr Color COLOR_BUTTON_FACE =
+  Color(0xf4, 0xf5, 0xf7);
+static constexpr Color COLOR_BUTTON_BORDER =
+  Color(0xc5, 0xc8, 0xce);
+
+/**
  * Admonition colors for Markdown rendering.
  */
 static constexpr Color COLOR_ADMONITION_IMPORTANT =
