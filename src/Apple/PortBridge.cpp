@@ -311,6 +311,18 @@ PortBridge::SelectCharacteristics() noexcept
         rx = nus_rx;
         tx = nus_tx;
       }
+    } else if ([service.UUID isEqual:BluetoothUuids::IsscUartService()]) {
+      /* third choice: the Microchip/ISSC transparent UART */
+      CBCharacteristic *issc_rx =
+        FindCharacteristic(service,
+                           BluetoothUuids::IsscUartTxCharacteristic());
+      CBCharacteristic *issc_tx =
+        FindCharacteristic(service,
+                           BluetoothUuids::IsscUartRxCharacteristic());
+      if (rx == nil && issc_rx != nil && issc_tx != nil) {
+        rx = issc_rx;
+        tx = issc_tx;
+      }
     }
   }
 

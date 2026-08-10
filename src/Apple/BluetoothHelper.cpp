@@ -77,9 +77,10 @@ FeaturesFromAdvertisedServices(NSArray<CBUUID *> *serviceUuids) noexcept
 
   for (CBUUID *uuid in serviceUuids) {
     if ([uuid isEqual:BluetoothUuids::Hm10Service()] ||
-        [uuid isEqual:BluetoothUuids::NordicUartService()])
-      /* any BLE UART service can be used with the generic "BLE port"
-         implementation */
+        [uuid isEqual:BluetoothUuids::NordicUartService()] ||
+        [uuid isEqual:BluetoothUuids::IsscUartService()])
+      /* any BLE UART service can be used with the generic "BLE
+         serial" port implementation */
       features |= DetectDeviceListener::FEATURE_BLE_SERIAL;
     else if ([uuid isEqual:BluetoothUuids::HeartRateService()])
       features |= DetectDeviceListener::FEATURE_HEART_RATE;
