@@ -208,6 +208,10 @@ try {
 
   port = std::move(_port);
 
+  /* transfer the monitor to the new port, e.g. when the port monitor
+     dialog triggered a reconnect */
+  port->SetWriteMonitor(monitor);
+
   parser.Reset();
   parser.SetReal(!StringIsEqual(driver->name, "Condor") &&
                  !StringIsEqual(driver->name, "Condor3UDP"));
@@ -1730,6 +1734,15 @@ DeviceDescriptor::PortError(const char *msg) noexcept
 
   if (port_listener != nullptr)
     port_listener->PortError(msg);
+}
+
+void
+DeviceDescriptor::SetMonitor(DataHandler *_monitor) noexcept
+{
+  monitor = _monitor;
+
+  if (port != nullptr)
+    port->SetWriteMonitor(_monitor);
 }
 
 bool
