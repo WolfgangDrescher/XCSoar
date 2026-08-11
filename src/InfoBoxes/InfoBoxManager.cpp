@@ -4,10 +4,12 @@
 #include "InfoBoxes/InfoBoxManager.hpp"
 #include "InfoBoxes/InfoBoxWindow.hpp"
 #include "InfoBoxes/InfoBoxLayout.hpp"
+#include "InfoBoxes/CustomGeometry.hpp"
 #include "InfoBoxes/Content/Factory.hpp"
 #include "Language/Language.hpp"
 #include "Form/DataField/ComboList.hpp"
 #include "Dialogs/ComboPicker.hpp"
+#include "Dialogs/Message.hpp"
 #include "Profile/InfoBoxConfig.hpp"
 #include "Profile/Current.hpp"
 #include "Interface.hpp"
@@ -106,6 +108,14 @@ InfoBoxManager::DisplayInfoBox() noexcept
     // Do not put calculations here!
 
     InfoBoxFactory::Type DisplayType = settings.contents[i];
+
+    /* a custom geometry file may pin the content of a box,
+       overriding the active InfoBox set */
+    if (layout.geometry == InfoBoxSettings::Geometry::CUSTOM)
+      if (const auto &custom = InfoBoxLayout::GetCustomGeometry(panel);
+          custom && i < custom->boxes.size() && custom->boxes[i].HasContent())
+        DisplayType = custom->boxes[i].content;
+
     if ((unsigned)DisplayType > (unsigned)InfoBoxFactory::MAX_TYPE_VAL)
       DisplayType = InfoBoxFactory::NavAltitude;
 
@@ -211,6 +221,9 @@ InfoBoxManager::Create(ContainerWindow &parent,
     int Border =
       settings.border_style == InfoBoxSettings::BorderStyle::TAB
       ? 0
+      : layout.geometry == InfoBoxSettings::Geometry::CUSTOM
+      /* custom geometry: per-box border flags from the JSON file */
+      ? layout.custom_borders[i]
       /* layout.geometry is the effective layout, while
          settings.geometry is the configured layout */
       : InfoBoxLayout::GetBorder(layout.geometry, layout.landscape, i);
@@ -242,6 +255,17 @@ InfoBoxManager::ShowInfoBoxPicker(const int i) noexcept
   InfoBoxSettings &settings = CommonInterface::SetUISettings().info_boxes;
   const unsigned panel_index = CommonInterface::GetUIState().panel_index;
   InfoBoxSettings::Panel &panel = settings.panels[panel_index];
+
+  if (layout.geometry == InfoBoxSettings::Geometry::CUSTOM)
+    if (const auto &custom = InfoBoxLayout::GetCustomGeometry(panel_index);
+        custom && (unsigned)i < custom->boxes.size() &&
+        custom->boxes[i].HasContent()) {
+      /* this box is pinned by the custom geometry file; a selection
+         here would be overridden immediately, so don't offer one */
+      ShowMessageBox(_("This InfoBox is fixed by the custom geometry file."),
+                     _("InfoBox"), MB_OK);
+      return;
+    }
 
   const InfoBoxFactory::Type old_type = panel.contents[i];
 

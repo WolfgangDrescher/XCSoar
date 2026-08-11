@@ -572,6 +572,8 @@ XCSOAR_SOURCES := \
 	$(SRC)/ApplyVegaSwitches.cpp \
 	$(SRC)/MainWindow.cpp \
 	$(SRC)/Startup.cpp \
+	$(SRC)/InfoBoxes/CustomGeometryFile.cpp \
+	$(SRC)/InfoBoxes/CustomGeometryGlue.cpp \
 	$(SRC)/Components.cpp \
 	$(SRC)/BackendComponents.cpp \
 	$(SRC)/DataComponents.cpp \

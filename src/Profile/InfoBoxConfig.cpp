@@ -113,6 +113,7 @@ Profile::Load(const ProfileMap &map, InfoBoxSettings &settings)
     break;
 
   case InfoBoxSettings::Geometry::TOP_8_VARIO:
+  case InfoBoxSettings::Geometry::CUSTOM:
     break;
   }
 

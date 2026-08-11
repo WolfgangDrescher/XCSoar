@@ -3,9 +3,13 @@
 
 #include "InfoBoxes/InfoBoxLayout.hpp"
 #include "Border.hpp"
+#include "CustomGeometry.hpp"
 #include "util/Macros.hpp"
 
 #include <algorithm> // for std::clamp()
+#include <cmath> // for std::lround()
+#include <optional>
+#include <span>
 
 static constexpr double CONTROLHEIGHTRATIO = 7.4;
 
@@ -20,6 +24,7 @@ static constexpr unsigned char geometry_counts[] = {
   12, // 3 rows X 4 boxes
   15, // 3 rows X 5 boxes
   18, // 3 rows X 6 boxes
+  24, // CUSTOM (upper bound; the actual count comes from the JSON file)
 };
 
 namespace InfoBoxLayout {
@@ -32,6 +37,13 @@ ValidateGeometry(InfoBoxSettings::Geometry geometry,
 static void
 CalcInfoBoxSizes(Layout &layout, PixelSize screen_size,
                  InfoBoxSettings::Geometry geometry) noexcept;
+
+static std::optional<Layout>
+CalculateCustom(PixelRect rc, const CustomGeometry &custom) noexcept;
+
+static Layout
+CalculateFor(PixelRect rc, InfoBoxSettings::Geometry geometry,
+             const std::optional<CustomGeometry> &custom) noexcept;
 
 } // namespace InfoBoxLayout
 
@@ -103,7 +115,31 @@ MakeRightColumn(const InfoBoxLayout::Layout &layout,
 InfoBoxLayout::Layout
 InfoBoxLayout::Calculate(PixelRect rc, InfoBoxSettings::Geometry geometry) noexcept
 {
+  return CalculateFor(rc, geometry, GetCustomGeometry());
+}
+
+InfoBoxLayout::Layout
+InfoBoxLayout::Calculate(PixelRect rc, InfoBoxSettings::Geometry geometry,
+                         unsigned panel_index) noexcept
+{
+  return CalculateFor(rc, geometry, GetCustomGeometry(panel_index));
+}
+
+InfoBoxLayout::Layout
+InfoBoxLayout::CalculateFor(PixelRect rc, InfoBoxSettings::Geometry geometry,
+                            const std::optional<CustomGeometry> &custom) noexcept
+{
   const PixelSize screen_size = rc.GetSize();
+
+  if (geometry == InfoBoxSettings::Geometry::CUSTOM) {
+    if (custom)
+      if (auto custom_layout = CalculateCustom(rc, *custom))
+        return *custom_layout;
+
+    /* no valid custom layout loaded, or "strict" is set and the
+       screen size does not match: fall back to a default geometry */
+    geometry = InfoBoxSettings::Geometry::SPLIT_8;
+  }
 
   geometry = ValidateGeometry(geometry, screen_size);
 
@@ -407,9 +443,218 @@ InfoBoxLayout::Calculate(PixelRect rc, InfoBoxSettings::Geometry geometry) noexc
       rc.bottom = MakeBottomRow(layout, layout.positions, 4,
                                 rc.left, rc.right, rc.bottom);
     break;
+
+  case InfoBoxSettings::Geometry::CUSTOM:
+    /* handled by CalculateCustom() above */
+    gcc_unreachable();
   };
 
   layout.remaining = rc;
+  return layout;
+}
+
+static int
+ResolveDimension(InfoBoxLayout::CustomGeometry::Dimension d,
+                 unsigned actual, unsigned reference) noexcept
+{
+  if (d.percent)
+    return (int)std::lround(d.value * actual / 100.);
+
+  /* absolute pixels in reference screen space, scaled to the actual
+     screen size */
+  return (int)std::lround(d.value * actual / reference);
+}
+
+static PixelRect
+ResolveRect(const InfoBoxLayout::CustomGeometry::Rect &r, PixelRect rc,
+            unsigned ref_width, unsigned ref_height) noexcept
+{
+  const PixelSize screen_size = rc.GetSize();
+
+  const int x = rc.left + ResolveDimension(r.x, screen_size.width, ref_width);
+  const int y = rc.top + ResolveDimension(r.y, screen_size.height, ref_height);
+  const int width = std::max(1, ResolveDimension(r.width, screen_size.width,
+                                                 ref_width));
+  const int height = std::max(1, ResolveDimension(r.height, screen_size.height,
+                                                  ref_height));
+
+  PixelRect result;
+  result.left = std::clamp(x, rc.left, rc.right - 1);
+  result.top = std::clamp(y, rc.top, rc.bottom - 1);
+  result.right = std::clamp(x + width, result.left + 1, rc.right);
+  result.bottom = std::clamp(y + height, result.top + 1, rc.bottom);
+  return result;
+}
+
+/**
+ * Find the largest axis-aligned rectangle inside #rc which does not
+ * intersect any of the #obstacles.  This becomes the map area when
+ * the custom geometry does not define one explicitly.  Returns #rc
+ * itself (map covering the whole screen, below the InfoBoxes) when
+ * the obstacles cover everything.
+ */
+static PixelRect
+FindLargestFreeRectangle(const PixelRect rc,
+                         std::span<const PixelRect> obstacles) noexcept
+{
+  static constexpr std::size_t MAX_OBSTACLES =
+    InfoBoxSettings::Panel::MAX_CONTENTS + 1;
+  /* grid edges: two per obstacle plus the two screen edges */
+  static constexpr std::size_t MAX_EDGES = 2 * (MAX_OBSTACLES + 1);
+  assert(obstacles.size() <= MAX_OBSTACLES);
+
+  /* coordinate compression: collect the distinct x/y edges */
+  StaticArray<int, MAX_EDGES> xs, ys;
+  xs.push_back(rc.left);
+  xs.push_back(rc.right);
+  ys.push_back(rc.top);
+  ys.push_back(rc.bottom);
+
+  StaticArray<PixelRect, MAX_OBSTACLES> clamped;
+  for (PixelRect o : obstacles) {
+    o.left = std::max(o.left, rc.left);
+    o.top = std::max(o.top, rc.top);
+    o.right = std::min(o.right, rc.right);
+    o.bottom = std::min(o.bottom, rc.bottom);
+    if (o.right <= o.left || o.bottom <= o.top)
+      continue;
+
+    clamped.push_back(o);
+    xs.push_back(o.left);
+    xs.push_back(o.right);
+    ys.push_back(o.top);
+    ys.push_back(o.bottom);
+  }
+
+  std::sort(xs.begin(), xs.end());
+  std::sort(ys.begin(), ys.end());
+  const unsigned nx = std::unique(xs.begin(), xs.end()) - xs.begin();
+  const unsigned ny = std::unique(ys.begin(), ys.end()) - ys.begin();
+
+  /* mark grid cells covered by an obstacle */
+  bool occupied[MAX_EDGES - 1][MAX_EDGES - 1]{};
+  for (const auto &o : clamped) {
+    const unsigned c1 = std::lower_bound(xs.begin(), xs.begin() + nx,
+                                         o.left) - xs.begin();
+    const unsigned c2 = std::lower_bound(xs.begin(), xs.begin() + nx,
+                                         o.right) - xs.begin();
+    const unsigned r1 = std::lower_bound(ys.begin(), ys.begin() + ny,
+                                         o.top) - ys.begin();
+    const unsigned r2 = std::lower_bound(ys.begin(), ys.begin() + ny,
+                                         o.bottom) - ys.begin();
+    for (unsigned r = r1; r < r2; ++r)
+      for (unsigned c = c1; c < c2; ++c)
+        occupied[r][c] = true;
+  }
+
+  /* maximal-rectangle search: for each grid row, treat the free
+     cells above (and including) it as a histogram and find the
+     largest rectangle in it with a monotonic stack */
+
+  /* start_row[c]: first grid row such that all rows from there down
+     to the current row are free in column c */
+  unsigned start_row[MAX_EDGES - 1]{};
+
+  long best_area = 0;
+  PixelRect best = rc;
+
+  for (unsigned r = 0; r + 1 < ny; ++r) {
+    for (unsigned c = 0; c + 1 < nx; ++c)
+      if (occupied[r][c])
+        start_row[c] = r + 1;
+
+    const int bottom = ys[r + 1];
+
+    struct StackItem {
+      unsigned start_row;
+      int left;
+    } stack[MAX_EDGES];
+    unsigned depth = 0;
+
+    for (unsigned c = 0; c < nx; ++c) {
+      /* the sentinel column (c == nx - 1) has zero height and
+         flushes the stack */
+      const unsigned sr = c + 1 < nx ? start_row[c] : r + 1;
+      int left = xs[c];
+
+      /* pop all columns taller than the current one (smaller
+         start_row = taller histogram bar) */
+      while (depth > 0 && stack[depth - 1].start_row < sr) {
+        const StackItem item = stack[--depth];
+        const int top = ys[item.start_row];
+        const long area = (long)(bottom - top) * (xs[c] - item.left);
+        if (area > best_area) {
+          best_area = area;
+          best = {item.left, top, xs[c], bottom};
+        }
+
+        left = item.left;
+      }
+
+      if (sr <= r && (depth == 0 || stack[depth - 1].start_row > sr))
+        stack[depth++] = {sr, left};
+    }
+  }
+
+  return best;
+}
+
+std::optional<InfoBoxLayout::Layout>
+InfoBoxLayout::CalculateCustom(PixelRect rc,
+                               const CustomGeometry &custom) noexcept
+{
+  if (custom.boxes.empty() ||
+      custom.screen_width == 0 || custom.screen_height == 0)
+    return std::nullopt;
+
+  const PixelSize screen_size = rc.GetSize();
+
+  if (custom.strict &&
+      (screen_size.width != custom.screen_width ||
+       screen_size.height != custom.screen_height))
+    /* this layout was designed for a different screen */
+    return std::nullopt;
+
+  Layout layout;
+  layout.geometry = InfoBoxSettings::Geometry::CUSTOM;
+  layout.landscape = screen_size.width > screen_size.height;
+  layout.count = custom.boxes.size();
+  assert(layout.count <= InfoBoxSettings::Panel::MAX_CONTENTS);
+  layout.ClearVario();
+
+  unsigned min_width = screen_size.width, min_height = screen_size.height;
+
+  StaticArray<PixelRect, InfoBoxSettings::Panel::MAX_CONTENTS + 1> obstacles;
+
+  for (unsigned i = 0; i < layout.count; ++i) {
+    const PixelRect box = ResolveRect(custom.boxes[i], rc,
+                                      custom.screen_width,
+                                      custom.screen_height);
+    layout.positions[i] = box;
+    layout.custom_borders[i] = custom.boxes[i].border;
+    obstacles.push_back(box);
+
+    const PixelSize size = box.GetSize();
+    min_width = std::min(min_width, size.width);
+    min_height = std::min(min_height, size.height);
+  }
+
+  /* fonts are sized for the smallest box so text fits everywhere */
+  layout.control_size = {min_width, min_height};
+
+  if (custom.vario) {
+    layout.vario = ResolveRect(*custom.vario, rc,
+                               custom.screen_width, custom.screen_height);
+    obstacles.push_back(layout.vario);
+  }
+
+  if (custom.map)
+    layout.remaining = ResolveRect(*custom.map, rc,
+                                   custom.screen_width,
+                                   custom.screen_height);
+  else
+    layout.remaining = FindLargestFreeRectangle(rc, obstacles);
+
   return layout;
 }
 
@@ -446,6 +691,7 @@ InfoBoxLayout::ValidateGeometry(InfoBoxSettings::Geometry geometry,
     case InfoBoxSettings::Geometry::TOP_LEFT_10:
     case InfoBoxSettings::Geometry::LEFT_6_RIGHT_3_VARIO:
     case InfoBoxSettings::Geometry::LEFT_12_RIGHT_3_VARIO:
+    case InfoBoxSettings::Geometry::CUSTOM:
       break;
 
     case InfoBoxSettings::Geometry::BOTTOM_8_VARIO:
@@ -505,6 +751,7 @@ InfoBoxLayout::ValidateGeometry(InfoBoxSettings::Geometry geometry,
     case InfoBoxSettings::Geometry::OBSOLETE_TOP_LEFT_4:
     case InfoBoxSettings::Geometry::OBSOLETE_BOTTOM_RIGHT_4:
     case InfoBoxSettings::Geometry::TOP_8_VARIO:
+    case InfoBoxSettings::Geometry::CUSTOM:
       break;
     }
   }
@@ -643,6 +890,8 @@ InfoBoxLayout::CalcInfoBoxSizes(Layout &layout, PixelSize screen_size,
   case InfoBoxSettings::Geometry::OBSOLETE_BOTTOM_RIGHT_8:
   case InfoBoxSettings::Geometry::OBSOLETE_BOTTOM_RIGHT_4:
   case InfoBoxSettings::Geometry::OBSOLETE_BOTTOM_RIGHT_12:
+  case InfoBoxSettings::Geometry::CUSTOM:
+    /* CalculateCustom() bypasses this function */
     gcc_unreachable();
   }
 }
@@ -903,6 +1152,10 @@ InfoBoxLayout::GetBorder(InfoBoxSettings::Geometry geometry, bool landscape,
       if (i != 7 && i != 15 && i != 23)
         border |= BORDERRIGHT;
     }
+    break;
+
+  case InfoBoxSettings::Geometry::CUSTOM:
+    /* not applicable; custom borders are in Layout::custom_borders */
     break;
 
   case InfoBoxSettings::Geometry::OBSOLETE_SPLIT_8:

@@ -5,7 +5,10 @@
 #include "ui/canvas/Features.hpp" // for DRAW_MOUSE_CURSOR
 #include "Profile/Keys.hpp"
 #include "Profile/Profile.hpp"
+#include "Dialogs/Message.hpp"
 #include "Form/DataField/Enum.hpp"
+#include "InfoBoxes/CustomGeometry.hpp"
+#include "InfoBoxes/CustomGeometryGlue.hpp"
 #include "Hardware/RotateDisplay.hpp"
 #include "Interface.hpp"
 #include "MainWindow.hpp"
@@ -36,6 +39,7 @@ enum ControlIndex {
   DarkMode,
   AppDisplayType,
   AppInfoBoxGeom,
+  AppInfoBoxCustomGeomFile,
   InfoBoxTitleScale,
   TabDialogStyle,
   AppStatusMessageAlignment,
@@ -124,6 +128,10 @@ static constexpr StaticEnumChoice info_box_geometry_list[] = {
     N_("4 Top or Left") },
   { InfoBoxSettings::Geometry::BOTTOM_RIGHT_4,
     N_("4 Bottom or Right") },
+  { InfoBoxSettings::Geometry::CUSTOM,
+    N_("Custom (JSON file)"),
+    N_("Pixel-precise InfoBox placement loaded from a JSON file; select the "
+       "file in the \"Custom InfoBox geometry file\" setting below.") },
   nullptr
 };
 
@@ -230,6 +238,12 @@ LayoutConfigPanel::Prepare(ContainerWindow &parent,
   AddEnum(_("InfoBox geometry"),
           _("A list of possible InfoBox layouts. Do some trials to find the best for your screen size."),
           info_box_geometry_list, (unsigned)ui_settings.info_boxes.geometry);
+
+  AddFile(_("Custom InfoBox geometry file"),
+          _("A JSON file in the XCSoarData directory describing a "
+            "pixel-precise InfoBox layout. Only used when \"InfoBox "
+            "geometry\" is set to \"Custom\"."),
+          ProfileKeys::InfoBoxCustomGeometryFile, "*.json\0");
 
   AddInteger(_("InfoBox title size"), _("Zoom factor for InfoBox title and comment text"),
              "%d %%", "%d", 50, 150, 5,
@@ -350,7 +364,21 @@ LayoutConfigPanel::Save(bool &_changed) noexcept
     SaveValueInteger(InfoBoxTitleScale, ProfileKeys::InfoBoxTitleScale,
                   ui_settings.info_boxes.scale_title_font);
 
+  info_box_geometry_changed |=
+    SaveValueFileReader(AppInfoBoxCustomGeomFile,
+                        ProfileKeys::InfoBoxCustomGeometryFile);
+
   changed |= info_box_geometry_changed;
+
+  if (info_box_geometry_changed) {
+    InfoBoxLayout::LoadCustomGeometryFromProfile();
+
+    if (ui_settings.info_boxes.geometry == InfoBoxSettings::Geometry::CUSTOM &&
+        !InfoBoxLayout::GetCustomGeometry())
+      ShowMessageBox(_("The custom InfoBox geometry file could not be "
+                       "loaded. The default geometry will be used instead."),
+                     _("InfoBox geometry"), MB_OK);
+  }
 
   changed |= SaveValueEnum(AppStatusMessageAlignment, ProfileKeys::AppStatusMessageAlignment,
                            ui_settings.popup_message_position);

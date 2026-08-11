@@ -107,6 +107,12 @@ struct InfoBoxSettings {
     /** 18 infoboxes 3X6 split bottom/top or left/right */
     SPLIT_3X6 = 26,
 
+    /**
+     * Free-form pixel-precise layout loaded from a JSON file
+     * (see InfoBoxLayout::CustomGeometry).
+     */
+    CUSTOM = 27,
+
   } geometry;
 
 /*

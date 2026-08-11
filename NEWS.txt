@@ -1,4 +1,11 @@
 Version 7.45 - not yet released
+* user interface
+  - New "Custom (JSON file)" InfoBox geometry: pixel-precise InfoBox
+    placement loaded from a JSON file in XCSoarData, with absolute
+    (auto-scaled to the actual screen) or percentage coordinates; each
+    InfoBox set can have its own layout file, and boxes can pin their
+    content so one file fully describes a page; see
+    doc/infobox_custom_geometry.rst
 * airspace
   - Remove ineffective "Unknown" row from airspace warning, display, and
     colour settings #1772

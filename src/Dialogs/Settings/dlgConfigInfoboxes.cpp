@@ -16,6 +16,7 @@
 #include "Form/DataField/Listener.hpp"
 #include "InfoBoxes/InfoBoxSettings.hpp"
 #include "InfoBoxes/InfoBoxLayout.hpp"
+#include "InfoBoxes/CustomGeometryGlue.hpp"
 #include "InfoBoxes/Content/Factory.hpp"
 #include "Look/InfoBoxLook.hpp"
 #include "Language/Language.hpp"
@@ -55,7 +56,7 @@ class InfoBoxesConfigWidget final
   : public RowFormWidget, DataFieldListener {
 
   enum Controls {
-    NAME, INFOBOX, CONTENT, DESCRIPTION
+    NAME, GEOMETRY_FILE, INFOBOX, CONTENT, DESCRIPTION
   };
 
   struct Layout {
@@ -65,13 +66,15 @@ class InfoBoxesConfigWidget final
 
     PixelRect copy_button, paste_button, close_button;
 
-    Layout(PixelRect rc, InfoBoxSettings::Geometry geometry);
+    Layout(PixelRect rc, InfoBoxSettings::Geometry geometry,
+           unsigned panel_index);
   };
 
   WndForm &dialog;
   const InfoBoxLook &look;
 
   InfoBoxSettings::Panel &data;
+  const unsigned panel_index;
   const bool allow_name_change;
   bool changed;
 
@@ -87,12 +90,14 @@ public:
                         const DialogLook &dialog_look,
                         const InfoBoxLook &_look,
                         InfoBoxSettings::Panel &_data,
+                        unsigned _panel_index,
                         bool _allow_name_change,
                         InfoBoxSettings::Geometry _geometry)
     :RowFormWidget(dialog_look),
      dialog(_dialog),
      look(_look),
      data(_data),
+     panel_index(_panel_index),
      allow_name_change(_allow_name_change),
      changed(false),
      geometry(_geometry) {}
@@ -135,7 +140,7 @@ public:
   bool Save(bool &changed) noexcept override;
 
   void Show(const PixelRect &rc) noexcept override {
-    const Layout layout(rc, geometry);
+    const Layout layout(rc, geometry, panel_index);
 
     RowFormWidget::Show(layout.form);
 
@@ -159,7 +164,7 @@ public:
   }
 
   void Move(const PixelRect &rc) noexcept override {
-    const Layout layout(rc, geometry);
+    const Layout layout(rc, geometry, panel_index);
 
     RowFormWidget::Move(layout.form);
 
@@ -196,9 +201,10 @@ private:
 };
 
 InfoBoxesConfigWidget::Layout::Layout(PixelRect rc,
-                                      InfoBoxSettings::Geometry geometry)
+                                      InfoBoxSettings::Geometry geometry,
+                                      unsigned panel_index)
 {
-  info_boxes = InfoBoxLayout::Calculate(rc, geometry);
+  info_boxes = InfoBoxLayout::Calculate(rc, geometry, panel_index);
 
   form = info_boxes.remaining;
   auto buttons = form.CutTopSafe(::Layout::GetMaximumControlHeight());
@@ -214,12 +220,19 @@ void
 InfoBoxesConfigWidget::Prepare(ContainerWindow &parent,
                                const PixelRect &rc) noexcept
 {
-  const Layout layout(rc, geometry);
+  const Layout layout(rc, geometry, panel_index);
 
   AddText(_("Name"),
           _("The name of this InfoBox panel configuration."),
           allow_name_change ? (const char *)data.name : gettext(data.name));
   SetReadOnly(NAME, !allow_name_change);
+
+  AddFile(_("Geometry file"),
+          _("A JSON file with a pixel-precise InfoBox layout for this set, "
+            "used when the InfoBox geometry is \"Custom\". If unset, the "
+            "global custom geometry file is used."),
+          InfoBoxLayout::MakePanelCustomGeometryFileKey(panel_index),
+          "*.json\0");
 
   DataFieldEnum *dfe = new DataFieldEnum(this);
   for (unsigned i = 0; i < layout.info_boxes.count; ++i) {
@@ -283,6 +296,10 @@ InfoBoxesConfigWidget::Save(bool &changed_r) noexcept
       changed = true;
     }
   }
+
+  if (SaveValueFileReader(GEOMETRY_FILE,
+                          InfoBoxLayout::MakePanelCustomGeometryFileKey(panel_index)))
+    changed = true;
 
   changed_r = changed;
   return true;
@@ -406,12 +423,13 @@ dlgConfigInfoboxesShowModal(SingleWindow &parent,
                             const InfoBoxLook &_look,
                             InfoBoxSettings::Geometry geometry,
                             InfoBoxSettings::Panel &data_r,
+                            unsigned panel_index,
                             bool allow_name_change)
 {
   TWidgetDialog<InfoBoxesConfigWidget> dialog(WidgetDialog::Full{}, parent,
                                               dialog_look, nullptr);
   dialog.SetWidget(dialog, dialog_look, _look,
-                   data_r, allow_name_change, geometry);
+                   data_r, panel_index, allow_name_change, geometry);
 
   dialog.ShowModal();
   return dialog.GetChanged();

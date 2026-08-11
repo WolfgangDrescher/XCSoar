@@ -5,6 +5,8 @@
 #include "PopupMessage.hpp"
 #include "InfoBoxes/InfoBoxManager.hpp"
 #include "InfoBoxes/InfoBoxLayout.hpp"
+#include "InfoBoxes/CustomGeometry.hpp"
+#include "InfoBoxes/CustomGeometryGlue.hpp"
 #include "UIActions.hpp"
 #include "PageActions.hpp"
 #include "Input/InputEvents.hpp"
@@ -479,8 +481,12 @@ MainWindow::InitialiseConfigured()
 
   PixelRect rc = GetClientRect();
 
+  InfoBoxLayout::LoadCustomGeometryFromProfile();
+  infobox_layout_panel = CommonInterface::GetUIState().panel_index;
+
   const InfoBoxLayout::Layout ib_layout =
-    InfoBoxLayout::Calculate(rc, ui_settings.info_boxes.geometry);
+    InfoBoxLayout::Calculate(rc, ui_settings.info_boxes.geometry,
+                             infobox_layout_panel);
 
   assert(look != nullptr);
   look->InitialiseConfigured(CommonInterface::GetUISettings(),
@@ -705,8 +711,11 @@ MainWindow::ReinitialiseLayout() noexcept
 
   const UISettings &ui_settings = CommonInterface::GetUISettings();
 
+  infobox_layout_panel = CommonInterface::GetUIState().panel_index;
+
   const InfoBoxLayout::Layout ib_layout =
-    InfoBoxLayout::Calculate(rc, ui_settings.info_boxes.geometry);
+    InfoBoxLayout::Calculate(rc, ui_settings.info_boxes.geometry,
+                             infobox_layout_panel);
 
   look->ReinitialiseLayout(ib_layout.control_size.width, ui_settings.info_boxes.scale_title_font);
 
@@ -860,7 +869,8 @@ MainWindow::ReinitialiseLook() noexcept
 
   const InfoBoxLayout::Layout ib_layout =
     InfoBoxLayout::Calculate(GetClientRect(),
-                             ui_settings.info_boxes.geometry);
+                             ui_settings.info_boxes.geometry,
+                             CommonInterface::GetUIState().panel_index);
 
   assert(look != nullptr);
   look->InitialiseConfigured(CommonInterface::GetUISettings(),
@@ -1234,9 +1244,35 @@ MainWindow::OnRefreshInfoBoxesNotify() noexcept
   if (!InfoBoxManager::IsReady())
     return;
 
+  CheckInfoBoxLayout();
+
   InfoBoxManager::SetDirty();
   InfoBoxManager::ProcessTimer();
   SetUIState(CommonInterface::GetUIState());
+}
+
+void
+MainWindow::CheckInfoBoxLayout() noexcept
+{
+  const unsigned panel = CommonInterface::GetUIState().panel_index;
+  if (panel == infobox_layout_panel)
+    return;
+
+  /* once per-panel geometry overrides exist
+     (infobox-geometry-per-page), this should compare the resolved
+     geometries of the two panels instead of the global setting */
+  const InfoBoxSettings &settings =
+    CommonInterface::GetUISettings().info_boxes;
+  if (settings.geometry == InfoBoxSettings::Geometry::CUSTOM &&
+      &InfoBoxLayout::GetCustomGeometry(panel) !=
+      &InfoBoxLayout::GetCustomGeometry(infobox_layout_panel)) {
+    /* the new panel uses a different custom geometry; re-create the
+       InfoBox layout (this also updates infobox_layout_panel) */
+    ReinitialiseLayout();
+    return;
+  }
+
+  infobox_layout_panel = panel;
 }
 
 void
@@ -1361,7 +1397,8 @@ MainWindow::SetFullScreen(bool _full_screen) noexcept
   const PixelRect rc = GetClientRect();
   const InfoBoxLayout::Layout ib_layout =
     InfoBoxLayout::Calculate(rc,
-                             CommonInterface::GetUISettings().info_boxes.geometry);
+                             CommonInterface::GetUISettings().info_boxes.geometry,
+                             CommonInterface::GetUIState().panel_index);
   ReinitialiseLayout_flarm(rc, ib_layout);
   ReinitialiseLayoutTA(rc, ib_layout);
 

@@ -16,6 +16,7 @@ XCSoar
    lua
    mapfile
    checklist
+   infobox_custom_geometry
    debugging
    test_debug_utilities
    git_tips

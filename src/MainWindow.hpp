@@ -140,6 +140,13 @@ private:
   bool FullScreen = false;
 
   /**
+   * The InfoBox panel (set) the current InfoBox layout was computed
+   * for; used to detect when a panel switch requires a re-layout
+   * because of per-panel custom geometries.
+   */
+  unsigned infobox_layout_panel = 0;
+
+  /**
    * Nesting count for #BeginCoalesceMapLayout() /
    * #EndCoalesceMapLayout().  While non-zero, #LayoutMapArea() only
    * sets #map_layout_pending.
@@ -500,6 +507,13 @@ public:
 private:
   void UpdateVarioGaugeVisibility() noexcept;
   void UpdateTrafficGaugeVisibility() noexcept;
+
+  /**
+   * Re-create the InfoBox layout if the current InfoBox panel has a
+   * different (per-panel) custom geometry than the panel the layout
+   * was computed for.
+   */
+  void CheckInfoBoxLayout() noexcept;
 
   void StopDragging() noexcept;
 

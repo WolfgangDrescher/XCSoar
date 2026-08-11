@@ -237,6 +237,7 @@ constexpr std::string_view Show95PercentRuleHelpers = "Show95PercentRuleHelpers"
 constexpr std::string_view UseFinalGlideDisplayMode = "UseFinalGlideDisplayMode";
 constexpr std::string_view InfoBoxGeometry = "InfoBoxGeometry";
 constexpr std::string_view InfoBoxTitleScale = "InfoBoxTitleScale";
+constexpr std::string_view InfoBoxCustomGeometryFile = "InfoBoxCustomGeometryFile";
 
 constexpr std::string_view FlarmSideData = "FlarmRadarSideData";
 constexpr std::string_view FlarmAutoZoom = "FlarmRadarAutoZoom";

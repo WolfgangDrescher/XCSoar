@@ -7,7 +7,10 @@
 #include "Profile/Current.hpp"
 #include "Profile/InfoBoxConfig.hpp"
 #include "Form/Button.hpp"
+#include "InfoBoxes/CustomGeometryGlue.hpp"
 #include "Interface.hpp"
+#include "MainWindow.hpp"
+#include "UIState.hpp"
 #include "Widget/RowFormWidget.hpp"
 #include "Language/Language.hpp"
 #include "UIGlobals.hpp"
@@ -38,12 +41,19 @@ InfoBoxesConfigPanel::OnAction(int id) noexcept
     dlgConfigInfoboxesShowModal(UIGlobals::GetMainWindow(),
                                 UIGlobals::GetDialogLook(),
                                 UIGlobals::GetLook().info_box,
-                                settings.geometry, data,
+                                settings.geometry, data, i,
                                 i >= InfoBoxSettings::PREASSIGNED_PANELS);
   if (changed) {
     Profile::Save(Profile::map, data, i);
     Profile::Save();
     ((Button &)GetRow(i)).SetCaption(gettext(data.name));
+
+    InfoBoxLayout::LoadCustomGeometryFromProfile();
+
+    /* if the edited panel is currently active, rebuild the layout so
+       the new geometry applies immediately */
+    if (CommonInterface::GetUIState().panel_index == i)
+      CommonInterface::main_window->ReinitialiseLayout();
   }
 }
 
