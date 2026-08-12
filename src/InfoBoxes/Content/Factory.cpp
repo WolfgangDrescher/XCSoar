@@ -1227,6 +1227,14 @@ static constexpr MetaData meta_data[] = {
     UpdateInfoBoxSpacer,
   },
 
+  // e_Invisible
+  {
+    N_("Invisible"),
+    N_("Invisible"),
+    N_("Draws nothing at all: this InfoBox slot stays transparent and the map is extended over it, so the map below remains visible. Such a slot can no longer be tapped; use Setup > InfoBoxes to assign a different InfoBox again."),
+    UpdateInfoBoxInvisible,
+  },
+
 };
 
 static_assert(ARRAY_SIZE(meta_data) == NUM_TYPES,

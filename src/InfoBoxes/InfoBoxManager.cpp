@@ -11,9 +11,11 @@
 #include "Profile/InfoBoxConfig.hpp"
 #include "Profile/Current.hpp"
 #include "Interface.hpp"
+#include "MainWindow.hpp"
 #include "UIState.hpp"
 
-#include <algorithm> // for std::equal()
+#include <algorithm>
+#include <cstdint>
 
 namespace InfoBoxManager {
 
@@ -51,6 +53,16 @@ UpdateLayout(const InfoBoxSettings::Panel &panel) noexcept;
 static bool infoboxes_dirty = false;
 static bool infoboxes_hidden = false;
 
+/**
+ * Bit mask of the InfoBox slots which are currently configured as
+ * #InfoBoxFactory::e_Invisible.  Kept up to date by DisplayInfoBox();
+ * a change of this mask means the map window needs to be resized.
+ */
+static uint_least32_t invisible_mask = 0;
+
+static_assert(InfoBoxSettings::Panel::MAX_CONTENTS <= 32,
+              "invisible_mask is too small");
+
 /* True after Create() finishes and until Destroy() runs.  Startup can
    re-enter layout (terrain load, PageActions::Update) while windows
    are half-built; defer refresh via ScheduleRefreshInfoBoxes() and
@@ -58,6 +70,67 @@ static bool infoboxes_hidden = false;
 static bool infoboxes_ready = false;
 
 static InfoBoxWindow *infoboxes[InfoBoxSettings::Panel::MAX_CONTENTS];
+
+[[gnu::pure]]
+static const InfoBoxSettings::Panel &
+GetCurrentPanel() noexcept
+{
+  const unsigned panel = CommonInterface::GetUIState().panel_index;
+  return CommonInterface::GetUISettings().info_boxes.panels[panel];
+}
+
+/**
+ * Is the given slot of the current panel configured as
+ * #InfoBoxFactory::e_Invisible?  Such an InfoBox is never shown; the
+ * map window is extended over it instead.
+ */
+[[gnu::pure]]
+static bool
+IsInvisible(const InfoBoxSettings::Panel &panel, unsigned i) noexcept
+{
+  return panel.contents[i] == InfoBoxFactory::e_Invisible;
+}
+
+/**
+ * Recalculate #invisible_mask; returns true if it has changed, which
+ * means the map window needs to be moved.
+ */
+static bool
+UpdateInvisibleMask() noexcept
+{
+  const InfoBoxSettings::Panel &panel = GetCurrentPanel();
+
+  uint_least32_t mask = 0;
+  for (unsigned i = 0; i < InfoBoxManager::layout.count; ++i)
+    if (IsInvisible(panel, i))
+      mask |= uint_least32_t(1) << i;
+
+  if (mask == invisible_mask)
+    return false;
+
+  invisible_mask = mask;
+  return true;
+}
+
+PixelRect
+InfoBoxManager::ExpandOverInvisible(PixelRect rc) noexcept
+{
+  if (invisible_mask == 0)
+    return rc;
+
+  for (unsigned i = 0; i < layout.count; ++i) {
+    if ((invisible_mask & (uint_least32_t(1) << i)) == 0)
+      continue;
+
+    const PixelRect &ib = layout.positions[i];
+    rc.left = std::min(rc.left, ib.left);
+    rc.top = std::min(rc.top, ib.top);
+    rc.right = std::max(rc.right, ib.right);
+    rc.bottom = std::max(rc.bottom, ib.bottom);
+  }
+
+  return rc;
+}
 
 // TODO locking
 void
@@ -88,8 +161,13 @@ InfoBoxManager::Show() noexcept
   if (!infoboxes_ready)
     return;
 
+  const InfoBoxSettings::Panel &panel = GetCurrentPanel();
+
   for (unsigned i = 0; i < layout.count; i++) {
-    if (infoboxes[i] != nullptr && layout.visible[i])
+    /* "invisible" InfoBoxes stay hidden (the map is drawn there), and
+       so do those which have released their space */
+    if (infoboxes[i] != nullptr && layout.visible[i] &&
+        !IsInvisible(panel, i))
       infoboxes[i]->Show();
   }
 
@@ -125,7 +203,7 @@ InfoBoxManager::UpdateLayout(const InfoBoxSettings::Panel &panel) noexcept
                                 : layout.borders[i]);
     infoboxes[i]->Move(layout.positions[i]);
 
-    if (!infoboxes_hidden)
+    if (!infoboxes_hidden && !IsInvisible(panel, i))
       infoboxes[i]->Show();
   }
 }
@@ -168,6 +246,11 @@ InfoBoxManager::DisplayInfoBox() noexcept
       infoboxes[i]->SetTitle(gettext(InfoBoxFactory::GetCaption(DisplayType)));
       infoboxes[i]->SetContentProvider(InfoBoxFactory::Create(DisplayType));
       DisplayTypeLast[i] = DisplayType;
+
+      if (DisplayType == InfoBoxFactory::e_Invisible || !layout.visible[i])
+        infoboxes[i]->FastHide();
+      else if (!infoboxes_hidden)
+        infoboxes[i]->Show();
     }
 
     infoboxes[i]->UpdateContent();
@@ -175,6 +258,11 @@ InfoBoxManager::DisplayInfoBox() noexcept
 
   first = false;
   displaying = false;
+
+  if (UpdateInvisibleMask() && CommonInterface::main_window != nullptr)
+    /* the set of "invisible" InfoBoxes has changed: grow or shrink
+       the map window accordingly */
+    CommonInterface::main_window->RelayoutMapArea();
 }
 
 void
@@ -257,6 +345,11 @@ InfoBoxManager::Create(ContainerWindow &parent,
   layout = _layout;
   InfoBoxLayout::ApplyContents(layout, panel);
   std::copy_n(panel.contents, layout.count, layout_contents);
+
+  /* determine the "invisible" slots before the caller queries
+     ExpandOverInvisible() to position the map window */
+  invisible_mask = 0;
+  UpdateInvisibleMask();
 
   for (unsigned i = layout.count; i < InfoBoxSettings::Panel::MAX_CONTENTS; ++i)
     infoboxes[i] = nullptr;

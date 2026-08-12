@@ -3,6 +3,8 @@
 
 #pragma once
 
+#include "ui/dim/Rect.hpp"
+
 struct InfoBoxLook;
 class ContainerWindow;
 class InfoBoxWindow;
@@ -13,6 +15,18 @@ namespace InfoBoxManager
 {
 
 extern InfoBoxLayout::Layout layout;
+
+/**
+ * Expand the given map area rectangle so that it also covers all
+ * InfoBox slots of the current panel which are configured as
+ * #InfoBoxFactory::e_Invisible.  Those InfoBox windows are never
+ * shown, and because the map window is kept at the bottom of the
+ * z-order, the map becomes visible in their place.
+ *
+ * Returns @p rc unmodified if there is no invisible InfoBox.
+ */
+[[gnu::pure]] PixelRect
+ExpandOverInvisible(PixelRect rc) noexcept;
 
 void
 ProcessTimer() noexcept;

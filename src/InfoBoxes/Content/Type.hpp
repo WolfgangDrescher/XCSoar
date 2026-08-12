@@ -157,6 +157,7 @@ namespace InfoBoxFactory
     e_PreviousWaypoint, /* Previous waypoint infobox: shows the task waypoint before the active leg (start when on the first leg) with arrival altitude diff and distance; selection is informational only and never advances the task or sets a Goto */
     e_Spacer, /* Occupies no space of its own: the InfoBox is not displayed and the other InfoBoxes of the same row (or column) grow into the gap */
     e_MergePrevious, /* Occupies no space of its own: the InfoBox is not displayed and the preceding InfoBox of the same row (or column) grows over it */
+    e_Invisible, /* Draws nothing at all; the map is extended over this InfoBox slot instead */
     e_NUM_TYPES /* Last item */
   };
 

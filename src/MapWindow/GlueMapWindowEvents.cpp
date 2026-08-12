@@ -737,7 +737,7 @@ GlueMapWindow::OnPaintBuffer(Canvas &canvas) noexcept
 
   MapWindow::OnPaintBuffer(canvas);
 
-  DrawMapScale(canvas, GetClientRect(), render_projection);
+  DrawMapScale(canvas, GetOverlayRect(), render_projection);
   if (IsPanChromeVisible())
     DrawPanInfo(canvas);
 
