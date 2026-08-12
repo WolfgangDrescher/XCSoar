@@ -4,6 +4,7 @@
 #include "InfoBoxes/InfoBoxManager.hpp"
 #include "InfoBoxes/InfoBoxWindow.hpp"
 #include "InfoBoxes/InfoBoxLayout.hpp"
+#include "InfoBoxes/Border.hpp"
 #include "InfoBoxes/Content/Factory.hpp"
 #include "Language/Language.hpp"
 #include "Form/DataField/ComboList.hpp"
@@ -112,6 +113,90 @@ UpdateInvisibleMask() noexcept
   return true;
 }
 
+/**
+ * Which edges of InfoBox @p i touch an "invisible" slot?
+ *
+ * Neighbouring InfoBoxes share one border: only one of the two draws
+ * it (see #InfoBoxLayout::GetBorder()).  If that neighbour is
+ * invisible, nothing is drawn there at all and the InfoBox would have
+ * an open side towards the map; it has to draw the shared edge itself.
+ */
+[[gnu::pure]]
+static unsigned
+GetInvisibleNeighbourBorders(unsigned i) noexcept
+{
+  if (invisible_mask == 0)
+    return 0;
+
+  const auto &layout = InfoBoxManager::layout;
+  const PixelRect &rc = layout.positions[i];
+
+  unsigned border = 0;
+
+  for (unsigned j = 0; j < layout.count; ++j) {
+    if (j == i || (invisible_mask & (uint_least32_t(1) << j)) == 0)
+      continue;
+
+    const PixelRect &other = layout.positions[j];
+
+    /* do the two rectangles share a section of the edge, or do they
+       just touch in a corner? */
+    const bool overlaps_x = rc.left < other.right && other.left < rc.right;
+    const bool overlaps_y = rc.top < other.bottom && other.top < rc.bottom;
+
+    if (overlaps_x && rc.top == other.bottom)
+      border |= BORDERTOP;
+    if (overlaps_x && rc.bottom == other.top)
+      border |= BORDERBOTTOM;
+    if (overlaps_y && rc.left == other.right)
+      border |= BORDERLEFT;
+    if (overlaps_y && rc.right == other.left)
+      border |= BORDERRIGHT;
+  }
+
+  return border;
+}
+
+/**
+ * Calculate the border flags for InfoBox @p i, taking "invisible"
+ * neighbours into account.
+ */
+[[gnu::pure]]
+static unsigned
+CalculateBorder(const InfoBoxSettings &settings,
+                const InfoBoxSettings::Panel &panel, unsigned i) noexcept
+{
+  if (settings.border_style == InfoBoxSettings::BorderStyle::TAB)
+    /* this style draws no borders at all */
+    return 0;
+
+  if (IsInvisible(panel, i))
+    /* not drawn anyway */
+    return 0;
+
+  /* layout.borders has been adjusted by
+     InfoBoxLayout::ApplyContents() where an InfoBox has grown over a
+     collapsed neighbour */
+  return unsigned(InfoBoxManager::layout.borders[i]) |
+    GetInvisibleNeighbourBorders(i);
+}
+
+/**
+ * Apply CalculateBorder() to all InfoBox windows.  Called when the set
+ * of "invisible" InfoBoxes has changed.
+ */
+static void
+UpdateBorders() noexcept
+{
+  const InfoBoxSettings &settings =
+    CommonInterface::GetUISettings().info_boxes;
+  const InfoBoxSettings::Panel &panel = GetCurrentPanel();
+
+  for (unsigned i = 0; i < InfoBoxManager::layout.count; ++i)
+    if (infoboxes[i] != nullptr)
+      infoboxes[i]->SetBorderKind(CalculateBorder(settings, panel, i));
+}
+
 PixelRect
 InfoBoxManager::ExpandOverInvisible(PixelRect rc) noexcept
 {
@@ -186,9 +271,6 @@ InfoBoxManager::UpdateLayout(const InfoBoxSettings::Panel &panel) noexcept
   layout = base_layout;
   InfoBoxLayout::ApplyContents(layout, panel);
 
-  const auto border_style =
-    CommonInterface::GetUISettings().info_boxes.border_style;
-
   for (unsigned i = 0; i < layout.count; ++i) {
     if (infoboxes[i] == nullptr)
       continue;
@@ -198,14 +280,14 @@ InfoBoxManager::UpdateLayout(const InfoBoxSettings::Panel &panel) noexcept
       continue;
     }
 
-    infoboxes[i]->SetBorderKind(border_style == InfoBoxSettings::BorderStyle::TAB
-                                ? 0
-                                : layout.borders[i]);
     infoboxes[i]->Move(layout.positions[i]);
 
     if (!infoboxes_hidden && !IsInvisible(panel, i))
       infoboxes[i]->Show();
   }
+
+  /* the collapsed slots have handed their edges to their neighbours */
+  UpdateBorders();
 }
 
 void
@@ -259,10 +341,15 @@ InfoBoxManager::DisplayInfoBox() noexcept
   first = false;
   displaying = false;
 
-  if (UpdateInvisibleMask() && CommonInterface::main_window != nullptr)
-    /* the set of "invisible" InfoBoxes has changed: grow or shrink
-       the map window accordingly */
-    CommonInterface::main_window->RelayoutMapArea();
+  if (UpdateInvisibleMask()) {
+    /* the set of "invisible" InfoBoxes has changed: the neighbours
+       must draw the now unpainted shared edges themselves, ... */
+    UpdateBorders();
+
+    /* ... and the map window must grow or shrink accordingly */
+    if (CommonInterface::main_window != nullptr)
+      CommonInterface::main_window->RelayoutMapArea();
+  }
 }
 
 void
@@ -336,8 +423,7 @@ InfoBoxManager::Create(ContainerWindow &parent,
   const InfoBoxSettings &settings =
     CommonInterface::GetUISettings().info_boxes;
 
-  const InfoBoxSettings::Panel &panel =
-    settings.panels[CommonInterface::GetUIState().panel_index];
+  const InfoBoxSettings::Panel &panel = GetCurrentPanel();
 
   infoboxes_ready = false;
   first = true;
@@ -360,15 +446,10 @@ InfoBoxManager::Create(ContainerWindow &parent,
   // create infobox windows
   for (unsigned i = layout.count; i-- > 0;) {
     const PixelRect &rc = layout.positions[i];
-    int Border =
-      settings.border_style == InfoBoxSettings::BorderStyle::TAB
-      ? 0
-      /* layout.borders is derived from the effective layout, while
-         settings.geometry is the configured layout */
-      : layout.borders[i];
 
     infoboxes[i] = new InfoBoxWindow(parent, rc,
-                                     Border, settings, look,
+                                     CalculateBorder(settings, panel, i),
+                                     settings, look,
                                      i, style);
   }
 

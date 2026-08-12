@@ -21,6 +21,12 @@ class InfoBoxWindow : public LazyPaintWindow
   const InfoBoxSettings &settings;
   const InfoBoxLook &look;
 
+  /**
+   * Which of the four edges this InfoBox draws itself.  Not const: it
+   * is updated when a neighbour becomes "invisible" (or visible
+   * again), because the shared edge is then no longer drawn by that
+   * neighbour.
+   */
   unsigned border_kind;
 
   const unsigned id;
@@ -123,9 +129,9 @@ public:
   }
 
   /**
-   * Change the border flags (see #BorderKind_t).  This is used when
-   * the InfoBox grows into the space of a collapsed neighbour and
-   * takes over its outer edge.
+   * Change which edges this InfoBox draws; see #border_kind.  Used
+   * when it grows over a collapsed neighbour and takes over its outer
+   * edge, or when a neighbour becomes "invisible".
    */
   void SetBorderKind(unsigned _border_kind) noexcept;
 
