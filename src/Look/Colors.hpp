@@ -34,22 +34,24 @@ static constexpr Color COLOR_DARK_THEME_GRADIENT_TOP =
   Color(0x14, 0x22, 0x32);
 
 /**
- * Light mode dialog background colors (warm parchment tint).
+ * Light mode dialog background colors: a cool slate ground
+ * (Tailwind slate-200, lifting to slate-100 at the top), so the
+ * white button cards clearly stand out on it.
  */
 static constexpr Color COLOR_DIALOG_BACKGROUND =
-  Color(0xe2, 0xdc, 0xbe);
+  Color(0xe2, 0xe8, 0xf0);
 static constexpr Color COLOR_DIALOG_GRADIENT_TOP =
-  Color(0xf0, 0xeb, 0xd4);
+  Color(0xf1, 0xf5, 0xf9);
 
 /**
- * Flat "card" button face (light mode), using the Tailwind slate
- * palette like Nuxt UI's neutral buttons: face = slate-100
- * (bg-elevated), ring = slate-200 (border-accented).
+ * Flat "card" button face (light mode): white cards with a
+ * slate-300 hairline ring, like Tailwind `bg-white
+ * border-slate-300` on a slate-200 page.
  */
 static constexpr Color COLOR_BUTTON_FACE =
-  Color(0xf1, 0xf5, 0xf9);
+  Color(0xff, 0xff, 0xff);
 static constexpr Color COLOR_BUTTON_RING =
-  Color(0xe2, 0xe8, 0xf0);
+  Color(0xcb, 0xd5, 0xe1);
 
 /**
  * Admonition colors for Markdown rendering.

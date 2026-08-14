@@ -65,8 +65,10 @@ ButtonLook::Initialise(const Font &_font, bool dark_mode)
       selected.ring_color = COLOR_BLACK;
     } else {
       selected.foreground_color = COLOR_XCSOAR_DARK;
-      selected.background_color = MixColors(COLOR_XCSOAR, COLOR_WHITE, 0x26);
-      selected.ring_color = MixColors(COLOR_XCSOAR, COLOR_WHITE, 0x40);
+      /* one shade deeper than a classic primary-50 wash, so the
+         tint remains visible on the slate page background */
+      selected.background_color = MixColors(COLOR_XCSOAR, COLOR_WHITE, 0x40);
+      selected.ring_color = MixColors(COLOR_XCSOAR, COLOR_WHITE, 0x66);
     }
     selected.foreground_brush.Create(selected.foreground_color);
     selected.pressed_background_color =
