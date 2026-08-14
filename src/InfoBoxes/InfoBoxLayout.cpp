@@ -104,7 +104,8 @@ MakeRightColumn(const InfoBoxLayout::Layout &layout,
 
 InfoBoxLayout::Layout
 InfoBoxLayout::Calculate(PixelRect rc, InfoBoxSettings::Geometry geometry,
-                         unsigned scale_title_font) noexcept
+                         unsigned scale_title_font,
+                         unsigned row_height_percent) noexcept
 {
   const PixelSize screen_size = rc.GetSize();
 
@@ -118,6 +119,13 @@ InfoBoxLayout::Calculate(PixelRect rc, InfoBoxSettings::Geometry geometry,
   assert(layout.count <= InfoBoxSettings::Panel::MAX_CONTENTS);
 
   CalcInfoBoxSizes(layout, screen_size, geometry, scale_title_font);
+
+  if (row_height_percent != 100 && !layout.landscape)
+    /* in portrait, the boxes form rows whose height we may shrink; in
+       landscape they form columns that fill the screen height, so
+       there is nothing to gain */
+    layout.control_size.height =
+      layout.control_size.height * row_height_percent / 100;
 
   layout.ClearVario();
 

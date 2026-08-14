@@ -58,6 +58,23 @@
 
 static constexpr unsigned separator_height = 2;
 
+/**
+ * The OVERLAY border style packs title, value and comment tightly
+ * (see InfoBoxWindow::OnResize()), so its boxes get by with less
+ * height than the classic styles.
+ */
+static constexpr unsigned overlay_row_height_percent = 75;
+
+[[gnu::pure]]
+static unsigned
+GetInfoBoxRowHeightPercent() noexcept
+{
+  return CommonInterface::GetUISettings().info_boxes.border_style ==
+    InfoBoxSettings::BorderStyle::OVERLAY
+    ? overlay_row_height_percent
+    : 100;
+}
+
 [[gnu::pure]]
 static PixelRect
 GetMapOverlayButtonRect(const PixelRect rc, int top) noexcept
@@ -563,7 +580,8 @@ MainWindow::InitialiseConfigured()
 
   const InfoBoxLayout::Layout ib_layout =
     InfoBoxLayout::Calculate(ib_rc, ui_settings.info_boxes.geometry,
-                             ui_settings.info_boxes.scale_title_font);
+                             ui_settings.info_boxes.scale_title_font,
+                             GetInfoBoxRowHeightPercent());
 
   assert(look != nullptr);
   look->InitialiseConfigured(CommonInterface::GetUISettings(),
@@ -574,7 +592,8 @@ MainWindow::InitialiseConfigured()
      mode use the un-shrunk remaining area so overlays stay out of the
      floating boxes */
   const InfoBoxLayout::Layout overlay_layout = is_rounded
-    ? InfoBoxLayout::Calculate(rc, ui_settings.info_boxes.geometry)
+    ? InfoBoxLayout::Calculate(rc, ui_settings.info_boxes.geometry,
+                               overlay_row_height_percent)
     : ib_layout;
   InfoBoxManager::Create(*this, ib_layout, look->info_box);
   map_rect = is_rounded ? rc : ib_layout.remaining;
@@ -836,12 +855,14 @@ MainWindow::ReinitialiseLayout() noexcept
 
   const InfoBoxLayout::Layout ib_layout =
     InfoBoxLayout::Calculate(ib_rc, ui_settings.info_boxes.geometry,
-                             ui_settings.info_boxes.scale_title_font);
+                             ui_settings.info_boxes.scale_title_font,
+                             GetInfoBoxRowHeightPercent());
 
   look->ReinitialiseLayout(ib_layout.control_size.width, ui_settings.info_boxes.scale_title_font);
 
   const InfoBoxLayout::Layout overlay_layout2 = is_rounded
-    ? InfoBoxLayout::Calculate(rc, ui_settings.info_boxes.geometry)
+    ? InfoBoxLayout::Calculate(rc, ui_settings.info_boxes.geometry,
+                               overlay_row_height_percent)
     : ib_layout;
   InfoBoxManager::Create(*this, ib_layout, look->info_box);
   InfoBoxManager::ProcessTimer();
@@ -1006,7 +1027,8 @@ MainWindow::ReinitialiseLook() noexcept
   const InfoBoxLayout::Layout ib_layout =
     InfoBoxLayout::Calculate(GetClientRect(),
                              ui_settings.info_boxes.geometry,
-                             ui_settings.info_boxes.scale_title_font);
+                             ui_settings.info_boxes.scale_title_font,
+                             GetInfoBoxRowHeightPercent());
 
   assert(look != nullptr);
   look->InitialiseConfigured(CommonInterface::GetUISettings(),
@@ -1549,7 +1571,8 @@ MainWindow::SetFullScreen(bool _full_screen) noexcept
   const auto &info_boxes = CommonInterface::GetUISettings().info_boxes;
   const InfoBoxLayout::Layout ib_layout =
     InfoBoxLayout::Calculate(rc, info_boxes.geometry,
-                             info_boxes.scale_title_font);
+                             info_boxes.scale_title_font,
+                             GetInfoBoxRowHeightPercent());
   ReinitialiseLayout_flarm(rc, ib_layout);
   ReinitialiseLayoutTA(rc, ib_layout);
 

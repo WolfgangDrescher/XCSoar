@@ -31,10 +31,16 @@ struct Layout {
   }
 };
 
+/**
+ * @param row_height_percent scales the InfoBox row height in portrait
+ * layouts; used by the OVERLAY border style, whose boxes need less
+ * height than the classic ones.  100 means "unchanged".
+ */
 [[gnu::pure]]
 Layout
 Calculate(PixelRect rc, InfoBoxSettings::Geometry geometry,
-          unsigned scale_title_font=100) noexcept;
+          unsigned scale_title_font=100,
+          unsigned row_height_percent=100) noexcept;
 
 [[gnu::const]]
 int
