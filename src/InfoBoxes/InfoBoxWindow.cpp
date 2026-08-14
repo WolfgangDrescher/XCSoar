@@ -396,6 +396,45 @@ InfoBoxWindow::OnResize(PixelSize new_size) noexcept
       rc.bottom -= look.border_width;
   }
 
+  if (settings.border_style == InfoBoxSettings::BorderStyle::OVERLAY) {
+    /* Pack the three rows tightly and center them as a block: title
+       and comment only ever show capitals and digits, so the font's
+       ascent padding and its descent are wasted space here. */
+    const Font &small_font = look.small_title_font;
+    const Font &big_font = look.value_font;
+
+    const int title_visible = small_font.GetCapitalHeight();
+    const int value_visible = big_font.GetCapitalHeight();
+    const int gap = Layout::Scale(2);
+
+    const int total = 2 * title_visible + value_visible + 2 * gap;
+    int y = rc.top + std::max(0, (int(rc.GetHeight()) - total) / 2);
+
+    /* PaintTitle()/PaintComment() draw at rect.top using the full font
+       height, and PaintValue() centers within its rect; offset by the
+       ascent padding so the capitals land on the rows computed above */
+    const int small_pad = small_font.GetAscentHeight() - title_visible;
+    const int value_pad = big_font.GetAscentHeight() - value_visible;
+
+    title_rect = rc;
+    title_rect.top = y - small_pad;
+    title_rect.bottom = title_rect.top + small_font.GetHeight();
+    y += title_visible + gap;
+
+    value_rect = rc;
+    value_rect.top = y - value_pad;
+    value_rect.bottom = value_rect.top + big_font.GetHeight();
+    y += value_visible + gap;
+
+    comment_rect = rc;
+    comment_rect.top = y - small_pad;
+    comment_rect.bottom = comment_rect.top + small_font.GetHeight();
+
+    value_and_comment_rect = value_rect;
+    value_and_comment_rect.bottom = comment_rect.bottom;
+    return;
+  }
+
   title_rect = rc;
   title_rect.bottom = rc.top + look.title_font.GetHeight();
 
