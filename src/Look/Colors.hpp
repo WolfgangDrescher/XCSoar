@@ -42,12 +42,14 @@ static constexpr Color COLOR_DIALOG_GRADIENT_TOP =
   Color(0xf0, 0xeb, 0xd4);
 
 /**
- * Flat "card" button face (light mode). Near-white, not Win95 grey.
+ * Flat "card" button face (light mode), using the Tailwind slate
+ * palette like Nuxt UI's neutral buttons: face = slate-100
+ * (bg-elevated), ring = slate-200 (border-accented).
  */
 static constexpr Color COLOR_BUTTON_FACE =
-  Color(0xf4, 0xf5, 0xf7);
-static constexpr Color COLOR_BUTTON_BORDER =
-  Color(0xc5, 0xc8, 0xce);
+  Color(0xf1, 0xf5, 0xf9);
+static constexpr Color COLOR_BUTTON_RING =
+  Color(0xe2, 0xe8, 0xf0);
 
 /**
  * Admonition colors for Markdown rendering.

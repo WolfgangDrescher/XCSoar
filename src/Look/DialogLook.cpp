@@ -110,19 +110,10 @@ DialogLook::Initialise(bool _dark_mode)
       button.selected.foreground_color = h.text_color;
     }
     button.selected.foreground_brush.Create(button.selected.foreground_color);
-    if (dark_mode) {
-      button.selected.CreateBorder(
-        LightColor(button.selected.background_color),
-        DarkColor(button.selected.background_color));
-    } else if (IsDithered()) {
-      button.selected.CreateBorder(COLOR_WHITE, COLOR_WHITE);
-    } else if (!HasColors()) {
-      button.selected.CreateBorder(LightColor(COLOR_DARK_GRAY), COLOR_BLACK);
-    } else {
-      button.selected.CreateBorder(
-        LightColor(button.selected.background_color),
-        DarkColor(button.selected.background_color));
-    }
+    button.selected.pressed_background_color =
+      MixColors(COLOR_BLACK, button.selected.background_color, 0x26);
+    /* solid faces have no border ring in Nuxt UI */
+    button.selected.ring_color = button.selected.background_color;
   }
 
   check_box.Initialise(text_font, dark_mode);

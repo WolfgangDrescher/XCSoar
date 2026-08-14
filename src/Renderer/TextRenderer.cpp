@@ -43,11 +43,15 @@ TextRenderer::Draw(Canvas &canvas, PixelRect rc,
     const unsigned height = GetHeight(canvas, rc, text);
     TEXTMETRIC tm;
     unsigned block = height;
-    /* Single-line captions: center on ascent so empty descent does
-       not push the ink above the visual mid-line. */
+    /* Single-line captions: center the cap-height strip (cap height
+       is roughly tmAscent - tmInternalLeading, so the block
+       2*ascent - cap simplifies to ascent + internal leading), then
+       lift the ink slightly above the geometric middle like native
+       buttons do; exact centering reads as sitting too low. */
     if (::GetTextMetrics(canvas, &tm) &&
         height <= (unsigned)tm.tmHeight)
-      block = tm.tmAscent;
+      block = tm.tmAscent + tm.tmInternalLeading
+        + 2 * (3 * (unsigned)tm.tmDescent / 8);
     int top = (rc.top + rc.bottom - (int)block) / 2;
     if (top > rc.top)
       rc.top = top;

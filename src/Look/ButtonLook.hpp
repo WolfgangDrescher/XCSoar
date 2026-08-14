@@ -5,8 +5,6 @@
 
 #include "ui/canvas/Color.hpp"
 #include "ui/canvas/Brush.hpp"
-#include "ui/canvas/Pen.hpp"
-#include "Screen/Layout.hpp"
 
 class Font;
 
@@ -18,16 +16,27 @@ struct ButtonLook {
     Brush foreground_brush;
 
     Color background_color;
-    Pen light_border_pen, dark_border_pen;
-    Brush light_border_brush, dark_border_brush;
 
-    void CreateBorder(Color light, Color dark) {
-      light_border_pen.Create(Layout::ScaleFinePenWidth(1), light);
-      light_border_brush.Create(light);
-      dark_border_pen.Create(Layout::ScaleFinePenWidth(1), dark);
-      dark_border_brush.Create(dark);
-    }
+    /**
+     * Background while the button is pressed down (the CSS `active`
+     * state).
+     */
+    Color pressed_background_color;
+
+    /**
+     * Hairline border drawn on the face outline, like a Tailwind
+     * inset ring.
+     */
+    Color ring_color;
   } standard, selected, focused;
+
+  /**
+   * Solid ring hugging the focused button face from the outside,
+   * like a Tailwind `ring-3` in the palette's light primary:
+   * lighter than the face, but saturated enough to read as a
+   * defined contour, not a washed-out glow.
+   */
+  Color focus_ring_color;
 
   struct {
     Color color;

@@ -180,14 +180,21 @@ Canvas::DrawFormattedText(const PixelRect r, const std::string_view text,
     return lines * skip;
   }
 
-  /* Vertical center using ascent for the last/only line so Latin
-     labels (little descent) sit optically in the middle.  Full
-     line-spacing would leave empty descent space below the ink and
-     make button captions look too high. */
+  /* Optical vertical centering: center the cap-height strip of the
+     last/only line, then lift the ink slightly above the geometric
+     middle.  Native macOS buttons place their caption baseline
+     about three eighths of the descent above the strip-centered
+     position; exact centering reads as sitting too low. */
   int y = r.top;
   if (format & DT_VCENTER) {
-    const unsigned block_height =
-      (lines - 1) * skip + font->GetAscentHeight();
+    const unsigned ascent = font->GetAscentHeight();
+    const unsigned capital = font->GetCapitalHeight();
+    const unsigned descent = skip > ascent ? skip - ascent : 0;
+    const unsigned lift = 3 * descent / 8;
+    const unsigned last_line = capital > 0 && capital <= ascent
+      ? 2 * ascent - capital
+      : ascent;
+    const unsigned block_height = (lines - 1) * skip + last_line + 2 * lift;
     if (r.GetHeight() > 0 &&
         block_height <= (unsigned)r.GetHeight())
       y = (r.top + r.bottom - (int)block_height) / 2;

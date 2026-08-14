@@ -7,14 +7,11 @@
 #include "Look/ButtonLook.hpp"
 #include "Asset.hpp"
 
-#ifdef ENABLE_OPENGL
-#include "ui/canvas/opengl/Scope.hpp"
-#endif
-
 unsigned
 ButtonFrameRenderer::GetMargin() noexcept
 {
-  return Layout::VptScale(2);
+  /* wide enough for the keyboard focus ring around the face */
+  return Layout::VptScale(3);
 }
 
 static constexpr const auto &
@@ -37,32 +34,15 @@ GetStateLook(const ButtonLook &look, ButtonState state) noexcept
 }
 
 /**
- * Inset the face so a soft shadow fits inside the window, and so
- * rounded corners leave the map visible in the window corners.
+ * Inset the face from the window edges so adjacent buttons get
+ * breathing room and rounded corners reveal the background.
  */
 [[gnu::pure]]
 static PixelRect
-GetFaceRect(PixelRect rc, ButtonState state) noexcept
+GetFaceRect(PixelRect rc) noexcept
 {
-  if (IsDithered())
-    return rc;
-
-  const unsigned pad = Layout::VptScale(2);
-  const unsigned shadow = state == ButtonState::PRESSED
-    ? 0
-    : Layout::VptScale(3);
-
-  rc.Grow(-(int)pad);
-  if (shadow > 0) {
-    /* Reserve the same strip above the face as below for the
-       shadow, so pills are not tight against the action-bar top. */
-    rc.top += (int)shadow;
-    rc.right -= (int)shadow;
-    rc.bottom -= (int)shadow;
-  }
-
-  if (state == ButtonState::PRESSED)
-    rc.Offset((int)Layout::VptScale(1), (int)Layout::VptScale(1));
+  if (!IsDithered())
+    rc.Grow(-(int)ButtonFrameRenderer::GetMargin());
 
   return rc;
 }
@@ -71,8 +51,9 @@ GetFaceRect(PixelRect rc, ButtonState state) noexcept
 static unsigned
 GetCornerDiameter(const PixelRect &face) noexcept
 {
-  /* Large radius reads as a modern card / soft pill. */
-  return std::min(Layout::VptScale(20),
+  /* radius comparable to a Tailwind "rounded-lg" card; the cap keeps
+     small buttons from turning into pills */
+  return std::min(Layout::VptScale(14),
                   std::min(std::max(2u, (unsigned)face.GetWidth() / 2),
                            std::max(2u, (unsigned)face.GetHeight() / 2)));
 }
@@ -82,67 +63,67 @@ ButtonFrameRenderer::DrawButton(Canvas &canvas, PixelRect rc,
                                 ButtonState state) const noexcept
 {
   const ButtonLook::StateLook &_look = GetStateLook(look, state);
-  const PixelRect face = GetFaceRect(rc, state);
+  const PixelRect face = GetFaceRect(rc);
   const unsigned diameter = GetCornerDiameter(face);
 
-  Color fill = _look.background_color;
-  if (state == ButtonState::PRESSED)
-    fill = DarkColor(fill);
+  const Color fill = state == ButtonState::PRESSED
+    ? _look.pressed_background_color
+    : _look.background_color;
+
+  canvas.SelectNullPen();
 
   if (IsDithered()) {
-    canvas.SelectNullPen();
-    Brush fill_brush{fill};
+    const Brush fill_brush{fill};
     canvas.Select(fill_brush);
     canvas.DrawRoundRectangle(face, PixelSize{diameter});
     canvas.DrawOutlineRectangle(face, COLOR_BLACK);
+    canvas.SelectHollowBrush();
     return;
   }
 
-#ifdef ENABLE_OPENGL
+  if (state == ButtonState::FOCUSED) {
+    /* keyboard focus: a solid ring hugging the face from the
+       outside, like a Tailwind `ring-3` in the palette's light
+       primary, saturated enough to read as a defined contour
+       instead of a washed-out glow; drawn as a filled round
+       rectangle underneath the face because a filled fan
+       rasterizes cleaner than a thick stroked outline */
+    const unsigned width = std::max(2u, Layout::VptScale(3));
+    PixelRect ring_rc = face;
+    ring_rc.Grow((int)width);
+
+    const Brush ring_brush{look.focus_ring_color};
+    canvas.Select(ring_brush);
+    canvas.DrawRoundRectangle(ring_rc, PixelSize{diameter + 2 * width});
+
+    /* ring_brush dies at the end of this block; it must not stay
+       selected (GDI) */
+    canvas.SelectHollowBrush();
+  }
+
   {
-    const ScopeAlphaBlend alpha_blend;
-
-    if (state != ButtonState::PRESSED) {
-      PixelRect shadow = face;
-      shadow.Offset(Layout::VptScale(3), Layout::VptScale(3));
-      canvas.SelectNullPen();
-      canvas.Select(Brush{COLOR_BLACK.WithAlpha(0x55)});
-      canvas.DrawRoundRectangle(shadow, PixelSize{diameter});
-    }
-
-    /* Idle buttons are slightly translucent so the map shows through. */
-    if (state == ButtonState::ENABLED || state == ButtonState::DISABLED)
-      fill = fill.WithAlpha(0xe6);
-
-    canvas.SelectNullPen();
-    canvas.Select(Brush{fill});
+    const Brush fill_brush{fill};
+    canvas.Select(fill_brush);
     canvas.DrawRoundRectangle(face, PixelSize{diameter});
-  }
-#else
-  if (state != ButtonState::PRESSED) {
-    PixelRect shadow = face;
-    shadow.Offset(Layout::VptScale(2), Layout::VptScale(2));
-    canvas.SelectNullPen();
-    canvas.Select(Brush{COLOR_GRAY});
-    canvas.DrawRoundRectangle(shadow, PixelSize{diameter});
+    canvas.SelectHollowBrush();
   }
 
+  /* no drop shadow: definition comes from a hairline ring on the face
+     outline, like a Tailwind `ring ring-inset` */
+  const Pen ring_pen{Layout::ScaleFinePenWidth(1), _look.ring_color};
+  canvas.Select(ring_pen);
+  canvas.DrawRoundRectangle(face, PixelSize{diameter});
+
+  /* deselect the local pen/brush before they go out of scope (the GDI
+     backend must not delete objects still selected in the DC) */
   canvas.SelectNullPen();
-  canvas.Select(Brush{fill});
-  canvas.DrawRoundRectangle(face, PixelSize{diameter});
-#endif
-
-  /* Hairline edge for definition without Win95 bevel chrome. */
-  Pen edge{Layout::ScaleFinePenWidth(1), _look.dark_border_pen.GetColor()};
-  canvas.Select(edge);
-  canvas.SelectHollowBrush();
-  canvas.DrawRoundRectangle(face, PixelSize{diameter});
 }
 
 PixelRect
-ButtonFrameRenderer::GetDrawingRect(PixelRect rc, ButtonState state) const noexcept
+ButtonFrameRenderer::GetDrawingRect(PixelRect rc,
+                                    [[maybe_unused]] ButtonState state) const noexcept
 {
-  rc = GetFaceRect(rc, state);
+  rc = GetFaceRect(rc);
   rc.Grow(-(int)GetMargin());
   return rc;
 }
