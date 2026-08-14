@@ -66,13 +66,18 @@ static constexpr unsigned separator_height = 2;
 static constexpr unsigned overlay_row_height_percent = 75;
 
 [[gnu::pure]]
+static bool
+IsOverlayBorderStyle() noexcept
+{
+  return CommonInterface::GetUISettings().info_boxes.border_style ==
+    InfoBoxSettings::BorderStyle::OVERLAY;
+}
+
+[[gnu::pure]]
 static unsigned
 GetInfoBoxRowHeightPercent() noexcept
 {
-  return CommonInterface::GetUISettings().info_boxes.border_style ==
-    InfoBoxSettings::BorderStyle::OVERLAY
-    ? overlay_row_height_percent
-    : 100;
+  return IsOverlayBorderStyle() ? overlay_row_height_percent : 100;
 }
 
 [[gnu::pure]]
@@ -279,8 +284,7 @@ ComputeMapAreaRect(const PixelRect &main_rect,
 PixelRect
 MainWindow::GetMapDisplayRect(PixelRect rc) const noexcept
 {
-  if (CommonInterface::GetUISettings().info_boxes.border_style !=
-      InfoBoxSettings::BorderStyle::OVERLAY)
+  if (!IsOverlayBorderStyle())
     /* only the overlay theme draws the map behind the InfoBoxes, and
        only there does it make sense to draw it under the notch */
     return rc;
@@ -360,6 +364,15 @@ MainWindow::GetOverlayFreeRect() const noexcept
   return rc;
 }
 
+PixelRect
+MainWindow::GetWidgetAreaRect() const noexcept
+{
+  /* in the OVERLAY theme the InfoBoxes float above the map, so top and
+     bottom widgets have to live in the non-InfoBox area - otherwise
+     they end up behind the boxes */
+  return IsOverlayBorderStyle() ? GetOverlayFreeRect() : GetMainRect();
+}
+
 void
 MainWindow::BeginCoalesceMapLayout() noexcept
 {
@@ -403,7 +416,10 @@ MainWindow::LayoutMapArea() noexcept
     return;
   }
 
-  PixelRect main_rect = GetMainRect();
+  const bool overlay = IsOverlayBorderStyle();
+
+  PixelRect main_rect = GetWidgetAreaRect();
+
   const PixelRect top_rect = GetTopWidgetRect(main_rect, top_widget);
   if (HaveTopWidget())
     top_widget->Move(top_rect);
@@ -414,7 +430,11 @@ MainWindow::LayoutMapArea() noexcept
   if (HaveBottomWidget())
     bottom_widget->Move(bottom_rect);
 
-  map->Move(GetMapDisplayRect(GetMapRectAbove(main_rect, bottom_rect)));
+  /* the overlay theme keeps the map at full size below everything
+     else; other themes shrink it to the area left by the widgets */
+  map->Move(overlay
+            ? GetMapDisplayRect(GetMainRect())
+            : GetMapRectAbove(main_rect, bottom_rect));
 }
 
 void
@@ -1505,7 +1525,7 @@ MainWindow::OnPaint(Canvas &canvas) noexcept
      of the previously shown theme would remain visible. */
   const PixelRect display_rc = GetDisplayRect();
   PixelRect covered = GetClientRect();
-  if (map != nullptr && map->IsVisible()) {
+  if (map != nullptr) {
     const PixelRect map_rc = map->GetPosition();
     covered.left = std::min(covered.left, map_rc.left);
     covered.top = std::min(covered.top, map_rc.top);
@@ -1646,7 +1666,7 @@ MainWindow::ActivateMap() noexcept
     KillWidget();
 
     if (bottom_widget != nullptr) {
-      PixelRect main_rect = GetMainRect();
+      PixelRect main_rect = GetWidgetAreaRect();
       const PixelRect top_rect = GetTopWidgetRect(main_rect, top_widget);
       main_rect = GetMapRectBelow(main_rect, top_rect);
       bottom_widget->Show(GetBottomWidgetRect(main_rect, bottom_widget));
@@ -1722,7 +1742,7 @@ MainWindow::SetTopWidget(Widget *_widget) noexcept
 
   top_widget = _widget;
 
-  PixelRect main_rect = GetMainRect();
+  PixelRect main_rect = GetWidgetAreaRect();
   const PixelRect top_rect = GetTopWidgetRect(main_rect,
                                               top_widget);
   if (top_widget != nullptr) {
@@ -1771,7 +1791,7 @@ MainWindow::SetBottomWidget(Widget *_widget) noexcept
 
   bottom_widget = _widget;
 
-  PixelRect main_rect = GetMainRect();
+  PixelRect main_rect = GetWidgetAreaRect();
   const PixelRect top_rect = GetTopWidgetRect(main_rect,
                                               top_widget);
   main_rect = GetMapRectBelow(main_rect, top_rect);
