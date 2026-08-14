@@ -296,6 +296,12 @@ private:
   PixelRect GetOverlayFreeRect() const noexcept;
 
   /**
+   * The area available for the top and bottom #Widget.
+   */
+  [[gnu::pure]]
+  PixelRect GetWidgetAreaRect() const noexcept;
+
+  /**
    * In the OVERLAY InfoBox theme, extend the given map rect to the
    * display edges so the map is drawn below the notch and the home
    * indicator.  Returns @p rc unchanged in all other themes.
