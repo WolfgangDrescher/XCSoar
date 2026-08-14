@@ -433,6 +433,32 @@ public:
   }
 #endif
 
+  /**
+   * The whole display area, including regions covered by the notch,
+   * the "Dynamic Island" or the home indicator.  Unlike
+   * #GetClientRect(), this is not reduced by the safe-area insets.
+   * On platforms without such insets, this is #GetClientRect().
+   *
+   * Only draw things here that may be partially obscured, e.g. the
+   * map background; interactive or informational elements belong
+   * inside #GetClientRect().
+   */
+  [[gnu::pure]]
+  PixelRect GetDisplayRect() const noexcept {
+#if defined(__APPLE__) && TARGET_OS_IPHONE
+    assert(IsDefined());
+
+    CGRect screenBounds = [UIScreen mainScreen].bounds;
+    CGFloat scale = [UIScreen mainScreen].nativeScale;
+
+    return PixelRect(0, 0,
+                     static_cast<int>(screenBounds.size.width * scale),
+                     static_cast<int>(screenBounds.size.height * scale));
+#else
+    return GetClientRect();
+#endif
+  }
+
 #ifndef USE_WINUSER
   void Invalidate() noexcept override;
 
