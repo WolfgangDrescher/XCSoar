@@ -296,6 +296,24 @@ private:
   PixelRect GetOverlayFreeRect() const noexcept;
 
   /**
+   * In the OVERLAY InfoBox theme, extend the given map rect to the
+   * display edges so the map is drawn below the notch and the home
+   * indicator.  Returns @p rc unchanged in all other themes.
+   */
+  [[gnu::pure]]
+  PixelRect GetMapDisplayRect(PixelRect rc) const noexcept;
+
+  /**
+   * The area inside the map window where HUD elements may be drawn,
+   * in #GlueMapWindow client coordinates.  Empty (i.e. "use the whole
+   * map window") in all themes but OVERLAY.
+   *
+   * @see GlueMapWindow::SetContentRect()
+   */
+  [[gnu::pure]]
+  PixelRect GetMapContentRect() const noexcept;
+
+  /**
    * Move top/bottom widgets and the map into the area returned by
    * #GetMapAreaRect().
    */

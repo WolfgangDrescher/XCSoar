@@ -259,6 +259,63 @@ ComputeMapAreaRect(const PixelRect &main_rect,
 }
 
 PixelRect
+MainWindow::GetMapDisplayRect(PixelRect rc) const noexcept
+{
+  if (CommonInterface::GetUISettings().info_boxes.border_style !=
+      InfoBoxSettings::BorderStyle::OVERLAY)
+    /* only the overlay theme draws the map behind the InfoBoxes, and
+       only there does it make sense to draw it under the notch */
+    return rc;
+
+  /* extend to the display edges wherever the rect already reaches the
+     safe area, so the map fills the screen while InfoBoxes and HUD
+     elements stay inside the safe area */
+  const PixelRect safe_rc = GetClientRect();
+  const PixelRect display_rc = GetDisplayRect();
+
+  if (rc.left <= safe_rc.left)
+    rc.left = display_rc.left;
+  if (rc.top <= safe_rc.top)
+    rc.top = display_rc.top;
+  if (rc.right >= safe_rc.right)
+    rc.right = display_rc.right;
+  if (rc.bottom >= safe_rc.bottom)
+    rc.bottom = display_rc.bottom;
+
+  return rc;
+}
+
+PixelRect
+MainWindow::GetMapContentRect() const noexcept
+{
+  if (map == nullptr ||
+      CommonInterface::GetUISettings().info_boxes.border_style !=
+      InfoBoxSettings::BorderStyle::OVERLAY)
+    /* other themes do not extend the map beyond the safe area; let
+       #GlueMapWindow use its own client rect */
+    return PixelRect{0, 0, 0, 0};
+
+  PixelRect rc;
+  if (FullScreen) {
+    /* no InfoBoxes are shown, so HUD elements may use the whole safe
+       area - but not the display margins covered by the notch */
+    rc = GetClientRect();
+  } else {
+    /* shrink by the visual box gap so overlays and aircraft centering
+       are relative to the inner edge of the rounded boxes, not the
+       InfoBox window edges */
+    rc = overlay_rect;
+    rc.Grow(-Layout::Scale(4));
+  }
+
+  /* #GlueMapWindow draws in its own client coordinates starting at
+     (0,0), but the rects above are in MainWindow coordinates */
+  const PixelRect map_position = map->GetPosition();
+  rc.Offset(-map_position.left, -map_position.top);
+  return rc;
+}
+
+PixelRect
 MainWindow::GetMapAreaRect() const noexcept
 {
   /* overlay_rect is set as soon as the layout has been calculated,
@@ -339,7 +396,7 @@ MainWindow::LayoutMapArea() noexcept
   if (HaveBottomWidget())
     bottom_widget->Move(bottom_rect);
 
-  map->Move(GetMapRectAbove(main_rect, bottom_rect));
+  map->Move(GetMapDisplayRect(GetMapRectAbove(main_rect, bottom_rect)));
 }
 
 void
@@ -550,20 +607,9 @@ MainWindow::InitialiseConfigured()
   map->SetComputerSettings(CommonInterface::GetComputerSettings());
   map->SetMapSettings(CommonInterface::GetMapSettings());
   map->SetUIState(CommonInterface::GetUIState());
-  map->Create(*this, map_rect);
-  /* shrink by the visual box gap so overlays and aircraft centering
-     are relative to the inner edge of the rounded boxes, not the
-     InfoBox window edges; in other modes pass an empty rect so the
-     map uses its own client rect */
-  PixelRect content_rc{0, 0, 0, 0};
-  if (is_rounded) {
-    content_rc = overlay_rect;
-    content_rc.Grow(-Layout::Scale(4));
-    /* #GlueMapWindow draws in its own client coordinates starting at
-       (0,0), but overlay_rect is in MainWindow coordinates */
-    content_rc.Offset(-map_rect.left, -map_rect.top);
-  }
-  map->SetContentRect(content_rc);
+  const PixelRect map_position = GetMapDisplayRect(map_rect);
+  map->Create(*this, map_position);
+  map->SetContentRect(GetMapContentRect());
 
   popup = new PopupMessage(*this, look->dialog, ui_settings);
   popup->Create(overlay_rect);
@@ -808,14 +854,7 @@ MainWindow::ReinitialiseLayout() noexcept
       InfoBoxManager::Show();
 
     LayoutMapArea();
-    PixelRect content_rc{0, 0, 0, 0};
-    if (is_rounded) {
-      content_rc = overlay_rect;
-      content_rc.Grow(-Layout::Scale(4));
-      const PixelRect map_position = map->GetPosition();
-      content_rc.Offset(-map_position.left, -map_position.top);
-    }
-    map->SetContentRect(content_rc);
+    map->SetContentRect(GetMapContentRect());
     map->FullRedraw();
   }
 
@@ -826,6 +865,10 @@ MainWindow::ReinitialiseLayout() noexcept
 
   if (map != nullptr)
     map->BringToBottom();
+
+  /* the area covered by the map may have shrunk (e.g. when leaving the
+     OVERLAY theme); repaint the display margins */
+  Invalidate();
 }
 
 void
@@ -1413,6 +1456,37 @@ MainWindow::OnClose() noexcept
 void
 MainWindow::OnPaint(Canvas &canvas) noexcept
 {
+  /* Clear the display margins outside the safe area (notch, home
+     indicator).  Only the OVERLAY theme draws the map into them; in
+     all other themes nothing paints there, so without this the pixels
+     of the previously shown theme would remain visible. */
+  const PixelRect display_rc = GetDisplayRect();
+  PixelRect covered = GetClientRect();
+  if (map != nullptr && map->IsVisible()) {
+    const PixelRect map_rc = map->GetPosition();
+    covered.left = std::min(covered.left, map_rc.left);
+    covered.top = std::min(covered.top, map_rc.top);
+    covered.right = std::max(covered.right, map_rc.right);
+    covered.bottom = std::max(covered.bottom, map_rc.bottom);
+  }
+
+  if (display_rc.top < covered.top)
+    canvas.DrawFilledRectangle({display_rc.left, display_rc.top,
+                                display_rc.right, covered.top},
+                               COLOR_BLACK);
+  if (covered.bottom < display_rc.bottom)
+    canvas.DrawFilledRectangle({display_rc.left, covered.bottom,
+                                display_rc.right, display_rc.bottom},
+                               COLOR_BLACK);
+  if (display_rc.left < covered.left)
+    canvas.DrawFilledRectangle({display_rc.left, covered.top,
+                                covered.left, covered.bottom},
+                               COLOR_BLACK);
+  if (covered.right < display_rc.right)
+    canvas.DrawFilledRectangle({covered.right, covered.top,
+                                display_rc.right, covered.bottom},
+                               COLOR_BLACK);
+
   if (HaveTopWidget() && map != nullptr) {
     /* draw a separator between top widget and map */
     PixelRect rc = map->GetPosition();
@@ -1461,16 +1535,7 @@ MainWindow::SetFullScreen(bool _full_screen) noexcept
     LayoutMapArea();
     UpdateMapOverlayButtonLayout();
 
-    PixelRect content_rc{0, 0, 0, 0};
-    if (!FullScreen &&
-        CommonInterface::GetUISettings().info_boxes.border_style ==
-        InfoBoxSettings::BorderStyle::OVERLAY) {
-      content_rc = overlay_rect;
-      content_rc.Grow(-Layout::Scale(4));
-      const PixelRect map_position = map->GetPosition();
-      content_rc.Offset(-map_position.left, -map_position.top);
-    }
-    map->SetContentRect(content_rc);
+    map->SetContentRect(GetMapContentRect());
   }
 
   if (popup != nullptr)
