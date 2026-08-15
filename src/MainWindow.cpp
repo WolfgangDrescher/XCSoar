@@ -724,7 +724,7 @@ MainWindow::ReinitialiseLayout() noexcept
   ReinitialiseLayoutTA(rc, ib_layout);
 
   if (map != nullptr) {
-    if (FullScreen)
+    if (FullScreen || menu_hides_info_boxes)
       InfoBoxManager::Hide();
     else
       InfoBoxManager::Show();
@@ -1321,6 +1321,13 @@ MainWindow::OnClose() noexcept
 void
 MainWindow::OnPaint(Canvas &canvas) noexcept
 {
+  if (menu_hides_info_boxes && look != nullptr)
+    /* While the menu hides the info boxes, nothing paints the
+       space they occupied: the map keeps its size, and the child
+       windows only paint themselves.  Clear it here; the map and
+       the menu buttons are drawn over this afterwards. */
+    canvas.Clear(look->dialog.background_color);
+
   if (HaveTopWidget() && map != nullptr) {
     /* draw a separator between top widget and map */
     PixelRect rc = map->GetPosition();
@@ -1348,7 +1355,7 @@ MainWindow::SetFullScreen(bool _full_screen) noexcept
 
   FullScreen = _full_screen;
 
-  if (FullScreen)
+  if (FullScreen || menu_hides_info_boxes)
     InfoBoxManager::Hide();
   else
     InfoBoxManager::Show();
@@ -1647,6 +1654,30 @@ MainWindow::ShowMenu(const Menu &menu, const Menu *overlay, bool full) noexcept
   assert(menu_bar != nullptr);
 
   MenuGlue::Set(*menu_bar, menu, overlay, full);
+
+  UpdateMenuInfoBoxes();
+}
+
+void
+MainWindow::UpdateMenuInfoBoxes() noexcept
+{
+  const bool menu_visible =
+    menu_bar != nullptr && menu_bar->IsAnyButtonVisible();
+  if (menu_visible == menu_hides_info_boxes)
+    return;
+
+  menu_hides_info_boxes = menu_visible;
+
+  if (menu_visible)
+    /* only hide them; deliberately no re-layout, so the map and
+       everything drawn on it stays where it is */
+    InfoBoxManager::Hide();
+  else if (!FullScreen)
+    /* in full screen mode they stay hidden anyway */
+    InfoBoxManager::Show();
+
+  /* repaint the area the boxes occupied */
+  Invalidate();
 }
 
 bool
