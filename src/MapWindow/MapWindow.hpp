@@ -171,6 +171,14 @@ protected:
    */
   unsigned top_right_margin = 0;
 
+  /**
+   * The usable content area for overlays and aircraft centering.
+   * Normally equals GetClientRect(), but in OVERLAY InfoBox mode it
+   * is the non-InfoBox region so that overlays and the aircraft
+   * position are relative to the visible map area only.
+   */
+  PixelRect content_rect{0, 0, 0, 0};
+
 #ifndef ENABLE_OPENGL
   /**
    * Tracks whether the buffer canvas contains valid data.  We use

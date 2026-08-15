@@ -321,7 +321,31 @@ MainWindow::LayoutMapArea() noexcept
   if (HaveBottomWidget())
     bottom_widget->Move(bottom_rect);
 
-  map->Move(GetMapRectAbove(main_rect, bottom_rect));
+  /* The map window covers the info boxes as well, so the map shows
+     through as soon as they are hidden.  The info boxes are drawn on
+     top of it, which leaves the display unchanged while they are
+     visible.  Only the sides they occupy are extended; a top or
+     bottom widget keeps its own space. */
+  const PixelRect content_rect = GetMapRectAbove(main_rect, bottom_rect);
+  const PixelRect client_rect = GetClientRect();
+
+  PixelRect map_display_rect = content_rect;
+  map_display_rect.left = client_rect.left;
+  map_display_rect.right = client_rect.right;
+  if (!HaveTopWidget())
+    map_display_rect.top = client_rect.top;
+  if (!HaveBottomWidget())
+    map_display_rect.bottom = client_rect.bottom;
+
+  map->Move(map_display_rect);
+
+  /* keep the projection, the aircraft position and the HUD overlays
+     on the area that is not covered by info boxes, so nothing moves
+     when the map grows behind them; #GlueMapWindow works in its own
+     client coordinates, which start at (0,0) */
+  PixelRect map_content_rect = content_rect;
+  map_content_rect.Offset(-map_display_rect.left, -map_display_rect.top);
+  map->SetContentRect(map_content_rect);
 }
 
 void
@@ -1325,12 +1349,17 @@ MainWindow::OnClose() noexcept
 void
 MainWindow::OnPaint(Canvas &canvas) noexcept
 {
-  if (menu_hides_info_boxes && look != nullptr)
-    /* While the menu hides the info boxes, nothing paints the
-       space they occupied: the map keeps its size, and the child
-       windows only paint themselves.  Clear it here; the map and
-       the menu buttons are drawn over this afterwards. */
-    canvas.Clear(look->dialog.background_color);
+  if (menu_hides_info_boxes && look != nullptr &&
+      (map == nullptr || !map->GetPosition().Contains(GetClientRect())))
+    /* Fill the space of the hidden info boxes where nothing else
+       paints it, which is the case while a top or bottom widget
+       keeps the map from covering the whole window.  Wherever the
+       map does cover it, it must not be painted over.
+       Only the client rect is filled: outside of it lie the display
+       margins (notch, home indicator), which nothing repaints once
+       they have been overwritten. */
+    canvas.DrawFilledRectangle(GetClientRect(),
+                               look->dialog.background_color);
 
   if (HaveTopWidget() && map != nullptr) {
     /* draw a separator between top widget and map */
