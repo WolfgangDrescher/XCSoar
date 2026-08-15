@@ -110,8 +110,13 @@ DialogLook::Initialise(bool _dark_mode)
       button.selected.foreground_color = h.text_color;
     }
     button.selected.foreground_brush.Create(button.selected.foreground_color);
+    /* pressed goes down the primary scale; the state is told apart
+       from the focused one by #ButtonLook::selected_ring_color,
+       not by a border on the face */
     button.selected.pressed_background_color =
-      MixColors(COLOR_BLACK, button.selected.background_color, 0x26);
+      HasColors() && !IsDithered()
+      ? COLOR_XCSOAR_PRESSED
+      : MixColors(COLOR_BLACK, button.selected.background_color, 0x40);
     /* solid faces have no border ring in Nuxt UI */
     button.selected.ring_color = button.selected.background_color;
   }

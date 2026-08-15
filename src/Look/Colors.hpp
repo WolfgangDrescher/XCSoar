@@ -46,12 +46,23 @@ static constexpr Color COLOR_DIALOG_GRADIENT_TOP =
 /**
  * Flat "card" button face (light mode): white cards with a
  * slate-300 hairline ring, like Tailwind `bg-white
- * border-slate-300` on a slate-200 page.
+ * border-slate-300` on a slate-200 page.  Pressed continues down
+ * the same scale to slate-400.
  */
 static constexpr Color COLOR_BUTTON_FACE =
   Color(0xff, 0xff, 0xff);
 static constexpr Color COLOR_BUTTON_RING =
   Color(0xcb, 0xd5, 0xe1);
+static constexpr Color COLOR_BUTTON_PRESSED =
+  Color(0x94, 0xa3, 0xb8);
+
+/**
+ * The primary color further down its own scale, like going from a
+ * Tailwind `primary-600` to `primary-800`: the pressed shade of a
+ * solid primary button, and the ring of a selected one.
+ */
+static constexpr Color COLOR_XCSOAR_PRESSED =
+  MixColors(COLOR_XCSOAR, COLOR_XCSOAR_DARK, 0x4d);
 
 /**
  * Admonition colors for Markdown rendering.

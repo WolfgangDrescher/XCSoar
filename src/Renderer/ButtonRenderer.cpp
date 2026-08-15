@@ -81,18 +81,20 @@ ButtonFrameRenderer::DrawButton(Canvas &canvas, PixelRect rc,
     return;
   }
 
-  if (state == ButtonState::FOCUSED) {
-    /* keyboard focus: a solid ring hugging the face from the
-       outside, like a Tailwind `ring-3` in the palette's light
-       primary, saturated enough to read as a defined contour
-       instead of a washed-out glow; drawn as a filled round
+  if (state == ButtonState::FOCUSED || state == ButtonState::SELECTED) {
+    /* a solid ring hugging the face from the outside, like a
+       Tailwind `ring-3`: the light primary for keyboard focus, a
+       dark one for the selected button, which shares its face
+       color with the focused one.  Drawn as a filled round
        rectangle underneath the face because a filled fan
        rasterizes cleaner than a thick stroked outline */
     const unsigned width = std::max(2u, Layout::VptScale(3));
     PixelRect ring_rc = face;
     ring_rc.Grow((int)width);
 
-    const Brush ring_brush{look.focus_ring_color};
+    const Brush ring_brush{state == ButtonState::FOCUSED
+        ? look.focus_ring_color
+        : look.selected_ring_color};
     canvas.Select(ring_brush);
     canvas.DrawRoundRectangle(ring_rc, PixelSize{diameter + 2 * width});
 

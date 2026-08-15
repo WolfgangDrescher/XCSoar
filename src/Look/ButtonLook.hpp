@@ -38,6 +38,13 @@ struct ButtonLook {
    */
   Color focus_ring_color;
 
+  /**
+   * The same outside ring for the selected button, in a darker
+   * shade.  Selected and focused share their face color, so the
+   * ring is what tells them apart.
+   */
+  Color selected_ring_color;
+
   struct {
     Color color;
     Brush brush;
