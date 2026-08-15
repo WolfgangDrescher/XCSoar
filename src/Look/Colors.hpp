@@ -57,6 +57,15 @@ static constexpr Color COLOR_BUTTON_PRESSED =
   Color(0x94, 0xa3, 0xb8);
 
 /**
+ * A disabled button drops back to slate-100 with slate-400 text,
+ * so it no longer reads as a raised, clickable card.
+ */
+static constexpr Color COLOR_BUTTON_DISABLED =
+  Color(0xf1, 0xf5, 0xf9);
+static constexpr Color COLOR_BUTTON_DISABLED_TEXT =
+  Color(0x94, 0xa3, 0xb8);
+
+/**
  * The primary color further down its own scale, like going from a
  * Tailwind `primary-600` to `primary-800`: the pressed shade of a
  * solid primary button, and the ring of a selected one.

@@ -68,7 +68,18 @@ ButtonFrameRenderer::DrawButton(Canvas &canvas, PixelRect rc,
 
   const Color fill = state == ButtonState::PRESSED
     ? _look.pressed_background_color
+    : state == ButtonState::DISABLED
+    ? look.disabled.background_color
     : _look.background_color;
+
+  /* the border follows the face: a pressed button keeps the border
+     it would otherwise outgrow, and a disabled one carries the page
+     background color, which leaves it without a visible outline */
+  const Color border = state == ButtonState::PRESSED
+    ? fill
+    : state == ButtonState::DISABLED
+    ? look.disabled.ring_color
+    : _look.ring_color;
 
   canvas.SelectNullPen();
 
@@ -112,7 +123,7 @@ ButtonFrameRenderer::DrawButton(Canvas &canvas, PixelRect rc,
 
   /* no drop shadow: definition comes from a hairline ring on the face
      outline, like a Tailwind `ring ring-inset` */
-  const Pen ring_pen{Layout::ScaleFinePenWidth(1), _look.ring_color};
+  const Pen ring_pen{Layout::ScaleFinePenWidth(1), border};
   canvas.Select(ring_pen);
   canvas.DrawRoundRectangle(face, PixelSize{diameter});
 

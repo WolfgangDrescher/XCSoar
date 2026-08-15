@@ -44,6 +44,11 @@ ButtonLook::Initialise(const Font &_font, bool dark_mode)
     selected_ring_color = COLOR_XCSOAR_PRESSED;
 
     disabled.color = COLOR_GRAY;
+    /* a step towards the page background, and a border in that
+       background color, so the face has no visible outline */
+    disabled.background_color =
+      MixColors(standard.background_color, COLOR_DARK_THEME_BACKGROUND, 0x66);
+    disabled.ring_color = COLOR_DARK_THEME_BACKGROUND;
     disabled.brush.Create(disabled.color);
   } else {
     standard.foreground_color = COLOR_BLACK;
@@ -100,7 +105,23 @@ ButtonLook::Initialise(const Font &_font, bool dark_mode)
       ? COLOR_BLACK
       : COLOR_XCSOAR_PRESSED;
 
-    disabled.color = COLOR_GRAY;
+    if (IsDithered()) {
+      /* no shades available: keep the white face and let the grey
+         caption carry the state */
+      disabled.color = COLOR_GRAY;
+      disabled.background_color = standard.background_color;
+      disabled.ring_color = COLOR_WHITE;
+    } else if (!HasColors()) {
+      disabled.color = COLOR_GRAY;
+      disabled.background_color = COLOR_VERY_LIGHT_GRAY;
+      disabled.ring_color = COLOR_DIALOG_BACKGROUND;
+    } else {
+      /* a step towards the page background, and a border in that
+         background color, so the face has no visible outline */
+      disabled.color = COLOR_BUTTON_DISABLED_TEXT;
+      disabled.background_color = COLOR_BUTTON_DISABLED;
+      disabled.ring_color = COLOR_DIALOG_BACKGROUND;
+    }
     disabled.brush.Create(disabled.color);
   }
 }

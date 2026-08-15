@@ -48,6 +48,19 @@ struct ButtonLook {
   struct {
     Color color;
     Brush brush;
+
+    /**
+     * Face of a disabled button; a step towards the page
+     * background, so it stops looking like a raised card.
+     */
+    Color background_color;
+
+    /**
+     * Border of a disabled button.  It carries the page background
+     * color, which trims the face by the border width and leaves
+     * no visible outline.
+     */
+    Color ring_color;
   } disabled;
 
   void Initialise(const Font &_font, bool dark_mode = false);
