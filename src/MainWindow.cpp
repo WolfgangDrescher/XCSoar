@@ -329,15 +329,18 @@ MainWindow::LayoutMapArea() noexcept
   const PixelRect content_rect = GetMapRectAbove(main_rect, bottom_rect);
   const PixelRect client_rect = GetClientRect();
 
-  PixelRect map_display_rect = content_rect;
-  map_display_rect.left = client_rect.left;
-  map_display_rect.right = client_rect.right;
-  if (!HaveTopWidget())
-    map_display_rect.top = client_rect.top;
-  if (!HaveBottomWidget())
-    map_display_rect.bottom = client_rect.bottom;
+  /* the map covers the whole window, behind the info boxes and the
+     widgets; it is kept at the bottom of the z-order below, so it
+     shows through wherever nothing else is drawn */
+  const PixelRect map_display_rect = client_rect;
 
   map->Move(map_display_rect);
+
+  /* Everything else - info boxes, top and bottom widgets, menu
+     buttons - is created after the map and would end up beneath it,
+     because new windows go to the bottom of the z-order.  Put the
+     map back down there, so it never covers them. */
+  map->BringToBottom();
 
   /* keep the projection, the aircraft position and the HUD overlays
      on the area that is not covered by info boxes, so nothing moves
