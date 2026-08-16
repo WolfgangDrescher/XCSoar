@@ -296,6 +296,11 @@ Version 7.45 - not yet released
   - fix crash when the app restarts after the screen is torn down
   - fix spurious outline lines on high-DPI displays #1514
 * iOS
+  - add the Full screen setting (Config → Look → Layout, on by
+    default): hide the status bar, use the whole screen including the
+    areas behind the display cutout and the home indicator, and
+    protect against accidentally swiping XCSoar away; turn it off to
+    keep the display inside the safe area
   - fix audio vario playback through the device speaker
   - disable the Core Location distance filter so built-in GPS is not
     suppressed while stationary #2380

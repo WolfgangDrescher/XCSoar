@@ -230,6 +230,45 @@ TopWindow::DrawRedrawCounter(Canvas &canvas) noexcept
 
 #endif
 
+#if defined(__APPLE__) && TARGET_OS_IPHONE
+
+/**
+ * Paint the area between @p rc and the canvas border black.
+ *
+ * Outside full-screen mode, XCSoar paints only inside the safe area
+ * (see TopWindow::GetClientRect()), while the canvas always covers the
+ * whole screen.  Without this, the strips behind the status bar, the
+ * display cutout and around the home indicator would keep showing
+ * stale frame buffer contents.
+ */
+static void
+ClearOutsideRect(Canvas &canvas, const PixelRect &rc) noexcept
+{
+  const PixelRect full{canvas.GetSize()};
+
+  if (rc.top > full.top)
+    canvas.DrawFilledRectangle(PixelRect{full.left, full.top,
+                                         full.right, rc.top},
+                               COLOR_BLACK);
+
+  if (rc.bottom < full.bottom)
+    canvas.DrawFilledRectangle(PixelRect{full.left, rc.bottom,
+                                         full.right, full.bottom},
+                               COLOR_BLACK);
+
+  if (rc.left > full.left)
+    canvas.DrawFilledRectangle(PixelRect{full.left, rc.top,
+                                         rc.left, rc.bottom},
+                               COLOR_BLACK);
+
+  if (rc.right < full.right)
+    canvas.DrawFilledRectangle(PixelRect{rc.right, rc.top,
+                                         full.right, rc.bottom},
+                               COLOR_BLACK);
+}
+
+#endif
+
 void
 TopWindow::Expose() noexcept
 {
@@ -243,6 +282,11 @@ TopWindow::Expose() noexcept
 #endif
 
   if (auto canvas = screen->Lock(); canvas.IsDefined()) {
+#if defined(__APPLE__) && TARGET_OS_IPHONE
+    if (!full_screen_mode)
+      ClearOutsideRect(canvas, GetClientRect());
+#endif
+
     OnPaint(canvas);
 
 #ifdef DRAW_MOUSE_CURSOR

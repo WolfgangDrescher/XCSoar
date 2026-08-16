@@ -171,6 +171,28 @@ public:
 #elif defined(ENABLE_SDL)
   SDL_Window *window;
 #endif
+
+#if defined(__APPLE__) && TARGET_OS_IPHONE
+  /**
+   * Shall XCSoar use the whole screen, including the areas covered by
+   * the status bar, the display cutout ("notch") and the home
+   * indicator?  This is the iOS equivalent of Android's immersive
+   * mode.
+   *
+   * The initial value must match the default of
+   * DisplaySettings::full_screen, because the window is created before
+   * the profile is loaded.
+   *
+   * @see SetFullScreenMode()
+   */
+  bool full_screen_mode = true;
+
+  /**
+   * Pass the current value of #full_screen_mode on to iOS.
+   */
+  void ApplyFullScreenMode() noexcept;
+#endif
+
 #ifdef DRAW_MOUSE_CURSOR
   uint8_t cursor_size = 1;
   bool invert_cursor_colors = false;
@@ -388,6 +410,25 @@ public:
 #endif
     
 #if defined(__APPLE__) && TARGET_OS_IPHONE
+  /**
+   * Enable or disable full-screen mode: hide the status bar, defer the
+   * system edge gestures, and let XCSoar draw into the whole screen,
+   * including the areas behind the display cutout ("notch") and the
+   * home indicator.  This is the iOS equivalent of Android's immersive
+   * mode.
+   *
+   * Unlike on Android, the window keeps its size; only the area
+   * returned by GetClientRect() changes, and no resize event is
+   * generated.
+   *
+   * @see DisplaySettings::full_screen
+   */
+  void SetFullScreenMode(bool _full_screen) noexcept;
+
+  bool GetFullScreenMode() const noexcept {
+    return full_screen_mode;
+  }
+
   [[gnu::pure]]
   const PixelSize GetSize() const noexcept {
     PixelRect rc = GetClientRect();
@@ -397,7 +438,7 @@ public:
   [[gnu::pure]]
   const PixelRect GetClientRect() const noexcept override {
     assert(IsDefined());
-    
+
     // Get screen bounds
     CGRect screenBounds = [UIScreen mainScreen].bounds;
     // Get screen scale factor. We need to use nativeScale instead of scale
@@ -405,13 +446,15 @@ public:
     CGFloat scale = [UIScreen mainScreen].nativeScale;
     int width = (int)(screenBounds.size.width * scale);
     int height = (int)(screenBounds.size.height * scale);
-    
+
     UIWindow *window = UIApplication.sharedApplication.windows.firstObject;
-    if (window == nullptr) {
-      // Fallback to full screen if window is not available
+    if (full_screen_mode || window == nullptr) {
+      /* full-screen mode draws edge-to-edge, i.e. also behind the
+         status bar, the display cutout and the home indicator; the
+         same applies when the window is not available yet */
       return PixelRect(0, 0, width, height);
     }
-    
+
     UIEdgeInsets insets = window.safeAreaInsets;
     insets.top *= scale;
     insets.left *= scale;

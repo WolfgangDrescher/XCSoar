@@ -7,6 +7,7 @@
 #include "lib/fmt/RuntimeError.hxx"
 #include "util/UTF8.hpp"
 
+#include <SDL_hints.h>
 #include <SDL_video.h>
 #include <SDL_events.h>
 #include <SDL_version.h>
@@ -213,7 +214,41 @@ TopWindow::CreateNative(const char *_text, PixelSize new_size,
   }
 #endif
 
+#if defined(__APPLE__) && TARGET_OS_IPHONE
+  /* apply the initial value of #full_screen_mode to the fresh window;
+     Startup() will apply the value from the profile as soon as it has
+     been loaded */
+  ApplyFullScreenMode();
+#endif
 }
+
+#if defined(__APPLE__) && TARGET_OS_IPHONE
+
+inline void
+TopWindow::ApplyFullScreenMode() noexcept
+{
+  /* SDL hides the iOS status bar while the window is "borderless" */
+  SDL_SetWindowBordered(window, full_screen_mode ? SDL_FALSE : SDL_TRUE);
+
+  /* "2" dims the home indicator and defers the system edge gestures,
+     so that a single accidental swipe cannot send XCSoar to the
+     background; this is the closest equivalent of the "sticky
+     immersive" mode used on Android */
+  SDL_SetHint(SDL_HINT_IOS_HIDE_HOME_INDICATOR,
+              full_screen_mode ? "2" : "0");
+}
+
+void
+TopWindow::SetFullScreenMode(bool _full_screen) noexcept
+{
+  if (_full_screen == full_screen_mode)
+    return;
+
+  full_screen_mode = _full_screen;
+  ApplyFullScreenMode();
+}
+
+#endif
 
 #ifdef HAVE_MULTI_TOUCH
 

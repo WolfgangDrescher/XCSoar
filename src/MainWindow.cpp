@@ -1378,6 +1378,30 @@ MainWindow::SetFullScreen(bool _full_screen) noexcept
   UpdateVarioGaugeVisibility();
 }
 
+#ifdef HAVE_FULL_SCREEN_SETTING
+
+void
+MainWindow::SetDisplayFullScreen(bool full_screen) noexcept
+{
+#ifdef ANDROID
+  /* the Android surface shrinks or grows when the system bars appear
+     or disappear; the resulting resize event updates the layout */
+  native_view->SetFullScreen(Java::GetEnv(), full_screen);
+#elif defined(__APPLE__) && TARGET_OS_IPHONE
+  if (full_screen == GetFullScreenMode())
+    return;
+
+  UI::TopWindow::SetFullScreenMode(full_screen);
+
+  /* on iOS, the window covers the whole screen either way and no
+     resize event is generated; only the usable area (the safe area)
+     changes, so update the layout explicitly */
+  OnResize(GetSize());
+#endif
+}
+
+#endif /* HAVE_FULL_SCREEN_SETTING */
+
 void
 MainWindow::SetTerrain(RasterTerrain *terrain) noexcept
 {

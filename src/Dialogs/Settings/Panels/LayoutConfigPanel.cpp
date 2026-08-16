@@ -18,18 +18,13 @@
 #include "ActionInterface.hpp"
 #include "util/Macros.hpp"
 
-#ifdef ANDROID
-#include "Android/Main.hpp"
-#include "Android/NativeView.hpp"
-#endif
-
 #ifdef USE_POLL_EVENT
 #include "ui/event/Globals.hpp"
 #include "ui/event/Queue.hpp"
 #endif
 
 enum ControlIndex {
-#ifdef ANDROID
+#ifdef HAVE_FULL_SCREEN_SETTING
   FullScreen,
 #endif
   MapOrientation,
@@ -201,7 +196,7 @@ LayoutConfigPanel::Prepare(ContainerWindow &parent,
 
   RowFormWidget::Prepare(parent, rc);
 
-#ifdef ANDROID
+#ifdef HAVE_FULL_SCREEN_SETTING
   AddBoolean(_("Full screen"), _("Run XCSoar in full screen mode"),
              ui_settings.display.full_screen);
 #endif
@@ -307,10 +302,11 @@ LayoutConfigPanel::Save(bool &_changed) noexcept
   UISettings &ui_settings = CommonInterface::SetUISettings();
   saved = true;
 
-#ifdef ANDROID
-  changed |= SaveValue(FullScreen, ProfileKeys::FullScreen,
-                       ui_settings.display.full_screen);
-  native_view->SetFullScreen(Java::GetEnv(), ui_settings.display.full_screen);
+#ifdef HAVE_FULL_SCREEN_SETTING
+  const bool full_screen_changed =
+    SaveValue(FullScreen, ProfileKeys::FullScreen,
+              ui_settings.display.full_screen);
+  changed |= full_screen_changed;
 #endif
 
   bool orientation_changed = false;
@@ -388,6 +384,14 @@ LayoutConfigPanel::Save(bool &_changed) noexcept
 
   changed |= SaveValue(CursorInverted, ProfileKeys::CursorColorsInverted, ui_settings.display.invert_cursor_colors);
   CommonInterface::main_window->SetCursorColorsInverted(ui_settings.display.invert_cursor_colors);
+#endif
+
+#ifdef HAVE_FULL_SCREEN_SETTING
+  /* this may change the usable screen area, so do it late, when the
+     remaining settings have been read from the form */
+  if (full_screen_changed)
+    CommonInterface::main_window
+      ->SetDisplayFullScreen(ui_settings.display.full_screen);
 #endif
 
   if (orientation_changed) {
