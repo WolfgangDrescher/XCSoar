@@ -181,11 +181,11 @@ public:
    *
    * The initial value must match the default of
    * DisplaySettings::full_screen, because the window is created before
-   * the profile is loaded.
+   * the profile is loaded.  On iOS, full-screen mode is opt-in.
    *
    * @see SetFullScreenMode()
    */
-  bool full_screen_mode = true;
+  bool full_screen_mode = false;
 
   /**
    * Pass the current value of #full_screen_mode on to iOS.
