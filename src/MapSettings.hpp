@@ -116,6 +116,17 @@ struct MapSettings {
   /** Map will show topography */
   bool topography_enabled;
 
+#ifdef ENABLE_MAPLIBRE
+  /**
+   * Render the basemap (terrain, topography) with MapLibre instead
+   * of the built-in renderers (experimental).
+   */
+  bool maplibre_enabled;
+
+  /** the MapLibre style URL (empty = built-in default style) */
+  char maplibre_style_url[256];
+#endif
+
   TerrainRendererSettings terrain;
 
   AircraftSymbol aircraft_symbol;

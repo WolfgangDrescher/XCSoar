@@ -1,4 +1,5 @@
 LIBMAPWINDOW_SOURCES = \
+	$(SRC)/MapWindow/MapLibre/CameraBridge.cpp \
 	$(SRC)/MapWindow/MapWindowBlackboard.cpp \
 	$(SRC)/MapWindow/MapCanvas.cpp \
 	$(SRC)/MapWindow/StencilMapCanvas.cpp \
@@ -33,6 +34,14 @@ LIBMAPWINDOW_SOURCES = \
 	$(SRC)/MapWindow/TargetMapWindowDrag.cpp
 
 LIBMAPWINDOW_DEPENDS = SCREEN
+
+ifeq ($(MAPLIBRE),y)
+LIBMAPWINDOW_SOURCES += \
+	$(SRC)/MapWindow/MapLibre/BasemapRenderer.cpp \
+	$(SRC)/MapWindow/MapLibre/GlStateGuard.cpp
+
+LIBMAPWINDOW_DEPENDS += MAPLIBRE EVENT
+endif
 
 ifeq ($(OPENGL),y)
 LIBMAPWINDOW_SOURCES += \

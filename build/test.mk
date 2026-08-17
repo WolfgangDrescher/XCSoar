@@ -96,7 +96,7 @@ TEST_NAMES = \
 	TestFlarmNet TestFlarmMessaging \
 	TestColorRamp TestXCThermBandQuery TestGeoPoint TestDiffFilter \
 	TestFileUtil TestRepository TestFileType TestPath TestPolars TestCSVLine TestGlidePolar \
-	test_replay_task TestProjection TestFlatPoint TestFlatLine TestFlatGeoPoint \
+	test_replay_task TestProjection TestCameraBridge TestFlatPoint TestFlatLine TestFlatGeoPoint \
 	TestMacCready TestOrderedTask TestAATPoint TestTaskSave \
 	TestTaskFileSeeYouParsing \
 	TestPlanes \
@@ -615,6 +615,15 @@ TEST_PROJECTION_SOURCES = \
 TEST_PROJECTION_DEPENDS = MATH
 TEST_PROJECTION_CPPFLAGS = $(SCREEN_CPPFLAGS)
 $(eval $(call link-program,TestProjection,TEST_PROJECTION))
+
+TEST_CAMERA_BRIDGE_SOURCES = \
+	$(SRC)/Projection/Projection.cpp \
+	$(SRC)/MapWindow/MapLibre/CameraBridge.cpp \
+	$(TEST_SRC_DIR)/tap.c \
+	$(TEST_SRC_DIR)/TestCameraBridge.cpp
+TEST_CAMERA_BRIDGE_DEPENDS = MATH
+TEST_CAMERA_BRIDGE_CPPFLAGS = $(SCREEN_CPPFLAGS)
+$(eval $(call link-program,TestCameraBridge,TEST_CAMERA_BRIDGE))
 
 TEST_UNITS_SOURCES = \
 	$(SRC)/Units/Units.cpp \

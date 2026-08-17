@@ -42,6 +42,12 @@ Profile::Load(const ProfileMap &map, MapSettings &settings)
   map.Get(ProfileKeys::MaxAutoZoomDistance, settings.max_auto_zoom_distance);
   map.Get(ProfileKeys::DrawTopography, settings.topography_enabled);
 
+#ifdef ENABLE_MAPLIBRE
+  map.Get(ProfileKeys::MapLibreEnabled, settings.maplibre_enabled);
+  map.Get(ProfileKeys::MapLibreStyleURL,
+          std::span<char>{settings.maplibre_style_url});
+#endif
+
   LoadTerrainRendererSettings(map, settings.terrain);
 
   map.GetEnum(ProfileKeys::AircraftSymbol, settings.aircraft_symbol);

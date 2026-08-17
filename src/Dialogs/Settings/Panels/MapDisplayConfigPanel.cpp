@@ -18,6 +18,10 @@ enum ControlIndex {
   GliderScreenPosition,
   MaxAutoZoomDistance,
   PAGES_DISTINCT_ZOOM,
+#ifdef ENABLE_MAPLIBRE
+  MapLibreBasemap,
+  MapLibreStyleURL,
+#endif
 };
 
 static constexpr StaticEnumChoice orientation_list[] = {
@@ -129,6 +133,18 @@ MapDisplayConfigPanel::Prepare(ContainerWindow &parent,
              page_settings.distinct_zoom);
   SetExpertRow(PAGES_DISTINCT_ZOOM);
 
+#ifdef ENABLE_MAPLIBRE
+  AddBoolean(_("MapLibre basemap"),
+             _("Render the basemap (terrain, topography) with MapLibre instead of the built-in renderers. Experimental."),
+             settings_map.maplibre_enabled);
+  SetExpertRow(MapLibreBasemap);
+
+  AddText(_("MapLibre style URL"),
+          _("URL of the MapLibre style (style.json) used for the basemap. Empty for the built-in default style. Takes effect after a restart."),
+          settings_map.maplibre_style_url);
+  SetExpertRow(MapLibreStyleURL);
+#endif
+
   UpdateVisibilities();
 }
 
@@ -162,6 +178,15 @@ MapDisplayConfigPanel::Save(bool &_changed) noexcept
 
   changed |= SaveValue(PAGES_DISTINCT_ZOOM, ProfileKeys::PagesDistinctZoom,
                        page_settings.distinct_zoom);
+
+#ifdef ENABLE_MAPLIBRE
+  changed |= SaveValue(MapLibreBasemap, ProfileKeys::MapLibreEnabled,
+                       settings_map.maplibre_enabled);
+
+  changed |= SaveValue(MapLibreStyleURL, ProfileKeys::MapLibreStyleURL,
+                       settings_map.maplibre_style_url,
+                       sizeof(settings_map.maplibre_style_url));
+#endif
 
   _changed |= changed;
 

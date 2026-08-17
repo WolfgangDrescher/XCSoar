@@ -14,6 +14,12 @@
 #include "ui/canvas/opengl/Scissor.hpp"
 #endif
 
+#ifdef ENABLE_MAPLIBRE
+/* for the complete MapLibre::BasemapRenderer type, required by the
+   std::unique_ptr member's destructor */
+#include "MapLibre/BasemapRenderer.hpp"
+#endif
+
 /**
  * Constructor of the MapWindow class
  */

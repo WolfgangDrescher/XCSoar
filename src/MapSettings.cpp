@@ -25,6 +25,10 @@ MapSettings::SetDefaults() noexcept
   circle_zoom_enabled = true;
   max_auto_zoom_distance = 100000; /* 100 km */
   topography_enabled = true;
+#ifdef ENABLE_MAPLIBRE
+  maplibre_enabled = false;
+  maplibre_style_url[0] = 0;
+#endif
   terrain.SetDefaults();
   aircraft_symbol = AircraftSymbol::SIMPLE;
   detour_cost_markers_enabled = false;

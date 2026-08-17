@@ -58,6 +58,15 @@ esac
 
 export TARGET
 
+# MapLibre basemap (experimental): permanently enabled for macOS
+# development builds.  The library itself is built automatically by
+# the make rule in build/libmaplibre.mk (build/maplibre.sh).  iOS
+# builds stay without MapLibre until the iOS cross-build of MapLibre
+# Native is wired up there.
+if [ "$TARGET" = "MACOS" ]; then
+    export MAPLIBRE=y
+fi
+
 echo "build.sh: Executing gmake for target $TARGET"
 
 # Set IPA target based on platform

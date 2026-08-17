@@ -17,6 +17,11 @@
 #include "Weather/NOAAStore.hpp"
 #endif
 
+#ifdef ENABLE_MAPLIBRE
+#include "MapLibre/BasemapRenderer.hpp"
+#include "Screen/Layout.hpp"
+#endif
+
 void
 MapWindow::RenderTrackBearing(Canvas &canvas,
                               const PixelPoint aircraft_pos) noexcept
@@ -32,6 +37,35 @@ MapWindow::RenderTerrain(Canvas &canvas) noexcept
                              Calculated());
   background.Draw(canvas, render_projection, GetMapSettings().terrain);
 }
+
+#ifdef ENABLE_MAPLIBRE
+
+inline bool
+MapWindow::UseMapLibreBasemap() const noexcept
+{
+  return GetMapSettings().maplibre_enabled;
+}
+
+inline void
+MapWindow::RenderMapLibreBasemap(Canvas &canvas) noexcept
+{
+  if (!maplibre_renderer) {
+    const char *style_url = GetMapSettings().maplibre_style_url;
+    if (*style_url == 0)
+      /* placeholder until XCSoar map files ship their own MapLibre
+         style */
+      style_url = "https://demotiles.maplibre.org/style.json";
+
+    maplibre_renderer =
+      std::make_unique<MapLibre::BasemapRenderer>(style_url,
+                                                  float(Layout::Scale(1)),
+                                                  [this]{ Invalidate(); });
+  }
+
+  maplibre_renderer->Draw(canvas, render_projection);
+}
+
+#endif /* ENABLE_MAPLIBRE */
 
 inline void
 MapWindow::RenderRasp(Canvas &canvas) noexcept
@@ -219,14 +253,28 @@ MapWindow::Render(Canvas &canvas, const PixelRect &rc) noexcept
   //////////////////////////////////////////////// items on ground
 
   // Render terrain, groundline and topography
-  draw_sw.Mark("RenderTerrain");
-  RenderTerrain(canvas);
+#ifdef ENABLE_MAPLIBRE
+  if (UseMapLibreBasemap()) {
+    /* the MapLibre basemap replaces the terrain and topography
+       renderers */
+    draw_sw.Mark("RenderMapLibreBasemap");
+    RenderMapLibreBasemap(canvas);
 
-  draw_sw.Mark("RenderRasp");
-  RenderRasp(canvas);
+    draw_sw.Mark("RenderRasp");
+    RenderRasp(canvas);
+  } else {
+#endif
+    draw_sw.Mark("RenderTerrain");
+    RenderTerrain(canvas);
 
-  draw_sw.Mark("RenderTopography");
-  RenderTopography(canvas);
+    draw_sw.Mark("RenderRasp");
+    RenderRasp(canvas);
+
+    draw_sw.Mark("RenderTopography");
+    RenderTopography(canvas);
+#ifdef ENABLE_MAPLIBRE
+  }
+#endif
 
   draw_sw.Mark("RenderOverlays");
   RenderOverlays(canvas);

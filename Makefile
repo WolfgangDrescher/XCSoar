@@ -99,6 +99,7 @@ include $(topdir)/build/wayland.mk
 include $(topdir)/build/egl.mk
 include $(topdir)/build/glx.mk
 include $(topdir)/build/opengl.mk
+include $(topdir)/build/libmaplibre.mk
 endif
 
 # this line should be in build/resource.mk but that file depends on

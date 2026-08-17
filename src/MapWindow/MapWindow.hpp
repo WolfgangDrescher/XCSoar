@@ -42,6 +42,10 @@ namespace SkyLinesTracking {
   struct Data;
 }
 
+#ifdef ENABLE_MAPLIBRE
+namespace MapLibre { class BasemapRenderer; }
+#endif
+
 namespace TIM { class Glue; }
 
 class MapWindow :
@@ -128,6 +132,15 @@ protected:
 
 #ifdef ENABLE_OPENGL
   std::unique_ptr<MapOverlay> overlay;
+#endif
+
+#ifdef ENABLE_MAPLIBRE
+  /**
+   * Renders the basemap (terrain, topography) with MapLibre when
+   * MapSettings::maplibre_enabled is set; created lazily by
+   * RenderMapLibreBasemap().
+   */
+  std::unique_ptr<MapLibre::BasemapRenderer> maplibre_renderer;
 #endif
 
   const TrafficLook &traffic_look;
@@ -369,6 +382,19 @@ private:
    * @param canvas The drawing canvas
    */
   void RenderTerrain(Canvas &canvas) noexcept;
+
+#ifdef ENABLE_MAPLIBRE
+  /**
+   * Is the MapLibre basemap enabled in the current settings?
+   */
+  bool UseMapLibreBasemap() const noexcept;
+
+  /**
+   * Renders the MapLibre basemap, replacing RenderTerrain() and
+   * RenderTopography().
+   */
+  void RenderMapLibreBasemap(Canvas &canvas) noexcept;
+#endif
 
   void RenderRasp(Canvas &canvas) noexcept;
 
