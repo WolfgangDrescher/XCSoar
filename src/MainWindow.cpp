@@ -360,6 +360,8 @@ MainWindow::UpdateMapOverlayButtonLayout() noexcept
 
   const bool overlay_buttons_active =
     widget == nullptr && map != nullptr &&
+    /* the menu bar covers the map; its own buttons take over */
+    !menu_hides_info_boxes &&
     PageActions::AllowMapOverlayButtons();
 
   if (show_menu_button != nullptr) {
@@ -1718,6 +1720,13 @@ MainWindow::UpdateMenuInfoBoxes() noexcept
   else if (!FullScreen)
     /* in full screen mode they stay hidden anyway */
     InfoBoxManager::Show();
+
+  /* the map overlay buttons sit where the menu bar now is */
+  UpdateMapOverlayButtonLayout();
+
+  if (map != nullptr)
+    /* and so do some of the HUD elements the map draws itself */
+    map->SetMenuVisible(menu_visible);
 
   /* repaint the area the boxes occupied */
   Invalidate();
