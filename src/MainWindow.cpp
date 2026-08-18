@@ -549,6 +549,13 @@ MainWindow::InitialiseConfigured()
 
   popup = new PopupMessage(*this, look->dialog, ui_settings);
   popup->Create(map_rect);
+
+  /* The map window was created on the info box layout's remainder;
+     give it the layout that makes it cover the whole window.  Without
+     this, the first LayoutMapArea() happens only on the first resize
+     or page change, and until then OnPaint() paints the space of the
+     hidden info boxes instead of the map. */
+  LayoutMapArea();
 }
 
 void
