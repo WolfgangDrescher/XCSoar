@@ -800,8 +800,18 @@ GlueMapWindow::OnInfoBoxPickerTimer() noexcept
   map_item_timer.Cancel();
 
   if (drag_mode != DRAG_NONE) {
+    if (drag_mode == DRAG_GESTURE)
+      /* Drop the gesture trail.  TrackingGestureManager::Start()
+         records a point right away, so a trail is already being drawn
+         when the long press elapses; without Finish() it would stay
+         visible next to the modal picker and continue afterwards. */
+      gestures.Finish();
+
     drag_mode = DRAG_NONE;
     ReleaseCapture();
+
+    /* redraw the map without the trail before the picker opens */
+    Invalidate();
   }
 
   /* suppress the mouse up which follows the long press */
