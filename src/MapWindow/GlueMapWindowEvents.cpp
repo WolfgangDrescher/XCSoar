@@ -9,6 +9,7 @@
 #include "Math/FastMath.hpp"
 #include "util/Compiler.h"
 #include "Interface.hpp"
+#include "InfoBoxes/InfoBoxManager.hpp"
 #include "Pan.hpp"
 #include "Topography/Thread.hpp"
 #include "Asset.hpp"
@@ -54,6 +55,7 @@ GlueMapWindow::OnDestroy() noexcept
 #endif
 
   map_item_timer.Cancel();
+  CancelInfoBoxPicker();
 
   MapWindow::OnDestroy();
 }
@@ -79,6 +81,11 @@ GlueMapWindow::OnMouseMove(PixelPoint p, unsigned keys) noexcept
       ((unsigned)ManhattanDistance(drag_start, p) > threshold ||
        mouse_down_clock.Elapsed() > std::chrono::milliseconds(200)))
     arm_mapitem_list = false;
+
+  if (infobox_picker_id >= 0 &&
+      (unsigned)ManhattanDistance(drag_start, p) > threshold)
+    /* the finger wandered off: this is a drag, not a long press */
+    CancelInfoBoxPicker();
 
   switch (drag_mode) {
   case DRAG_NONE:
@@ -203,6 +210,8 @@ GlueMapWindow::OnMouseDown(PixelPoint p) noexcept
      don't arm tap map-item selection from this same touch. */
   arm_mapitem_list = had_focus && !was_kinetic_motion;
 
+  ArmInfoBoxPicker(p);
+
   switch (follow_mode) {
   case FOLLOW_SELF:
     break;
@@ -238,6 +247,10 @@ GlueMapWindow::OnMouseDown(PixelPoint p) noexcept
 bool
 GlueMapWindow::OnMouseUp(PixelPoint p) noexcept
 {
+  /* released before the long press elapsed: a short press acts on the
+     map as usual */
+  CancelInfoBoxPicker();
+
   if (drag_mode != DRAG_NONE)
     ReleaseCapture();
 
@@ -652,6 +665,8 @@ GlueMapWindow::OnCancelMode() noexcept
 {
   MapWindow::OnCancelMode();
 
+  CancelInfoBoxPicker();
+
   if (drag_mode != DRAG_NONE) {
 #ifdef HAVE_MULTI_TOUCH
     const bool was_multi_touch = GestureOwnsMap();
@@ -755,6 +770,44 @@ GlueMapWindow::OnMapItemTimer() noexcept
   }
 
   ShowMapItems(drag_start_geopoint, false);
+}
+
+void
+GlueMapWindow::ArmInfoBoxPicker(PixelPoint p) noexcept
+{
+  /* InfoBoxManager::layout uses MainWindow client coordinates */
+  const auto origin = GetPosition().GetTopLeft();
+  infobox_picker_id =
+    InfoBoxManager::FindInvisibleAt(p.At(origin.x, origin.y));
+
+  if (infobox_picker_id >= 0)
+    infobox_picker_timer.Schedule(std::chrono::seconds(1));
+}
+
+void
+GlueMapWindow::OnInfoBoxPickerTimer() noexcept
+{
+  const int id = infobox_picker_id;
+  CancelInfoBoxPicker();
+
+  if (id < 0)
+    return;
+
+  /* the press turned out to be a long press on an "invisible" InfoBox
+     slot: abort the map interaction and let the user pick a different
+     InfoBox for that slot */
+  arm_mapitem_list = false;
+  map_item_timer.Cancel();
+
+  if (drag_mode != DRAG_NONE) {
+    drag_mode = DRAG_NONE;
+    ReleaseCapture();
+  }
+
+  /* suppress the mouse up which follows the long press */
+  ignore_single_click = true;
+
+  InfoBoxManager::ShowInfoBoxPicker(id);
 }
 
 #ifdef ENABLE_OPENGL

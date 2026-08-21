@@ -197,6 +197,22 @@ UpdateBorders() noexcept
       infoboxes[i]->SetBorderKind(CalculateBorder(settings, panel, i));
 }
 
+int
+InfoBoxManager::FindInvisibleAt(PixelPoint p) noexcept
+{
+  if (!infoboxes_ready || invisible_mask == 0 || infoboxes_hidden)
+    /* in full screen mode the whole screen is map, and the InfoBox
+       slots are not shown at all */
+    return -1;
+
+  for (unsigned i = 0; i < layout.count; ++i)
+    if ((invisible_mask & (uint_least32_t(1) << i)) != 0 &&
+        layout.positions[i].Contains(p))
+      return int(i);
+
+  return -1;
+}
+
 PixelRect
 InfoBoxManager::ExpandOverInvisible(PixelRect rc) noexcept
 {

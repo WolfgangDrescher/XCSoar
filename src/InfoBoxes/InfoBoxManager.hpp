@@ -28,6 +28,20 @@ extern InfoBoxLayout::Layout layout;
 [[gnu::pure]] PixelRect
 ExpandOverInvisible(PixelRect rc) noexcept;
 
+/**
+ * Find the "invisible" InfoBox slot containing the given point.
+ *
+ * Those slots show the map and their window is hidden, so the map
+ * window receives their input events; it uses this to offer the
+ * InfoBox picker on a long press (see
+ * #GlueMapWindow::OnInfoBoxPickerTimer()).
+ *
+ * @param p a point in #MainWindow client coordinates
+ * @return the InfoBox id, or -1 if there is no invisible slot there
+ */
+[[gnu::pure]] int
+FindInvisibleAt(PixelPoint p) noexcept;
+
 void
 ProcessTimer() noexcept;
 

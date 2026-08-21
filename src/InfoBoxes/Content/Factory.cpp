@@ -1231,7 +1231,7 @@ static constexpr MetaData meta_data[] = {
   {
     N_("Invisible"),
     N_("Invisible"),
-    N_("Draws nothing at all: this InfoBox slot stays transparent and the map is extended over it, so the map below remains visible. Such a slot can no longer be tapped; use Setup > InfoBoxes to assign a different InfoBox again."),
+    N_("Draws nothing at all: this InfoBox slot stays transparent and the map is extended over it, so the map below remains visible. A short tap on such a slot acts on the map; a long press opens this list again to assign a different InfoBox."),
     UpdateInfoBoxInvisible,
   },
 
