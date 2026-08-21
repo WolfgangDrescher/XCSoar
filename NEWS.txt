@@ -32,6 +32,8 @@ Version 7.46 - not yet released
   - fix the map ground track line following heading instead of ground
     track with Condor 3 UDP in a crosswind #2900
 * dialogs
+  - replace the hard black band drawn around dialogs with a soft drop
+    shadow that surrounds the dialog evenly on all four sides
   - fix keyboard wrap in the Checklist: Down from Close returns
     to the list and highlights an item so Enter acts on that row
     #2862
