@@ -5,6 +5,9 @@
 #include "InfoBoxes/InfoBoxWindow.hpp"
 #include "InfoBoxes/InfoBoxLayout.hpp"
 #include "InfoBoxes/Border.hpp"
+#ifndef USE_WINUSER
+#include "InfoBoxes/BorderWindow.hpp"
+#endif
 #include "InfoBoxes/Content/Factory.hpp"
 #include "Language/Language.hpp"
 #include "Form/DataField/ComboList.hpp"
@@ -72,6 +75,15 @@ static bool infoboxes_ready = false;
 
 static InfoBoxWindow *infoboxes[InfoBoxSettings::Panel::MAX_CONTENTS];
 
+#ifndef USE_WINUSER
+/**
+ * One per slot; only those of "invisible" slots are ever shown.  They
+ * draw the border lines of a slot whose #InfoBoxWindow is hidden, on
+ * top of the map which shows through.
+ */
+static InfoBoxBorderWindow *border_windows[InfoBoxSettings::Panel::MAX_CONTENTS];
+#endif
+
 [[gnu::pure]]
 static const InfoBoxSettings::Panel &
 GetCurrentPanel() noexcept
@@ -114,27 +126,32 @@ UpdateInvisibleMask() noexcept
 }
 
 /**
- * Which edges of InfoBox @p i touch an "invisible" slot?
- *
- * Neighbouring InfoBoxes share one border: only one of the two draws
- * it (see #InfoBoxLayout::GetBorder()).  If that neighbour is
- * invisible, nothing is drawn there at all and the InfoBox would have
- * an open side towards the map; it has to draw the shared edge itself.
+ * The edges of an InfoBox slot which touch another slot, split by
+ * whether that neighbour is visible or "invisible".  An edge which
+ * appears in neither set faces the map outside the InfoBox area.
+ */
+struct NeighbourEdges {
+  unsigned visible = 0, invisible = 0;
+};
+
+/**
+ * Determine which edges of slot @p i touch which kind of neighbour.
+ * This is purely geometric and therefore works for every InfoBox
+ * geometry without knowing anything about it.
  */
 [[gnu::pure]]
-static unsigned
-GetInvisibleNeighbourBorders(unsigned i) noexcept
+static NeighbourEdges
+GetNeighbourEdges(unsigned i) noexcept
 {
-  if (invisible_mask == 0)
-    return 0;
-
   const auto &layout = InfoBoxManager::layout;
   const PixelRect &rc = layout.positions[i];
 
-  unsigned border = 0;
+  NeighbourEdges edges;
 
   for (unsigned j = 0; j < layout.count; ++j) {
-    if (j == i || (invisible_mask & (uint_least32_t(1) << j)) == 0)
+    if (j == i || !layout.visible[j])
+      /* a collapsed slot keeps its rectangle from the geometry, which
+         its neighbours have grown over; it is not an edge any more */
       continue;
 
     const PixelRect &other = layout.positions[j];
@@ -144,6 +161,7 @@ GetInvisibleNeighbourBorders(unsigned i) noexcept
     const bool overlaps_x = rc.left < other.right && other.left < rc.right;
     const bool overlaps_y = rc.top < other.bottom && other.top < rc.bottom;
 
+    unsigned border = 0;
     if (overlaps_x && rc.top == other.bottom)
       border |= BORDERTOP;
     if (overlaps_x && rc.bottom == other.top)
@@ -152,14 +170,30 @@ GetInvisibleNeighbourBorders(unsigned i) noexcept
       border |= BORDERLEFT;
     if (overlaps_y && rc.right == other.left)
       border |= BORDERRIGHT;
+
+    if ((invisible_mask & (uint_least32_t(1) << j)) != 0)
+      edges.invisible |= border;
+    else
+      edges.visible |= border;
   }
 
-  return border;
+  return edges;
 }
 
 /**
- * Calculate the border flags for InfoBox @p i, taking "invisible"
- * neighbours into account.
+ * The border flags the layout assigns to slot @p i.
+ */
+[[gnu::pure]]
+static unsigned
+GetLayoutBorder(unsigned i) noexcept
+{
+  /* these have been adjusted by InfoBoxLayout::ApplyContents() where
+     an InfoBox has grown over a collapsed neighbour */
+  return unsigned(InfoBoxManager::layout.borders[i]);
+}
+
+/**
+ * Calculate the border flags for the #InfoBoxWindow of slot @p i.
  */
 [[gnu::pure]]
 static unsigned
@@ -171,19 +205,49 @@ CalculateBorder(const InfoBoxSettings &settings,
     return 0;
 
   if (IsInvisible(panel, i))
-    /* not drawn anyway */
+    /* the window is hidden; an #InfoBoxBorderWindow draws the edges
+       of this slot (or, on GDI, the visible neighbours do) */
     return 0;
 
-  /* layout.borders has been adjusted by
-     InfoBoxLayout::ApplyContents() where an InfoBox has grown over a
-     collapsed neighbour */
-  return unsigned(InfoBoxManager::layout.borders[i]) |
-    GetInvisibleNeighbourBorders(i);
+#ifdef USE_WINUSER
+  /* no transparent windows: the neighbours have to draw the edges of
+     an invisible slot, which shifts them by one pixel */
+  return GetLayoutBorder(i) | GetNeighbourEdges(i).invisible;
+#else
+  return GetLayoutBorder(i);
+#endif
 }
 
+#ifndef USE_WINUSER
+
 /**
- * Apply CalculateBorder() to all InfoBox windows.  Called when the set
- * of "invisible" InfoBoxes has changed.
+ * Calculate the border flags for the #InfoBoxBorderWindow of slot
+ * @p i: the edges the layout assigns to this slot, but only where the
+ * slot borders a visible InfoBox.
+ *
+ * An edge towards another invisible slot is dropped so that a group of
+ * invisible slots forms one uninterrupted hole, and an edge which
+ * faces the map outside the InfoBox area is dropped as well, because
+ * there the map simply continues.
+ */
+[[gnu::pure]]
+static unsigned
+CalculateSlotBorder(const InfoBoxSettings &settings,
+                    const InfoBoxSettings::Panel &panel, unsigned i) noexcept
+{
+  if (settings.border_style == InfoBoxSettings::BorderStyle::TAB ||
+      !IsInvisible(panel, i))
+    return 0;
+
+  return GetLayoutBorder(i) & GetNeighbourEdges(i).visible;
+}
+
+#endif
+
+/**
+ * Apply CalculateBorder() and CalculateSlotBorder() to all windows,
+ * and show or hide the border windows.  Called when the set of
+ * "invisible" InfoBoxes has changed.
  */
 static void
 UpdateBorders() noexcept
@@ -192,9 +256,22 @@ UpdateBorders() noexcept
     CommonInterface::GetUISettings().info_boxes;
   const InfoBoxSettings::Panel &panel = GetCurrentPanel();
 
-  for (unsigned i = 0; i < InfoBoxManager::layout.count; ++i)
+  for (unsigned i = 0; i < InfoBoxManager::layout.count; ++i) {
     if (infoboxes[i] != nullptr)
       infoboxes[i]->SetBorderKind(CalculateBorder(settings, panel, i));
+
+#ifndef USE_WINUSER
+    if (border_windows[i] != nullptr) {
+      const unsigned border = CalculateSlotBorder(settings, panel, i);
+      border_windows[i]->SetBorderKind(border);
+
+      if (border != 0 && !infoboxes_hidden)
+        border_windows[i]->Show();
+      else
+        border_windows[i]->FastHide();
+    }
+#endif
+  }
 }
 
 int
@@ -248,6 +325,11 @@ InfoBoxManager::Hide() noexcept
   for (unsigned i = 0; i < layout.count; i++) {
     if (infoboxes[i] != nullptr)
       infoboxes[i]->FastHide();
+
+#ifndef USE_WINUSER
+    if (border_windows[i] != nullptr)
+      border_windows[i]->FastHide();
+#endif
   }
 }
 
@@ -272,6 +354,9 @@ InfoBoxManager::Show() noexcept
       infoboxes[i]->Show();
   }
 
+  /* ... but their borders are drawn */
+  UpdateBorders();
+
   SetDirty();
 }
 
@@ -293,10 +378,19 @@ InfoBoxManager::UpdateLayout(const InfoBoxSettings::Panel &panel) noexcept
 
     if (!layout.visible[i]) {
       infoboxes[i]->Hide();
+#ifndef USE_WINUSER
+      if (border_windows[i] != nullptr)
+        border_windows[i]->FastHide();
+#endif
       continue;
     }
 
     infoboxes[i]->Move(layout.positions[i]);
+
+#ifndef USE_WINUSER
+    if (border_windows[i] != nullptr)
+      border_windows[i]->Move(layout.positions[i]);
+#endif
 
     if (!infoboxes_hidden && !IsInvisible(panel, i))
       infoboxes[i]->Show();
@@ -453,8 +547,12 @@ InfoBoxManager::Create(ContainerWindow &parent,
   invisible_mask = 0;
   UpdateInvisibleMask();
 
-  for (unsigned i = layout.count; i < InfoBoxSettings::Panel::MAX_CONTENTS; ++i)
+  for (unsigned i = layout.count; i < InfoBoxSettings::Panel::MAX_CONTENTS; ++i) {
     infoboxes[i] = nullptr;
+#ifndef USE_WINUSER
+    border_windows[i] = nullptr;
+#endif
+  }
 
   WindowStyle style;
   style.Hide();
@@ -469,6 +567,17 @@ InfoBoxManager::Create(ContainerWindow &parent,
                                      i, style);
   }
 
+#ifndef USE_WINUSER
+  /* create the border windows after the InfoBox windows so they end up
+     in front of them; they are shown only for "invisible" slots (by
+     UpdateBorders(), from Show()) */
+  for (unsigned i = layout.count; i-- > 0;)
+    border_windows[i] =
+      new InfoBoxBorderWindow(parent, layout.positions[i],
+                              CalculateSlotBorder(settings, panel, i),
+                              look);
+#endif
+
   infoboxes_hidden = true;
   infoboxes_ready = true;
 }
@@ -482,6 +591,11 @@ InfoBoxManager::Destroy() noexcept
   for (unsigned i = 0; i < InfoBoxSettings::Panel::MAX_CONTENTS; ++i) {
     delete infoboxes[i];
     infoboxes[i] = nullptr;
+
+#ifndef USE_WINUSER
+    delete border_windows[i];
+    border_windows[i] = nullptr;
+#endif
   }
 }
 
