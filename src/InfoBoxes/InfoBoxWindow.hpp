@@ -22,10 +22,9 @@ class InfoBoxWindow : public LazyPaintWindow
   const InfoBoxLook &look;
 
   /**
-   * Which of the four edges this InfoBox draws itself.  Not const: it
-   * is updated when a neighbour becomes "invisible" (or visible
-   * again), because the shared edge is then no longer drawn by that
-   * neighbour.
+   * Which of the four edges this InfoBox draws itself.  Not const
+   * because it follows a neighbour becoming "invisible" (or visible
+   * again); see #InfoBoxManager::CalculateBorder().
    */
   unsigned border_kind;
 
