@@ -219,6 +219,9 @@ Version 7.45 - 2026-08-15
 * infoboxen
   - add InfoBoxes: Altitude IGC, Home, Active Waypoint, Previous
     Waypoint, and QNH #2320 #2521
+  - add an “Invisible” InfoBox that is not drawn at all; the map is
+    extended over the slot so it stays visible there, a short tap acts
+    on the map and a long press picks a different InfoBox for the slot
   - let Alternate 1/2 InfoBoxes follow the computed list (AUTO) or a
     pilot-chosen field (MANUAL); the list holds up to 10 options, and
     Alternate 2 no longer duplicates Alternate 1 when only one
