@@ -222,12 +222,14 @@ FlarmDevice::ReadFlightInfo(RecordedFlightInfo &flight,
   SendStartByte();
   SendFrameHeader(header, env, std::chrono::seconds(1));
 
-  // Wait for an answer and save the payload for further processing
+  /* wait for an answer and save the payload for further processing;
+     the record info frame is ~100 bytes, which can take several
+     seconds on a slow link (e.g. a Bluetooth LE bridge) */
   AllocatedArray<std::byte> data;
   uint16_t length;
   const auto ack_result =
     WaitForACKOrNACK(header.sequence_number, data, length,
-                     env, std::chrono::seconds(5));
+                     env, std::chrono::seconds(10));
 
   // If neither ACK nor NACK was received
   if (ack_result != FLARM::MessageType::ACK || length <= 2)
@@ -335,11 +337,15 @@ FlarmDevice::DownloadFlight(BufferedOutputStream &os, std::size_t &offset,
       SendStartByte();
       SendFrameHeader(header, env, std::chrono::seconds(1));
 
-      // Wait for an answer and save the payload for further processing
+      /* wait for an answer and save the payload for further
+         processing; an IGC data frame is several hundred bytes,
+         which can take tens of seconds on a slow link (e.g. a
+         Bluetooth LE bridge) - giving up mid-frame would restart
+         the transfer forever without any progress */
       try {
         ack = WaitForACKOrNACK(header.sequence_number, data,
                                length, env,
-                               std::chrono::seconds(10)) ==
+                               std::chrono::seconds(30)) ==
           FLARM::MessageType::ACK;
       } catch (const DeviceTimeout &) {
         ack = false;

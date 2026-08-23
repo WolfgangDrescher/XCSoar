@@ -68,6 +68,9 @@ class PortBridge final {
   /** total number of bytes received, for the throughput log */
   uint64_t rx_bytes = 0;
 
+  /** total number of received notifications, for the throughput log */
+  uint64_t rx_notifications = 0;
+
   /** earliest time OnDataReceived() logs the next throughput line */
   std::chrono::steady_clock::time_point next_rx_log{};
 

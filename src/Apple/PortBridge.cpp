@@ -407,10 +407,13 @@ PortBridge::SelectCharacteristics() noexcept
 
   [peripheral setNotifyValue:YES forCharacteristic:rx];
 
-  LogFormat("Bluetooth: %s is ready (rx=%s tx=%s %s mtu=%u chunk=%u)",
+  /* the properties reveal e.g. whether the bridge uses (slow,
+     acknowledged) indications instead of notifications */
+  LogFormat("Bluetooth: %s is ready"
+            " (rx=%s props=0x%x tx=%s props=0x%x %s mtu=%u chunk=%u)",
             address.UTF8String,
-            rx.UUID.UUIDString.UTF8String,
-            tx.UUID.UUIDString.UTF8String,
+            rx.UUID.UUIDString.UTF8String, unsigned(rx.properties),
+            tx.UUID.UUIDString.UTF8String, unsigned(tx.properties),
             write_type == CBCharacteristicWriteWithoutResponse
             ? "write-without-response" : "write-with-response",
             att_mtu, unsigned(chunk_size));
@@ -435,13 +438,17 @@ PortBridge::OnDataReceived(CBCharacteristic *characteristic,
   if (characteristic != rx_characteristic || value.length == 0)
     return;
 
-  /* log the cumulative number of received bytes, at most every five
-     seconds, to help diagnosing stalled transfers */
+  /* log the cumulative number of received bytes and notifications,
+     at most every five seconds, to help diagnosing stalled or slow
+     transfers (the ratio exposes the peer's notification pacing) */
   rx_bytes += value.length;
+  ++rx_notifications;
   if (const auto now = std::chrono::steady_clock::now();
       now >= next_rx_log) {
-    LogFormat("Bluetooth: %s: %llu bytes received so far",
-              address.UTF8String, (unsigned long long)rx_bytes);
+    LogFormat("Bluetooth: %s: %llu bytes in %llu notifications so far",
+              address.UTF8String,
+              (unsigned long long)rx_bytes,
+              (unsigned long long)rx_notifications);
     next_rx_log = now + std::chrono::seconds(5);
   }
 
