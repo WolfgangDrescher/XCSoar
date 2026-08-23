@@ -19,6 +19,8 @@
 		5C72EF752E801F210015A594 /* sign.sh */ = {isa = PBXFileReference; lastKnownFileType = text.script.sh; path = sign.sh; sourceTree = "<group>"; };
 		5C72EF762E8024580015A594 /* KeyboardDetection.hpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.h; path = KeyboardDetection.hpp; sourceTree = "<group>"; };
 		5C72EF772E8024580015A594 /* KeyboardDetection.cpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.cpp; path = KeyboardDetection.cpp; sourceTree = "<group>"; };
+		5C72EF7C2E80785B0015A594 /* LocalNotifications.hpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.h; path = LocalNotifications.hpp; sourceTree = "<group>"; };
+		5C72EF7D2E80785B0015A594 /* LocalNotifications.cpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.cpp; path = LocalNotifications.cpp; sourceTree = "<group>"; };
 		5C72EF782E80785B0015A594 /* Services.hpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.h; path = Services.hpp; sourceTree = "<group>"; };
 		5C72EF792E80785B0015A594 /* Services.cpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.cpp; path = Services.cpp; sourceTree = "<group>"; };
 		5C72EF7A2E80785B0015A594 /* SoundUtil.hpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.h; path = SoundUtil.hpp; sourceTree = "<group>"; };
@@ -14969,6 +14971,8 @@
 			children = (
 				5C72EF762E8024580015A594 /* KeyboardDetection.hpp */,
 				5C72EF772E8024580015A594 /* KeyboardDetection.cpp */,
+				5C72EF7C2E80785B0015A594 /* LocalNotifications.hpp */,
+				5C72EF7D2E80785B0015A594 /* LocalNotifications.cpp */,
 				5C72EF782E80785B0015A594 /* Services.hpp */,
 				5C72EF792E80785B0015A594 /* Services.cpp */,
 				5C72EF7A2E80785B0015A594 /* SoundUtil.hpp */,
