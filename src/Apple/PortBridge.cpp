@@ -283,6 +283,21 @@ FindCharacteristic(CBService *service, CBUUID *uuid) noexcept
   return nil;
 }
 
+/**
+ * Find the first characteristic in this service which supports
+ * writing.
+ */
+[[gnu::pure]]
+static CBCharacteristic *
+FindWritableCharacteristic(CBService *service) noexcept
+{
+  for (CBCharacteristic *c in service.characteristics)
+    if (CanWrite(c))
+      return c;
+
+  return nil;
+}
+
 void
 PortBridge::SelectCharacteristics() noexcept
 {
@@ -291,13 +306,19 @@ PortBridge::SelectCharacteristics() noexcept
   for (CBService *service in peripheral.services) {
     if ([service.UUID isEqual:BluetoothUuids::Hm10Service()]) {
       /* first choice: HM-10, which uses a single characteristic for
-         both directions */
+         both directions; some clones however make it notify-only and
+         provide a separate characteristic (e.g. FFE2) for writing */
       if (CBCharacteristic *c =
             FindCharacteristic(service,
                                BluetoothUuids::Hm10RxTxCharacteristic());
-          c != nil) {
-        rx = tx = c;
-        break;
+          c != nil && CanNotify(c)) {
+        if (CBCharacteristic *w =
+              CanWrite(c) ? c : FindWritableCharacteristic(service);
+            w != nil) {
+          rx = c;
+          tx = w;
+          break;
+        }
       }
     } else if ([service.UUID isEqual:BluetoothUuids::NordicUartService()]) {
       /* second choice: the Nordic UART Service */
@@ -307,7 +328,8 @@ PortBridge::SelectCharacteristics() noexcept
       CBCharacteristic *nus_tx =
         FindCharacteristic(service,
                            BluetoothUuids::NordicUartRxCharacteristic());
-      if (nus_rx != nil && nus_tx != nil) {
+      if (nus_rx != nil && CanNotify(nus_rx) &&
+          nus_tx != nil && CanWrite(nus_tx)) {
         rx = nus_rx;
         tx = nus_tx;
       }
@@ -319,7 +341,8 @@ PortBridge::SelectCharacteristics() noexcept
       CBCharacteristic *issc_tx =
         FindCharacteristic(service,
                            BluetoothUuids::IsscUartRxCharacteristic());
-      if (rx == nil && issc_rx != nil && issc_tx != nil) {
+      if (rx == nil && issc_rx != nil && CanNotify(issc_rx) &&
+          issc_tx != nil && CanWrite(issc_tx)) {
         rx = issc_rx;
         tx = issc_tx;
       }
@@ -327,8 +350,9 @@ PortBridge::SelectCharacteristics() noexcept
   }
 
   if (rx == nil || tx == nil) {
-    /* fallback for UART bridges with proprietary UUIDs: use the first
-       service which contains both a notifying and a writable
+    /* fallback for UART bridges with proprietary UUIDs and for
+       non-conforming implementations of the services above: use the
+       first service which contains both a notifying and a writable
        characteristic */
     for (CBService *service in peripheral.services) {
       CBCharacteristic *service_rx = nil, *service_tx = nil;
