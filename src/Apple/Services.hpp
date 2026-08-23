@@ -48,6 +48,7 @@ void SetAudioVarioSessionActive(bool active);
 
 #endif
 #endif
+
 /**
  * Keep the app running while a bulk transfer (e.g. an IGC flight
  * download or a task declaration) is in progress: disable the idle
