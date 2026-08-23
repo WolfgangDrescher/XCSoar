@@ -205,9 +205,11 @@ FeaturesFromAdvertisedServices(NSArray<CBUUID *> *serviceUuids) noexcept
       if (name.length == 0)
         continue;
 
-      uint64_t features = peripheralFeatures[address].unsignedLongLongValue;
-      if (features == 0)
-        features = DetectDeviceListener::FEATURE_BLE_SERIAL;
+      /* like in the discovery callback, every peripheral is a
+         potential serial bridge */
+      const uint64_t features =
+        peripheralFeatures[address].unsignedLongLongValue |
+        DetectDeviceListener::FEATURE_BLE_SERIAL;
 
       listener->OnDeviceDetected(DetectDeviceListener::Type::BLUETOOTH_LE,
                                  address.UTF8String, name.UTF8String,
@@ -331,17 +333,19 @@ FeaturesFromAdvertisedServices(NSArray<CBUUID *> *serviceUuids) noexcept
   if (name.length == 0)
     name = advertisementData[CBAdvertisementDataLocalNameKey];
 
-  if (features == 0) {
-    if (name.length == 0)
-      /* skip anonymous peripherals without any recognised service to
-         avoid cluttering the port picker with unusable entries */
-      return;
+  if (features == 0 && name.length == 0)
+    /* skip anonymous peripherals without any recognised service to
+       avoid cluttering the port picker with unusable entries */
+    return;
 
-    /* BLE UART bridges often do not advertise their serial service
-       UUID; assume any other named peripheral may be usable as a
-       serial port */
-    features = DetectDeviceListener::FEATURE_BLE_SERIAL;
-  }
+  /* consider every peripheral a potential serial bridge: BLE UART
+     bridges often do not advertise their serial service UUID at all,
+     or advertise a sensor service (e.g. Flytec Sensbox) in addition
+     to it; and since BLE sensors are not supported on iOS (yet), a
+     "BLE sensor" port would be a dead end anyway - without this
+     flag, such a device could not be configured as a port and e.g.
+     the FLARM flight download would stay unavailable */
+  features |= DetectDeviceListener::FEATURE_BLE_SERIAL;
 
   peripheralFeatures[address] = @(features);
 
