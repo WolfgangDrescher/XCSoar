@@ -3,6 +3,10 @@ Version 7.46 - not yet released
   - fix crash when exiting the app #2873
   - fix crash when restarting the app immediately after exit
 * iOS
+  - repeat messages as system notifications while XCSoar is not in the
+    foreground, so warnings such as a low battery or a FLARM problem
+    reach the lock screen; the first start asks for permission, and the
+    feature can be switched off under Config → Look → Language, Input
   - use the system keyboard for text entry so special characters
     can be typed, and add a Paste button for the clipboard; the
     Keyboard text-input style keeps XCSoar's own grid #2894
