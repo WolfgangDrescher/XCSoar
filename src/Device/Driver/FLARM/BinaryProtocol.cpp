@@ -131,11 +131,21 @@ FLARM::ReceiveEscaped(Port &port, std::span<std::byte> dest,
 
   // Receive data byte-by-byte including escaping until buffer is full
   std::byte *p = dest.data(), *end = p + dest.size();
-  while (p < end) {
-    p = ReceiveSomeUnescape(port, {p, std::size_t(end - p)},
-                            env, timeout);
-    if (p == nullptr)
-      return false;
+  try {
+    while (p < end) {
+      p = ReceiveSomeUnescape(port, {p, std::size_t(end - p)},
+                              env, timeout);
+      if (p == nullptr)
+        return false;
+    }
+  } catch (const DeviceTimeout &) {
+    if (p > dest.data())
+      /* the frame stopped arriving in the middle; over a Bluetooth
+         LE bridge, this typically means its buffer overflowed and
+         the rest of the frame was dropped */
+      LogFormat("FLARM: timeout after receiving %u of %u frame bytes",
+                unsigned(p - dest.data()), unsigned(dest.size()));
+    throw;
   }
 
   return true;
