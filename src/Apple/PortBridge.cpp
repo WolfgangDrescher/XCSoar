@@ -435,6 +435,16 @@ PortBridge::OnDataReceived(CBCharacteristic *characteristic,
   if (characteristic != rx_characteristic || value.length == 0)
     return;
 
+  /* log the cumulative number of received bytes, at most every five
+     seconds, to help diagnosing stalled transfers */
+  rx_bytes += value.length;
+  if (const auto now = std::chrono::steady_clock::now();
+      now >= next_rx_log) {
+    LogFormat("Bluetooth: %s: %llu bytes received so far",
+              address.UTF8String, (unsigned long long)rx_bytes);
+    next_rx_log = now + std::chrono::seconds(5);
+  }
+
   DataHandler *h;
 
   {

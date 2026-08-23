@@ -10,7 +10,9 @@
 
 #import <CoreBluetooth/CoreBluetooth.h>
 
+#include <chrono>
 #include <cstddef>
+#include <cstdint>
 #include <span>
 
 @class IOSBluetoothManager;
@@ -62,6 +64,12 @@ class PortBridge final {
    * before sending the next chunk.
    */
   bool write_pending = false;
+
+  /** total number of bytes received, for the throughput log */
+  uint64_t rx_bytes = 0;
+
+  /** earliest time OnDataReceived() logs the next throughput line */
+  std::chrono::steady_clock::time_point next_rx_log{};
 
   /* the following fields are protected by the mutex */
 

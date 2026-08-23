@@ -5,6 +5,7 @@
 #include "CRC16.hpp"
 #include "Device/Error.hpp"
 #include "Device/Port/Port.hpp"
+#include "LogFile.hpp"
 #include "time/TimeoutClock.hpp"
 #include "util/SpanCast.hxx"
 
@@ -206,13 +207,18 @@ FlarmDevice::WaitForACKOrNACK(uint16_t sequence_number,
 
     // Read the following FrameHeader
     FLARM::FrameHeader header;
-    if (!ReceiveFrameHeader(header, env, timeout.GetRemainingOrZero()))
+    if (!ReceiveFrameHeader(header, env, timeout.GetRemainingOrZero())) {
+      LogFormat("FLARM: malformed frame header");
       continue;
+    }
 
     // Read and check length of the FrameHeader
     length = header.length;
-    if (length <= sizeof(header))
+    if (length <= sizeof(header)) {
+      LogFormat("FLARM: discarding short frame (type=0x%02x length=%u)",
+                unsigned(header.type), unsigned(length));
       continue;
+    }
 
     // Calculate payload length
     length -= sizeof(header);
@@ -220,26 +226,43 @@ FlarmDevice::WaitForACKOrNACK(uint16_t sequence_number,
     // Read payload and check length
     data.GrowDiscard(length);
     if (!ReceiveEscaped({data.data(), length},
-                        env, timeout.GetRemainingOrZero()))
+                        env, timeout.GetRemainingOrZero())) {
+      LogFormat("FLARM: malformed frame payload (type=0x%02x length=%u)",
+                unsigned(header.type), unsigned(length));
       continue;
+    }
 
     // Verify CRC
-    if (header.crc != FLARM::CalculateCRC(header, {data.data(), length}))
+    if (header.crc != FLARM::CalculateCRC(header, {data.data(), length})) {
+      LogFormat("FLARM: discarding frame with bad CRC (type=0x%02x length=%u)",
+                unsigned(header.type), unsigned(length));
       continue;
+    }
 
     // Check message type
     if (header.type != FLARM::MessageType::ACK &&
-        header.type != FLARM::MessageType::NACK)
+        header.type != FLARM::MessageType::NACK) {
+      LogFormat("FLARM: ignoring frame (type=0x%02x length=%u)",
+                unsigned(header.type), unsigned(length));
       continue;
+    }
 
     // Check payload length
-    if (length < 2)
+    if (length < 2) {
+      LogFormat("FLARM: discarding %s without sequence number",
+                header.type == FLARM::MessageType::ACK ? "ACK" : "NACK");
       continue;
+    }
 
     // Check whether the received ACK is for the right sequence number
-    if (FromLE16(*((const uint16_t *)(const void *)data.data())) ==
-        sequence_number)
+    const uint16_t received_sequence_number =
+      FromLE16(*((const uint16_t *)(const void *)data.data()));
+    if (received_sequence_number == sequence_number)
       return (FLARM::MessageType)header.type;
+
+    LogFormat("FLARM: ignoring %s with sequence %u (expecting %u)",
+              header.type == FLARM::MessageType::ACK ? "ACK" : "NACK",
+              unsigned(received_sequence_number), unsigned(sequence_number));
   }
 
   return FLARM::MessageType::ERROR;

@@ -7,6 +7,7 @@
 #include "io/FileOutputStream.hxx"
 #include "io/BufferedOutputStream.hxx"
 #include "system/Path.hpp"
+#include "LogFile.hpp"
 #include "Operation/Operation.hpp"
 #include "Operation/Cancelled.hpp"
 
@@ -264,9 +265,16 @@ FlarmDevice::SelectFlight(uint8_t record_number, OperationEnvironment &env)
                                            env, std::chrono::seconds(2));
       if (result != FLARM::MessageType::ERROR || attempt >= max_attempts)
         return result;
+
+      LogFormat("FLARM: no answer to SELECTRECORD %u (attempt %u of %u)",
+                record_number, attempt, max_attempts);
     } catch (const DeviceTimeout &) {
       if (attempt >= max_attempts)
         throw;
+
+      LogFormat("FLARM: timeout waiting for SELECTRECORD %u answer"
+                " (attempt %u of %u)",
+                record_number, attempt, max_attempts);
     }
   }
 }
@@ -339,17 +347,28 @@ FlarmDevice::DownloadFlight(BufferedOutputStream &os, std::size_t &offset,
 
       if (ack)
         break;
+
+      LogFormat("FLARM: no answer to GETIGCDATA (attempt %u of %u,"
+                " %lu bytes received so far)",
+                retry + 1, get_igcdata_retries, (unsigned long)offset);
     }
 
     // If no ACK was received
-    if (!ack || length <= 3)
+    if (!ack || length <= 3) {
+      if (ack)
+        LogFormat("FLARM: GETIGCDATA answer too short (length=%u)",
+                  unsigned(length));
       return false;
+    }
 
     length -= 3;
 
     // Read progress (in percent)
     const auto progress = static_cast<unsigned>(data[2]);
     env.SetProgressPosition(std::min(progress, 100u));
+
+    LogFormat("FLARM: received IGC data frame (%u bytes, %u%%)",
+              unsigned(length), progress);
 
     const char last_char = (char)data.back();
     bool is_last_packet = (last_char == 0x1A);
@@ -417,15 +436,25 @@ FlarmDevice::DownloadFlight(const RecordedFlightInfo &flight,
 
       if (attempt >= session_attempts)
         throw;
+
+      LogError(std::current_exception(), "FLARM: flight download error");
     }
 
     if (attempt >= session_attempts)
       break;
 
+    LogFormat("FLARM: flight download attempt %u of %u failed"
+              " after %lu bytes, restarting the transfer",
+              attempt, session_attempts, (unsigned long)offset);
+
     /* force BinaryMode() to re-establish the (possibly dead) binary
        session before the next attempt */
     mode = Mode::UNKNOWN;
   }
+
+  LogFormat("FLARM: flight download failed after %u attempts"
+            " (%lu bytes received)",
+            session_attempts, (unsigned long)offset);
 
   mode = Mode::UNKNOWN;
 

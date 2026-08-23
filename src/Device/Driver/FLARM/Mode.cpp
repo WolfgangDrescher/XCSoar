@@ -3,6 +3,7 @@
 
 #include "Device.hpp"
 #include "Device/Port/Port.hpp"
+#include "LogFile.hpp"
 #include "Operation/Operation.hpp"
 
 bool
@@ -59,8 +60,10 @@ FlarmDevice::BinaryMode(OperationEnvironment &env)
      peripheral, which has no timeout); wait for it (cancellable)
      instead of wasting the ping attempts below on a dead link
      (cf. the LX Nano download improvements, #1813) */
-  if (!port.WaitConnected(env))
+  if (!port.WaitConnected(env)) {
+    LogFormat("FLARM: port not connected, cannot enter binary mode");
     return false;
+  }
 
   port.StopRxThread();
 
@@ -85,10 +88,15 @@ FlarmDevice::BinaryMode(OperationEnvironment &env)
       // Remember that we should now be in binary mode (for further assert() calls)
       was_binary = true;
       mode = Mode::BINARY;
+
+      if (i > 0)
+        LogFormat("FLARM: binary mode established after %u pings", i + 1);
+
       return true;
     }
   }
 
   // Apparently the switch to binary mode didn't work
+  LogFormat("FLARM: no answer to binary ping, cannot enter binary mode");
   return false;
 }
