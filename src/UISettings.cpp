@@ -21,6 +21,8 @@ UISettings::SetDefaults() noexcept
 
   popup_message_position = PopupMessagePosition::TOP_LEFT;
 
+  enable_notifications = true;
+
   haptic_feedback = HapticFeedback::DEFAULT;
 
 #ifdef KOBO

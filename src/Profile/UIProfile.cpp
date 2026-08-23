@@ -131,6 +131,8 @@ Profile::Load(const ProfileMap &map, UISettings &settings)
 
   map.GetEnum(ProfileKeys::AppStatusMessageAlignment, settings.popup_message_position);
 
+  map.Get(ProfileKeys::EnableNotifications, settings.enable_notifications);
+
   map.GetEnum(ProfileKeys::HapticFeedback, settings.haptic_feedback);
 
   map.Get(ProfileKeys::ShowMenuButton, settings.show_menu_button);

@@ -59,6 +59,13 @@ struct UISettings {
     TOP_LEFT,
   } popup_message_position;
 
+  /**
+   * Repeat popup messages as operating system notifications while
+   * XCSoar is not in the foreground.  Only used on platforms which
+   * define HAVE_LOCAL_NOTIFICATIONS.
+   */
+  bool enable_notifications;
+
   /** Haptic feedback settings */
   enum class HapticFeedback : uint8_t {
     DEFAULT,

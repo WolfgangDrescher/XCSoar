@@ -123,6 +123,7 @@ constexpr std::string_view AppGaugeVarioBugs = "AppGaugeVarioBugs";
 constexpr std::string_view AppGaugeVarioBallast = "AppGaugeVarioBallast";
 constexpr std::string_view AppGaugeVarioGross = "AppGaugeVarioGross";
 constexpr std::string_view AppStatusMessageAlignment = "AppStatusMessageAlignment";
+constexpr std::string_view EnableNotifications = "EnableNotifications";
 constexpr std::string_view AppTextInputStyle = "AppTextInputStyle";
 constexpr std::string_view HapticFeedback = "HapticFeedback";
 constexpr std::string_view AppDialogTabStyle = "AppDialogTabStyle";

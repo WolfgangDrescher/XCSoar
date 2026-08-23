@@ -133,6 +133,8 @@
 #include "Apple/BackgroundSave.hpp"
 #endif
 
+#include "Apple/LocalNotifications.hpp"
+
 #ifdef HAVE_EDL
 #include "Weather/EDL/Glue.hpp"
 #endif
@@ -407,6 +409,11 @@ Startup(UI::Display &display)
      hook; doing this any earlier could persist the still empty
      profile map */
   InitializeAppleBackgroundSave();
+#endif
+
+#ifdef HAVE_LOCAL_NOTIFICATIONS
+  /* this needs the profile, and it may ask the user for permission */
+  LocalNotifications::Initialise(ui_settings.enable_notifications);
 #endif
 
   operation.SetText(_("Initialising"));
@@ -1003,6 +1010,10 @@ Shutdown()
   CloseLanguageFile();
 
   Display::RestoreOrientation();
+
+#ifdef HAVE_LOCAL_NOTIFICATIONS
+  LocalNotifications::Deinitialise();
+#endif
 
 #ifdef __APPLE__
   DeinitializeAppleServices();

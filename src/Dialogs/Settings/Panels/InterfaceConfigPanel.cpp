@@ -20,6 +20,7 @@
 #include "Hardware/Vibrator.hpp"
 #include "Repository/FileType.hpp"
 #include "Version.hpp"
+#include "Apple/LocalNotifications.hpp"
 
 using namespace std::chrono;
 
@@ -34,6 +35,9 @@ enum ControlIndex {
   TextInput,
 #ifdef HAVE_VIBRATOR
   HapticFeedback,
+#endif
+#ifdef HAVE_LOCAL_NOTIFICATIONS
+  Notifications,
 #endif
   ShowQuickGuideOnStartup,
   ShowReleaseNotesOnStartup,
@@ -190,6 +194,14 @@ InterfaceConfigPanel::Prepare(ContainerWindow &parent,
   SetExpertRow(HapticFeedback);
 #endif /* HAVE_VIBRATOR */
 
+#ifdef HAVE_LOCAL_NOTIFICATIONS
+  AddBoolean(_("Notifications"),
+             _("If enabled, messages are also shown as system notifications "
+               "while XCSoar is not in the foreground, for example on the "
+               "lock screen."),
+             settings.enable_notifications);
+#endif
+
   bool hide_quick_guide = false;
   Profile::Get(ProfileKeys::HideQuickGuideDialogOnStartup,
                hide_quick_guide);
@@ -305,6 +317,14 @@ InterfaceConfigPanel::Save(bool &_changed) noexcept
 
 #ifdef HAVE_VIBRATOR
   changed |= SaveValueEnum(HapticFeedback, ProfileKeys::HapticFeedback, settings.haptic_feedback);
+#endif
+
+#ifdef HAVE_LOCAL_NOTIFICATIONS
+  if (SaveValue(Notifications, ProfileKeys::EnableNotifications,
+                settings.enable_notifications)) {
+    LocalNotifications::SetEnabled(settings.enable_notifications);
+    changed = true;
+  }
 #endif
 
   bool hide_quick_guide = false;
