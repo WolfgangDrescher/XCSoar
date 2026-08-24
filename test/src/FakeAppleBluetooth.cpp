@@ -11,8 +11,6 @@
 #include "Apple/BluetoothHelper.hpp"
 #include "Device/Port/AppleBluetoothPort.hpp"
 
-#include <stdexcept>
-
 BluetoothHelper *bluetooth_helper;
 
 const char *
@@ -25,7 +23,9 @@ std::unique_ptr<Port>
 OpenAppleBleSerialPort(BluetoothHelper &, const char *,
                        PortListener *, DataHandler &)
 {
-  throw std::runtime_error("Bluetooth not available");
+  /* never reached: the test programs leave bluetooth_helper at
+     nullptr, so ConfiguredPort fails before calling this */
+  return nullptr;
 }
 
 #endif
