@@ -776,7 +776,7 @@ MainWindow::ReinitialiseLayout() noexcept
   }
 
   if (widget != nullptr)
-    widget->Move(GetMainRect(rc));
+    widget->Move(GetWidgetRect(rc));
 
   UpdateMapOverlayButtonLayout();
 
@@ -1366,11 +1366,14 @@ void
 MainWindow::OnPaint(Canvas &canvas) noexcept
 {
   if (menu_hides_info_boxes && look != nullptr &&
-      (map == nullptr || !map->GetPosition().Contains(GetClientRect())))
+      (map == nullptr || !map->IsVisible() ||
+       !map->GetPosition().Contains(GetClientRect())))
     /* Fill the space of the hidden info boxes where nothing else
-       paints it, which is the case while a top or bottom widget
-       keeps the map from covering the whole window.  Wherever the
-       map does cover it, it must not be painted over.
+       paints it: while a top or bottom widget keeps the map from
+       covering the whole window, and while a widget replaces the map
+       altogether, which leaves the map window hidden and painting
+       nothing at all.  Wherever the map does cover it, it must not be
+       painted over.
        Only the client rect is filled: outside of it lie the display
        margins (notch, home indicator), which nothing repaints once
        they have been overwritten. */
@@ -1410,7 +1413,7 @@ MainWindow::SetFullScreen(bool _full_screen) noexcept
     InfoBoxManager::Show();
 
   if (widget != nullptr)
-    widget->Move(GetMainRect());
+    widget->Move(GetWidgetRect());
 
   /* Overlapped gauges (FLARM, thermal assistant) use GetMainRect() for
      "avoid InfoBoxes" corners; re-layout when fullscreen changes. */
@@ -1679,7 +1682,7 @@ MainWindow::SetWidget(Widget *_widget) noexcept
 
   widget = _widget;
 
-  const PixelRect rc = GetMainRect();
+  const PixelRect rc = GetWidgetRect();
   widget->Initialise(*this, rc);
   widget->Prepare(*this, rc);
   widget->Show(rc);
@@ -1725,6 +1728,10 @@ MainWindow::UpdateMenuInfoBoxes() noexcept
   else if (!FullScreen)
     /* in full screen mode they stay hidden anyway */
     InfoBoxManager::Show();
+
+  if (widget != nullptr)
+    /* a widget takes over the space of the hidden info boxes */
+    widget->Move(GetWidgetRect());
 
   /* the map overlay buttons sit where the menu bar now is */
   UpdateMapOverlayButtonLayout();

@@ -279,6 +279,22 @@ private:
   }
 
   /**
+   * Where a #Widget that replaces the map goes.  Unlike the map, it
+   * has no projection that has to stay still, so it takes the space
+   * the menu frees by hiding the info boxes instead of leaving it
+   * empty.
+   */
+  [[gnu::pure]]
+  const PixelRect &GetWidgetRect(const PixelRect &full_rc) const noexcept {
+    return menu_hides_info_boxes ? full_rc : GetMainRect(full_rc);
+  }
+
+  [[gnu::pure]]
+  PixelRect GetWidgetRect() const noexcept {
+    return menu_hides_info_boxes ? GetClientRect() : GetMainRect();
+  }
+
+  /**
    * The visible #GlueMapWindow area.  After layout, this is
    * #GlueMapWindow::GetPosition(); otherwise it is computed from
    * #GetMainRect() and top/bottom widgets.
