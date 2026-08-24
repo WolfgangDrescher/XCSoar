@@ -186,8 +186,11 @@ Canvas::DrawPolyline(const BulkPixelPoint *points, unsigned num_points) noexcept
 
   pen.Bind();
 
-  // On macOS, glLineWidth() is capped at 1px, so use triangles for pens > 1px
-  if (IsMacOSX() && pen.GetStyle() == Pen::SOLID && pen.GetWidth() > 1u) {
+  /* wide OpenGL lines are drawn as one quad per segment without any
+     join, which leaves a gap at every bend; on macOS, glLineWidth()
+     is capped at 1px.  Use triangles instead, like DrawLinePiece() */
+  if (pen.GetStyle() == Pen::SOLID &&
+      pen.GetWidth() > (IsMacOSX() ? 1u : 2u)) {
     unsigned strip_len = LineToTriangles(points, num_points, vertex_buffer,
                                          pen.GetWidth(), false, false);
     if (strip_len > 0) {

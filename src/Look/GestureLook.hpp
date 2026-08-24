@@ -8,8 +8,17 @@
 
 struct GestureLook
 {
-  static constexpr Color color = COLOR_RED;
-  static constexpr Color invalid_color = LightColor(color);
+  /** Colour of a recognised gesture */
+  Color color;
+
+  /** Colour of a gesture which is not (yet) recognised */
+  Color invalid_color;
+
+  /** Width of the core line */
+  unsigned width;
+
+  /** Radius of the dot drawn at the current pointer position */
+  unsigned tip_radius;
 
   Pen pen, invalid_pen;
 

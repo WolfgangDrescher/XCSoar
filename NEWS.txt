@@ -32,6 +32,8 @@ Version 7.46 - not yet released
     #2879
   - fix the map scale arrows: draw them at the height of the scale box
     instead of overlapping it
+  - fix the gap wide lines left at every bend, for example the snail
+    trail and the gesture trail
 * FLARM
   - fix ADS-B traffic ground speed wrapping above 457 km/h #2887
   - fix no-position targets missing from the radar and map #2847
@@ -73,6 +75,8 @@ Version 7.46 - not yet released
 * ui
   - keep pan-mode menu buttons about 20 mm tall on tall phones,
     large enough for a gloved tap
+  - draw the gesture and swipe trail as a smooth, evenly wide line in
+    a softer colour, with a dot marking the finger position
 * development
   - documentation: document the release and post-release version workflow
   - macOS/iOS: read TESTING=y from darwin/.env, so Xcode builds can
