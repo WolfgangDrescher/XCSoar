@@ -15,7 +15,7 @@ ButtonLook::Initialise(const Font &_font, bool dark_mode)
     standard.foreground_brush.Create(standard.foreground_color);
     standard.background_color = COLOR_DARK_THEME_BUTTON;
     /* pressed goes down the scale, like a Tailwind
-       `active:bg-slate-800` below a slate-700 face */
+       `active:bg-gray-800` below a gray-700 face */
     standard.pressed_background_color =
       MixColors(COLOR_BLACK, standard.background_color, 0x50);
     standard.ring_color =
@@ -74,7 +74,7 @@ ButtonLook::Initialise(const Font &_font, bool dark_mode)
     } else {
       selected.foreground_color = COLOR_XCSOAR_DARK;
       /* one shade deeper than a classic primary-50 wash, so the
-         tint remains visible on the slate page background */
+         tint remains visible on the page background */
       selected.background_color = MixColors(COLOR_XCSOAR, COLOR_WHITE, 0x40);
     }
     selected.foreground_brush.Create(selected.foreground_color);

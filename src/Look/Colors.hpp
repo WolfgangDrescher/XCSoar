@@ -34,36 +34,36 @@ static constexpr Color COLOR_DARK_THEME_GRADIENT_TOP =
   Color(0x14, 0x22, 0x32);
 
 /**
- * Light mode dialog background colors: a cool slate ground
- * (Tailwind slate-200, lifting to slate-100 at the top), so the
- * white button cards clearly stand out on it.
- */
+ * Light mode dialog background colors: a warm tan ground on the
+ * lightness ladder of the Tailwind greys, kept below the chroma
+ * at which the hue starts to depend on the display's white
+ * point.
+*/
 static constexpr Color COLOR_DIALOG_BACKGROUND =
-  Color(0xe2, 0xe8, 0xf0);
+  Color(0xed, 0xe6, 0xdc);
 static constexpr Color COLOR_DIALOG_GRADIENT_TOP =
-  Color(0xf1, 0xf5, 0xf9);
+  Color(0xf8, 0xf3, 0xed);
 
 /**
- * Flat "card" button face (light mode): white cards with a
- * slate-300 hairline ring, like Tailwind `bg-white
- * border-slate-300` on a slate-200 page.  Pressed continues down
- * the same scale to slate-400.
- */
+ * Flat "card" button face (light mode): white cards with a warm
+ * hairline ring on the tan page.  Pressed continues down the
+ * same scale.
+*/
 static constexpr Color COLOR_BUTTON_FACE =
   Color(0xff, 0xff, 0xff);
 static constexpr Color COLOR_BUTTON_RING =
-  Color(0xcb, 0xd5, 0xe1);
+  Color(0xdd, 0xd3, 0xc6);
 static constexpr Color COLOR_BUTTON_PRESSED =
-  Color(0x94, 0xa3, 0xb8);
+  Color(0xac, 0xa1, 0x91);
 
 /**
- * A disabled button drops back to slate-100 with slate-400 text,
+ * A disabled button stays between the page and the white cards,
  * so it no longer reads as a raised, clickable card.
- */
+*/
 static constexpr Color COLOR_BUTTON_DISABLED =
-  Color(0xf1, 0xf5, 0xf9);
+  Color(0xf8, 0xf3, 0xed);
 static constexpr Color COLOR_BUTTON_DISABLED_TEXT =
-  Color(0x94, 0xa3, 0xb8);
+  Color(0xac, 0xa1, 0x91);
 
 /**
  * The primary color further down its own scale, like going from a
