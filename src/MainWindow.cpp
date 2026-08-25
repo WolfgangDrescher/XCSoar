@@ -256,6 +256,76 @@ ComputeMapAreaRect(const PixelRect &main_rect,
 }
 
 PixelRect
+MainWindow::GetInfoBoxAreaRect() const noexcept
+{
+  const PixelRect rc = GetClientRect();
+
+  const DisplaySettings &settings = CommonInterface::GetUISettings().display;
+
+  unsigned edges = settings.infobox_area_stretch;
+  if (settings.IsStatusBarVisible())
+    /* the status bar overlays the top of the screen; drawing
+       InfoBoxes underneath the clock helps nobody */
+    edges &= ~unsigned(DisplaySettings::INFOBOX_AREA_STRETCH_TOP);
+
+  if (edges == DisplaySettings::INFOBOX_AREA_STRETCH_ALL)
+    return rc;
+
+  /* on the remaining edges, stay clear of the display cutout and
+     the system bars */
+  const PixelRect safe_rc = GetSafeAreaRect();
+
+  return {edges & DisplaySettings::INFOBOX_AREA_STRETCH_LEFT
+          ? rc.left : std::max(rc.left, safe_rc.left),
+          edges & DisplaySettings::INFOBOX_AREA_STRETCH_TOP
+          ? rc.top : std::max(rc.top, safe_rc.top),
+          edges & DisplaySettings::INFOBOX_AREA_STRETCH_RIGHT
+          ? rc.right : std::min(rc.right, safe_rc.right),
+          edges & DisplaySettings::INFOBOX_AREA_STRETCH_BOTTOM
+          ? rc.bottom : std::min(rc.bottom, safe_rc.bottom)};
+}
+
+void
+MainWindow::CheckSafeAreaChange() noexcept
+{
+  if (!IsRunning())
+    return;
+
+  const PixelRect rc = GetSafeAreaRect();
+  if (rc.left == safe_area_rect.left && rc.top == safe_area_rect.top &&
+      rc.right == safe_area_rect.right && rc.bottom == safe_area_rect.bottom)
+    return;
+
+  safe_area_rect = rc;
+
+  /* iOS applies a status bar change to the safe area only after the
+     next run loop iteration, so the layout that ApplyFullScreenSettings()
+     triggered was calculated for the old one */
+  OnResize(GetSize());
+}
+
+PixelRect
+MainWindow::GetAreaStackRect() const noexcept
+{
+  if (FullScreen || area_stack_rect.left >= area_stack_rect.right ||
+      area_stack_rect.top >= area_stack_rect.bottom)
+    /* no InfoBoxes in the way (or no layout yet) */
+    return GetInfoBoxAreaRect();
+
+  return area_stack_rect;
+}
+
+PixelRect
+MainWindow::GetHudRect() const noexcept
+{
+  if (hud_rect.left >= hud_rect.right || hud_rect.top >= hud_rect.bottom)
+    /* no layout yet; nothing is in the way either */
+    return GetAreaStackRect();
+
+  return hud_rect;
+}
+
+PixelRect
 MainWindow::GetMapAreaRect() const noexcept
 {
   if (map != nullptr)
@@ -308,17 +378,47 @@ MainWindow::LayoutMapArea() noexcept
   }
 
   PixelRect main_rect = GetMainRect();
-  const PixelRect top_rect = GetTopWidgetRect(main_rect, top_widget);
-  if (HaveTopWidget())
+
+  /* the top and bottom areas (cross section, airspace and NOTAM
+     warnings) carry text and buttons, so they are laid out like the
+     InfoBoxes: inside the safe area and clear of the InfoBoxes */
+  const PixelRect area_stack_rc = GetAreaStackRect();
+
+  /* what the widgets leave over is where the HUD elements go */
+  hud_rect = area_stack_rc;
+
+  const PixelRect top_rect = GetTopWidgetRect(area_stack_rc, top_widget);
+  if (HaveTopWidget()) {
     top_widget->Move(top_rect);
+    hud_rect = GetMapRectBelow(hud_rect, top_rect);
 
-  main_rect = GetMapRectBelow(main_rect, top_rect);
+    /* cut the map short only where it would end at the widget anyway;
+       where it reaches further, it slides underneath and stays
+       visible beyond the widget, like it does with the InfoBoxes */
+    if (main_rect.top >= top_rect.top)
+      main_rect = GetMapRectBelow(main_rect, top_rect);
+  }
 
-  const PixelRect bottom_rect = GetBottomWidgetRect(main_rect, bottom_widget);
-  if (HaveBottomWidget())
+  const PixelRect bottom_rect =
+    GetBottomWidgetRect(area_stack_rc, bottom_widget);
+  if (HaveBottomWidget()) {
     bottom_widget->Move(bottom_rect);
+    hud_rect = GetMapRectAbove(hud_rect, bottom_rect);
 
-  map->Move(GetMapRectAbove(main_rect, bottom_rect));
+    if (main_rect.bottom <= bottom_rect.bottom)
+      main_rect = GetMapRectAbove(main_rect, bottom_rect);
+  }
+
+  map->Move(main_rect);
+
+  /* keep the HUD elements (compass, map scale, final glide bar, ...)
+     inside it, even if the map extends beyond */
+  const PixelRect map_rc = map->GetPosition();
+  const PixelRect hud_rc = map_rc.Intersection(hud_rect);
+  map->SetHudMargins(unsigned(std::max(0, hud_rc.left - map_rc.left)),
+                     unsigned(std::max(0, hud_rc.top - map_rc.top)),
+                     unsigned(std::max(0, map_rc.right - hud_rc.right)),
+                     unsigned(std::max(0, map_rc.bottom - hud_rc.bottom)));
 }
 
 void
@@ -328,42 +428,48 @@ MainWindow::UpdateMapOverlayButtonLayout() noexcept
     widget == nullptr && map != nullptr &&
     PageActions::AllowMapOverlayButtons();
 
+  /* keep the overlay buttons inside the HUD rect even if the map
+     extends beyond it */
+  const PixelRect button_rc = overlay_buttons_active
+    ? map->GetPosition().Intersection(GetHudRect())
+    : PixelRect{};
+
   if (show_menu_button != nullptr) {
     show_menu_button->SetVisible(overlay_buttons_active);
     show_menu_button->SetEnabled(overlay_buttons_active);
     if (overlay_buttons_active)
-      show_menu_button->Move(GetShowMenuButtonRect(map->GetPosition()));
+      show_menu_button->Move(GetShowMenuButtonRect(button_rc));
   }
   if (show_quickmenu_button != nullptr) {
     show_quickmenu_button->SetVisible(overlay_buttons_active);
     show_quickmenu_button->SetEnabled(overlay_buttons_active);
     if (overlay_buttons_active)
-      show_quickmenu_button->Move(GetShowQuickMenuButtonRect(map->GetPosition()));
+      show_quickmenu_button->Move(GetShowQuickMenuButtonRect(button_rc));
   }
   if (show_zoom_out_button != nullptr) {
     show_zoom_out_button->SetVisible(overlay_buttons_active);
     show_zoom_out_button->SetEnabled(overlay_buttons_active);
     if (overlay_buttons_active)
-      show_zoom_out_button->Move(GetShowZoomButtonRect(map->GetPosition(),
+      show_zoom_out_button->Move(GetShowZoomButtonRect(button_rc,
                                                        ShowZoomButton::Sign::ZOOM_OUT));
   }
   if (show_zoom_in_button != nullptr) {
     show_zoom_in_button->SetVisible(overlay_buttons_active);
     show_zoom_in_button->SetEnabled(overlay_buttons_active);
     if (overlay_buttons_active)
-      show_zoom_in_button->Move(GetShowZoomButtonRect(map->GetPosition(),
+      show_zoom_in_button->Move(GetShowZoomButtonRect(button_rc,
                                                       ShowZoomButton::Sign::ZOOM_IN));
   }
 
 #ifdef ANDROID
   if (show_rotate_button != nullptr && overlay_buttons_active)
-    show_rotate_button->Move(GetShowRotateButtonRect(map->GetPosition()));
+    show_rotate_button->Move(GetShowRotateButtonRect(button_rc));
 #endif
 
   if (map != nullptr)
     /* keep the north arrow clear of the overlay buttons */
     map->SetTopRightMargin(overlay_buttons_active
-                           ? GetMapOverlayTopRightWidth(map->GetPosition())
+                           ? GetMapOverlayTopRightWidth(button_rc)
                            : 0);
 
   /* Newly created overlay buttons are added after the map; keep the map
@@ -519,7 +625,7 @@ MainWindow::InitialiseConfigured()
   map->Create(*this, map_rect);
 
   popup = new PopupMessage(*this, look->dialog, ui_settings);
-  popup->Create(map_rect);
+  popup->Create(GetHudRect());
 }
 
 void
@@ -544,6 +650,10 @@ MainWindow::InitialiseStorage() noexcept
   storage_event_adapter_ = std::make_unique<Adapter>(*this);
   backend_components->storage_manager->AddEventListener(
     *storage_event_adapter_);
+
+  /* this first layout may have been calculated before the system had
+     applied the window flags we asked for at creation time */
+  safe_area_timer.Schedule({});
 }
 
 void
@@ -628,25 +738,27 @@ void
 MainWindow::ReinitialiseLayoutTA(PixelRect rc,
                                  const InfoBoxLayout::Layout &layout) noexcept
 {
+  const PixelRect map_rc = GetHudRect();
+
   unsigned sz = std::min(layout.control_size.height,
                          layout.control_size.width) * 2;
-  unsigned mw = std::min((GetMainRect().bottom - GetMainRect().top),
-                         (GetMainRect().right - GetMainRect().left));
+  unsigned mw = std::min((map_rc.bottom - map_rc.top),
+                         (map_rc.right - map_rc.left));
   unsigned dia = std::min(sz, mw / 2);
 
   switch (CommonInterface::GetUISettings().thermal_assistant_position) {
   case (UISettings::ThermalAssistantPosition::BOTTOM_LEFT_AVOID_IB):
-    rc.bottom = GetMainRect().bottom;
-    rc.left = GetMainRect().left;
+    rc.bottom = map_rc.bottom;
+    rc.left = map_rc.left;
     rc.right = rc.left + dia;
     break;
   case (UISettings::ThermalAssistantPosition::BOTTOM_RIGHT_AVOID_IB):
-    rc.bottom = GetMainRect().bottom;
-    rc.right = GetMainRect().right;
+    rc.bottom = map_rc.bottom;
+    rc.right = map_rc.right;
     rc.left = rc.right - dia;
     break;
   case (UISettings::ThermalAssistantPosition::BOTTOM_RIGHT):
-    rc.right = GetMainRect().right;
+    rc.right = map_rc.right;
     rc.left = rc.right - dia;
     break;
   case (UISettings::ThermalAssistantPosition::TOP_LEFT):
@@ -663,25 +775,25 @@ MainWindow::ReinitialiseLayoutTA(PixelRect rc,
     rc.bottom = rc.top + dia;
     break;
   case (UISettings::ThermalAssistantPosition::TOP_LEFT_AVOID_IB):
-    rc.top = GetMainRect().top;
-    rc.left = GetMainRect().left;
+    rc.top = map_rc.top;
+    rc.left = map_rc.left;
     rc.right = rc.left + dia;
     rc.bottom = rc.top + dia;
     break;
   case (UISettings::ThermalAssistantPosition::TOP_RIGHT_AVOID_IB):
-    rc.top = GetMainRect().top;
-    rc.right = GetMainRect().right;
+    rc.top = map_rc.top;
+    rc.right = map_rc.right;
     rc.left = rc.right - dia;
     rc.bottom = rc.top + dia;
     break;
   case (UISettings::ThermalAssistantPosition::CENTER_TOP_AVOID_IB):
-    rc.top = GetMainRect().top;
-    rc.left = (GetMainRect().left + GetMainRect().right - dia) / 2 - 1;
+    rc.top = map_rc.top;
+    rc.left = (map_rc.left + map_rc.right - dia) / 2 - 1;
     rc.right = rc.left + dia;
     rc.bottom = rc.top + dia;
     break; 
   default: // BOTTOM_LEFT
-    rc.left = GetMainRect().left;
+    rc.left = map_rc.left;
     rc.right = rc.left + dia;
     break;
   }
@@ -699,6 +811,7 @@ MainWindow::ReinitialiseLayout() noexcept
     return;
 
   const PixelRect rc = GetClientRect();
+  const PixelRect infobox_area_rc = GetInfoBoxAreaRect();
 
 #ifndef ENABLE_OPENGL
   if (draw_thread == nullptr)
@@ -711,23 +824,32 @@ MainWindow::ReinitialiseLayout() noexcept
   const UISettings &ui_settings = CommonInterface::GetUISettings();
 
   const InfoBoxLayout::Layout ib_layout =
-    InfoBoxLayout::Calculate(rc, ui_settings.info_boxes.geometry,
+    InfoBoxLayout::Calculate(infobox_area_rc, ui_settings.info_boxes.geometry,
                              ui_settings.info_boxes.scale_title_font);
 
   look->ReinitialiseLayout(ib_layout.control_size.width, ui_settings.info_boxes.scale_title_font);
 
   InfoBoxManager::Create(*this, ib_layout, look->info_box);
   InfoBoxManager::ProcessTimer();
-  map_rect = ib_layout.remaining;
 
-  if (popup != nullptr)
-    popup->UpdateLayout(GetMainRect());
+  /* wherever the InfoBoxes and gauges were kept clear of the system
+     bars and the display cutout, the map takes the whole client area
+     and slides underneath them.  It cannot do less: to reach the
+     screen border past an InfoBox row it has to span that row, and
+     one rectangle cannot leave the InfoBoxes out and still cover the
+     strip beyond them.
+
+     @see GlueMapWindow::UpdateProjection(), which keeps the aircraft
+     in the part of the map that is not hidden behind the InfoBoxes */
+  map_rect = infobox_area_rc.Contains(rc)
+    ? ib_layout.remaining
+    : rc;
+
+  /* the areas must avoid the InfoBoxes, which the map itself may
+     now be hiding behind */
+  area_stack_rect = ib_layout.remaining.Intersection(infobox_area_rc);
 
   ReinitialiseLayout_vario(ib_layout);
-
-  ReinitialiseLayout_flarm(rc, ib_layout);
-
-  ReinitialiseLayoutTA(rc, ib_layout);
 
   if (map != nullptr) {
     if (FullScreen)
@@ -739,8 +861,18 @@ MainWindow::ReinitialiseLayout() noexcept
     map->FullRedraw();
   }
 
+  /* everything below reads GetHudRect(), which LayoutMapArea() has
+     just updated */
+
+  if (popup != nullptr)
+    popup->UpdateLayout(GetHudRect());
+
+  ReinitialiseLayout_flarm(infobox_area_rc, ib_layout);
+
+  ReinitialiseLayoutTA(infobox_area_rc, ib_layout);
+
   if (widget != nullptr)
-    widget->Move(GetMainRect(rc));
+    widget->Move(GetHudRect());
 
   UpdateMapOverlayButtonLayout();
 
@@ -772,10 +904,12 @@ MainWindow::ReinitialiseLayout_flarm(PixelRect rc,
     }
   }
 
+  const PixelRect map_rc = GetHudRect();
+
   unsigned sz = std::min(ib_layout.control_size.height,
                          ib_layout.control_size.width) * 2;
-  unsigned mw = std::min((GetMainRect().bottom - GetMainRect().top),
-                         (GetMainRect().right - GetMainRect().left));
+  unsigned mw = std::min((map_rc.bottom - map_rc.top),
+                         (map_rc.right - map_rc.left));
   unsigned dia = std::min(sz, mw / 2);
 
   switch (val) {
@@ -807,43 +941,43 @@ MainWindow::ReinitialiseLayout_flarm(PixelRect rc,
     break;
 
   case TrafficSettings::GaugeLocation::TOP_LEFT_AVOID_IB:
-    rc.top = GetMainRect().top;
-    rc.left = GetMainRect().left;
+    rc.top = map_rc.top;
+    rc.left = map_rc.left;
     rc.right = rc.left + dia;
     rc.bottom = rc.top + dia;
     break;
 
   case TrafficSettings::GaugeLocation::TOP_RIGHT_AVOID_IB:
-    rc.top = GetMainRect().top;
-    rc.right = GetMainRect().right;
+    rc.top = map_rc.top;
+    rc.right = map_rc.right;
     rc.left = rc.right - dia;
     rc.bottom = rc.top + dia;
     break;
 
   case TrafficSettings::GaugeLocation::BOTTOM_LEFT_AVOID_IB:
-    rc.bottom = GetMainRect().bottom;
-    rc.left = GetMainRect().left;
+    rc.bottom = map_rc.bottom;
+    rc.left = map_rc.left;
     rc.right = rc.left + dia;
     rc.top = rc.bottom - dia;
     break;
 
   case TrafficSettings::GaugeLocation::CENTER_TOP_AVOID_IB:
-    rc.top = GetMainRect().top;
-    rc.left = (GetMainRect().left + GetMainRect().right - dia) / 2 - 1;
+    rc.top = map_rc.top;
+    rc.left = (map_rc.left + map_rc.right - dia) / 2 - 1;
     rc.right = rc.left + dia;
     rc.bottom = rc.top + dia;
     break;
 
   case TrafficSettings::GaugeLocation::CENTER_BOTTOM_AVOID_IB:
-    rc.bottom = GetMainRect().bottom;
-    rc.left = (GetMainRect().left + GetMainRect().right - dia) / 2 - 1;
+    rc.bottom = map_rc.bottom;
+    rc.left = (map_rc.left + map_rc.right - dia) / 2 - 1;
     rc.right = rc.left + dia;
     rc.top = rc.bottom - dia;
     break;
 
   case TrafficSettings::GaugeLocation::BOTTOM_RIGHT_AVOID_IB:
-    rc.bottom = GetMainRect().bottom;
-    rc.right = GetMainRect().right;
+    rc.bottom = map_rc.bottom;
+    rc.right = map_rc.right;
     rc.left = rc.right - dia;
     rc.top = rc.bottom - dia;
     break;
@@ -1157,6 +1291,8 @@ MainWindow::RunTimer() noexcept
 {
   LateInitialise();
 
+  CheckSafeAreaChange();
+
 #ifdef ANDROID
   /* if we still havn't processed the task that was received from a QR
      code, re-post the TASK_RECEIVED event to invoke OnTaskReceived()
@@ -1373,11 +1509,24 @@ MainWindow::SetFullScreen(bool _full_screen) noexcept
   else
     InfoBoxManager::Show();
 
-  if (widget != nullptr)
-    widget->Move(GetMainRect());
+  if (map != nullptr) {
+    LayoutMapArea();
 
-  /* Overlapped gauges (FLARM, thermal assistant) use GetMainRect() for
-     "avoid InfoBoxes" corners; re-layout when fullscreen changes. */
+    /* the map itself may keep its position and only the margins
+       change, which neither moves the window nor re-renders it */
+    map->FullRedraw();
+
+    UpdateMapOverlayButtonLayout();
+  }
+
+  /* everything below reads GetHudRect(), which LayoutMapArea() has
+     just updated */
+
+  if (widget != nullptr)
+    widget->Move(GetHudRect());
+
+  /* Overlapped gauges (FLARM, thermal assistant) use GetHudRect()
+     for "avoid InfoBoxes" corners; re-layout when fullscreen changes. */
   const PixelRect rc = GetClientRect();
   const auto &info_boxes = CommonInterface::GetUISettings().info_boxes;
   const InfoBoxLayout::Layout ib_layout =
@@ -1386,18 +1535,49 @@ MainWindow::SetFullScreen(bool _full_screen) noexcept
   ReinitialiseLayout_flarm(rc, ib_layout);
   ReinitialiseLayoutTA(rc, ib_layout);
 
-  if (map != nullptr) {
-    LayoutMapArea();
-    UpdateMapOverlayButtonLayout();
-  }
-
   if (popup != nullptr)
-    popup->UpdateLayout(GetMainRect());
-
-  // the repaint will be triggered by the DrawThread
+    popup->UpdateLayout(GetHudRect());
 
   UpdateVarioGaugeVisibility();
 }
+
+#ifdef HAVE_FULL_SCREEN_SETTING
+
+void
+MainWindow::ApplyFullScreenSettings() noexcept
+{
+  [[maybe_unused]] const DisplaySettings &settings =
+    CommonInterface::GetUISettings().display;
+
+#ifdef ANDROID
+  /* the Android surface shrinks or grows when the system bars appear
+     or disappear; the resulting resize event updates the layout */
+  native_view->SetFullScreen(Java::GetEnv(), settings.full_screen);
+#elif defined(__APPLE__) && TARGET_OS_IPHONE
+  const bool status_bar_hidden = !settings.IsStatusBarVisible();
+
+  if (settings.full_screen == GetFullScreenMode() &&
+      status_bar_hidden == GetStatusBarHidden())
+    return;
+
+  UI::TopWindow::SetFullScreenMode(settings.full_screen);
+  UI::TopWindow::SetStatusBarHidden(status_bar_hidden);
+
+  /* on iOS, the window covers the whole screen either way and no
+     resize event is generated; only the usable area (the safe area)
+     changes, so update the layout explicitly */
+  OnResize(GetSize());
+
+  /* iOS updates the safe area only after this run loop iteration, so
+     the layout above was calculated for the old one; re-check as soon
+     as possible instead of waiting for the periodic timer, which
+     would leave the InfoBoxes in the wrong place for up to half a
+     second after startup */
+  safe_area_timer.Schedule({});
+#endif
+}
+
+#endif /* HAVE_FULL_SCREEN_SETTING */
 
 void
 MainWindow::SetTerrain(RasterTerrain *terrain) noexcept
@@ -1643,7 +1823,7 @@ MainWindow::SetWidget(Widget *_widget) noexcept
 
   widget = _widget;
 
-  const PixelRect rc = GetMainRect();
+  const PixelRect rc = GetHudRect();
   widget->Initialise(*this, rc);
   widget->Prepare(*this, rc);
   widget->Show(rc);
