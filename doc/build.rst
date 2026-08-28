@@ -403,6 +403,13 @@ That script reads optional settings from `darwin/.env` (see
 flavour with the red icon, which on iOS uses the separate bundle
 identifier ``XCSoar-testing`` and can therefore be installed next to the
 stable app.
+On a device, Xcode installs and launches the signed app bundle
+`output/IOS64/signed/Payload/XCSoar.app` created by `darwin/sign.sh`.
+It cannot read the bundle identifier from an IPA, and would then try to
+launch an identifier that is not installed.
+The bundle identifier must be covered by the App ID of the provisioning
+profile in ``IOS_PROFILE_PATH``; set ``IOS_APP_BUNDLE_IDENTIFIER`` in
+`darwin/.env` if your profile uses a different App ID.
 For iOS debugging with Visual Studio Code, the `iOS Debug`
 extension (https://github.com/nisargjhaveri/vscode-ios-debug) can be used.
 Note that this also requires an Xcode installation.
