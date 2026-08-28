@@ -15,6 +15,9 @@ CERTIFICATE_NAME="${APPLE_DISTRIBUTION_CERTIFICATE_NAME:-}"
 
 # Output configuration
 IPA_SIGNED_PATH="${IOS_SIGNED_IPA_PATH:-$(pwd)/output/IOS64/xcsoar-signed.ipa}"
+# The signed app bundle is kept next to the signed IPA, because Xcode and
+# devicectl install and launch a bundle, not a zipped IPA.
+SIGNED_APP_ROOT="${IOS_SIGNED_APP_ROOT:-$(pwd)/output/IOS64/signed}"
 
 # Validate required environment variables
 if [[ -z "$PROFILE_PATH" ]]; then
@@ -40,15 +43,16 @@ fi
 # Create temporary directories
 TMP_DIR=$(mktemp -d)
 trap 'rm -rf "$TMP_DIR"' EXIT
-APP_PAYLOAD_DIR="$TMP_DIR/Payload"
 SIGNED_IPA="$TMP_DIR/signed.ipa"
 ENTITLEMENTS_TMP="$TMP_DIR/entitlements.plist"
 
-# Unzip IPA
-unzip -q "$IPA_PATH" -d "$TMP_DIR"
+# Unzip IPA into the persistent output directory
+rm -rf "$SIGNED_APP_ROOT"
+mkdir -p "$SIGNED_APP_ROOT"
+unzip -q "$IPA_PATH" -d "$SIGNED_APP_ROOT"
 
 # Locate .app inside Payload
-APP_PATH=$(find "$APP_PAYLOAD_DIR" -name "*.app" -type d | head -n 1)
+APP_PATH=$(find "$SIGNED_APP_ROOT/Payload" -name "*.app" -type d | head -n 1)
 
 if [ ! -d "$APP_PATH" ]; then
   echo "❌ .app not found in IPA"
@@ -77,7 +81,7 @@ fi
 
 # Repackage IPA (without changing working directory)
 (
-  cd "$TMP_DIR"
+  cd "$SIGNED_APP_ROOT"
   zip -qr "$SIGNED_IPA" Payload
 )
 
@@ -85,3 +89,4 @@ fi
 mv "$SIGNED_IPA" "$IPA_SIGNED_PATH"
 
 echo "✅ Signed IPA created at: $IPA_SIGNED_PATH"
+echo "✅ Signed app bundle at: $APP_PATH"
