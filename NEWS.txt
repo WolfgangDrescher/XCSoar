@@ -88,6 +88,9 @@ Version 7.46 - not yet released
   - documentation: document the release and post-release version workflow
   - macOS/iOS: read TESTING=y from darwin/.env, so Xcode builds can
     produce the testing flavour
+  - iOS: let Xcode install and launch the signed app bundle on a
+    device instead of the IPA, which made the debugger fail with
+    "the requested application is not installed" #1885
 
 Version 7.45 - 2026-08-15
 * highlights
