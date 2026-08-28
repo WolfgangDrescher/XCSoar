@@ -8,16 +8,22 @@ if [[ -f "$SCRIPT_DIR/.env" ]]; then
   source "$SCRIPT_DIR/.env"
 fi
 
-# Testing builds use their own bundle identifier (see build/ios.mk)
-case "$(printf '%s' "${TESTING:-n}" | tr '[:upper:]' '[:lower:]')" in
-  y|yes|true|1) DEFAULT_BUNDLE_ID="XCSoar-testing" ;;
-  *) DEFAULT_BUNDLE_ID="XCSoar" ;;
-esac
-
 # Configuration
 IPA_SIGNED_PATH="${IOS_SIGNED_IPA_PATH:-$(pwd)/output/IOS64/xcsoar-signed.ipa}"
 DEVICE_NAME="${IOS_DEVICE_NAME:-}"
-BUNDLE_ID="${IOS_BUNDLE_ID:-$DEFAULT_BUNDLE_ID}"
+BUNDLE_ID="${IOS_BUNDLE_ID:-}"
+
+# The bundle identifier depends on TESTING and IOS_APP_BUNDLE_IDENTIFIER (see
+# build/ios.mk); read it back from the IPA instead of duplicating it here
+read_bundle_id() {
+  local plist
+  plist="$(mktemp)"
+  unzip -p "$IPA_SIGNED_PATH" 'Payload/*.app/Info.plist' > "$plist" 2>/dev/null &&
+    /usr/libexec/PlistBuddy -c 'Print :CFBundleIdentifier' "$plist" 2>/dev/null
+  local status=$?
+  rm -f "$plist"
+  return $status
+}
 
 # Validate required environment variables
 if [[ -z "$DEVICE_NAME" ]]; then
@@ -32,6 +38,12 @@ fi
 if [ ! -f "$IPA_SIGNED_PATH" ]; then
   echo "❌ Signed IPA not found: $IPA_SIGNED_PATH"
   echo "   Please run the signing script first."
+  exit 1
+fi
+
+if [[ -z "$BUNDLE_ID" ]] && ! BUNDLE_ID="$(read_bundle_id)"; then
+  echo "❌ Could not read the bundle identifier from $IPA_SIGNED_PATH"
+  echo "Set it via: export IOS_BUNDLE_ID='org.example.XCSoar'"
   exit 1
 fi
 
