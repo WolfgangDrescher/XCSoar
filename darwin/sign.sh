@@ -69,6 +69,26 @@ if ! /usr/libexec/PlistBuddy -x -c "Print :Entitlements" "$TMP_DIR/profile.plist
   exit 1
 fi
 
+# The App ID of the provisioning profile must match CFBundleIdentifier.
+# Otherwise the app is installed under its own identifier while iOS knows it
+# under the one from the entitlements, and launching it fails with
+# "The requested application ... is not installed".
+BUNDLE_ID="$(/usr/libexec/PlistBuddy -c 'Print :CFBundleIdentifier' "$APP_PATH/Info.plist")"
+if ! APPLICATION_IDENTIFIER="$(/usr/libexec/PlistBuddy -c 'Print :application-identifier' "$ENTITLEMENTS_TMP" 2>/dev/null)"; then
+  echo "❌ Provisioning profile has no application-identifier entitlement"
+  exit 1
+fi
+
+# Strip the team identifier prefix; the remainder may end in a wildcard
+PROFILE_APP_ID="${APPLICATION_IDENTIFIER#*.}"
+if [[ "$BUNDLE_ID" != $PROFILE_APP_ID ]]; then
+  echo "❌ Bundle identifier '$BUNDLE_ID' does not match the App ID"
+  echo "   '$PROFILE_APP_ID' of $PROFILE_PATH"
+  echo "Set IOS_APP_BUNDLE_IDENTIFIER in $SCRIPT_DIR/.env to the App ID of"
+  echo "your provisioning profile and rebuild."
+  exit 1
+fi
+
 # Sign the app
 echo "🔏 Signing with certificate '$CERTIFICATE_NAME'..."
 codesign -f -s "$CERTIFICATE_NAME" --entitlements "$ENTITLEMENTS_TMP" "$APP_PATH"
