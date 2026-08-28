@@ -64,8 +64,11 @@ case "$TARGET_PLATFORM_NAME" in
     iphoneos)
         TARGET="IOS64"
         # Clean up previous build artifacts to ensure .ipa is fresh
-        rm -rf "$(pwd)/output/IOS64/ipa" "$(pwd)/output/IOS64/xcsoar.ipa" "$(pwd)/output/IOS64/xcsoar-signed.ipa" "$(pwd)"/output/IOS64/Info.plist*
-        create_symlink "$(pwd)/output/IOS64/xcsoar-signed.ipa" "$EXECUTABLE_PATH"
+        rm -rf "$(pwd)/output/IOS64/ipa" "$(pwd)/output/IOS64/signed" "$(pwd)/output/IOS64/xcsoar.ipa" "$(pwd)/output/IOS64/xcsoar-signed.ipa" "$(pwd)"/output/IOS64/Info.plist*
+        # Xcode reads the bundle identifier from the app bundle it is asked
+        # to run; pointed at an IPA it falls back to a guessed identifier and
+        # then fails to launch the app it has just installed.
+        create_symlink "$(pwd)/output/IOS64/signed/Payload/XCSoar.app" "$EXECUTABLE_PATH"
         ;;
     macosx)
         TARGET="MACOS"
@@ -104,15 +107,17 @@ if ! gmake -j"${NUM_CPUS}" USE_CCACHE=y V=2 OPTIMIZE="-O0" DEBUG="$DEBUG" TESTIN
     exit 1
 fi
 
-# Sign the iOS build if needed
+# Sign the iOS build; without a signed app bundle there is nothing Xcode
+# could install and launch on a device
 if [ "$TARGET" = "IOS64" ]; then
     echo "Signing iOS build..."
-    if [ -f "$(pwd)/darwin/sign.sh" ]; then
-        if ! "$(pwd)/darwin/sign.sh"; then
-            echo "Warning: Signing failed" >&2
-        fi
-    else
-        echo "Warning: sign.sh not found" >&2
+    if [ ! -f "$(pwd)/darwin/sign.sh" ]; then
+        echo "Error: sign.sh not found" >&2
+        exit 1
+    fi
+    if ! "$(pwd)/darwin/sign.sh"; then
+        echo "Error: Signing failed" >&2
+        exit 1
     fi
 fi
 
