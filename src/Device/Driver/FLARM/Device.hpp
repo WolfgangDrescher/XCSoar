@@ -294,10 +294,13 @@ private:
    * written to the stream by a previous, failed transfer of the same
    * flight; that part of the restarted stream is skipped instead of
    * being written again.  Updated as data is written.
+   * @param max_progress the highest percentage reported so far; a
+   * restarted transfer makes the FLARM count from zero again, and the
+   * progress bar must not jump backwards.  Updated as data arrives.
    * @return True if received and written successfully, otherwise False
    */
   bool DownloadFlight(BufferedOutputStream &os, std::size_t &offset,
-                      OperationEnvironment &env);
+                      unsigned &max_progress, OperationEnvironment &env);
 
 public:
   /**

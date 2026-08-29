@@ -11,6 +11,7 @@
 #include "Operation/Operation.hpp"
 #include "Operation/Cancelled.hpp"
 
+#include <algorithm> // for std::min(), std::max()
 #include <cstdlib>
 #include <cstring>
 #include <span>
@@ -315,6 +316,7 @@ FlarmDevice::ReadFlightList(RecordedFlightList &flight_list,
 
 bool
 FlarmDevice::DownloadFlight(BufferedOutputStream &os, std::size_t &offset,
+                            unsigned &max_progress,
                             OperationEnvironment &env)
 {
   static constexpr unsigned get_igcdata_retries = 3;
@@ -370,8 +372,13 @@ FlarmDevice::DownloadFlight(BufferedOutputStream &os, std::size_t &offset,
     length -= 3;
 
     // Read progress (in percent)
-    const auto progress = static_cast<unsigned>(data[2]);
-    env.SetProgressPosition(std::min(progress, 100u));
+    const auto progress = std::min(static_cast<unsigned>(data[2]), 100u);
+
+    /* a restarted transfer sends the flight from the beginning, so
+       the FLARM counts from zero again although the file is already
+       written up to #offset; keep the progress bar monotonic */
+    max_progress = std::max(max_progress, progress);
+    env.SetProgressPosition(max_progress);
 
     LogFormat("FLARM: received IGC data frame (%u bytes, %u%%)",
               unsigned(length), progress);
@@ -410,8 +417,10 @@ FlarmDevice::DownloadFlight(const RecordedFlightInfo &flight,
   /* how often to restart the transfer after a mid-transfer failure;
      the equivalent of the resumable LX Nano downloads (#1813) - the
      FLARM binary protocol cannot resume at an offset, so the
-     transfer is restarted and the already saved part is skipped */
-  static constexpr unsigned session_attempts = 3;
+     transfer is restarted and the already saved part is skipped.
+     Every attempt which gets past the previous one makes progress, so
+     a link which loses a frame now and then still finishes */
+  static constexpr unsigned session_attempts = 5;
 
   FileOutputStream fos(path);
   BufferedOutputStream os(fos);
@@ -419,6 +428,7 @@ FlarmDevice::DownloadFlight(const RecordedFlightInfo &flight,
   env.SetProgressRange(100);
 
   std::size_t offset = 0;
+  unsigned max_progress = 0;
 
   for (unsigned attempt = 1;; ++attempt) {
     try {
@@ -429,7 +439,7 @@ FlarmDevice::DownloadFlight(const RecordedFlightInfo &flight,
       if (SelectFlight(flight.internal.flarm, env) != FLARM::MessageType::ACK)
         return false;
 
-      if (DownloadFlight(os, offset, env)) {
+      if (DownloadFlight(os, offset, max_progress, env)) {
         os.Flush();
         fos.Commit();
         return true;
