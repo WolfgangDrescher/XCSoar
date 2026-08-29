@@ -344,20 +344,20 @@ FlarmDevice::DownloadFlight(BufferedOutputStream &os, std::size_t &offset,
          which can take tens of seconds on a slow link (e.g. a
          Bluetooth LE bridge) - giving up mid-frame would restart
          the transfer forever without any progress */
+      auto result = FLARM::MessageType::ERROR;
       try {
-        ack = WaitForACKOrNACK(header.sequence_number, data,
-                               length, env,
-                               std::chrono::seconds(30)) ==
-          FLARM::MessageType::ACK;
+        result = WaitForACKOrNACK(header.sequence_number, data,
+                                  length, env, std::chrono::seconds(30));
       } catch (const DeviceTimeout &) {
-        ack = false;
       }
 
+      ack = result == FLARM::MessageType::ACK;
       if (ack)
         break;
 
-      LogFormat("FLARM: no answer to GETIGCDATA (attempt %u of %u,"
+      LogFormat("FLARM: %s to GETIGCDATA (attempt %u of %u,"
                 " %lu bytes received so far)",
+                result == FLARM::MessageType::NACK ? "NACK" : "no answer",
                 retry + 1, get_igcdata_retries, (unsigned long)offset);
     }
 
@@ -383,13 +383,20 @@ FlarmDevice::DownloadFlight(BufferedOutputStream &os, std::size_t &offset,
     LogFormat("FLARM: received IGC data frame (%u bytes, %u%%)",
               unsigned(length), progress);
 
-    const char last_char = (char)data.back();
-    bool is_last_packet = (last_char == 0x1A);
-    if (is_last_packet)
-      length--;
-
     // Read IGC data
     std::span<const std::byte> payload{data.data() + 3, length};
+
+    /* the last packet ends with 0x1A; look at the end of this frame,
+       not at the end of the buffer: AllocatedArray::GrowDiscard()
+       never shrinks, so after a retry the buffer is still as large as
+       the frame of the failed attempt, and its last byte is stale.
+       Missing the end of the file makes XCSoar ask for one more frame,
+       which the FLARM answers with a NACK, and the whole flight is
+       downloaded again */
+    const bool is_last_packet = !payload.empty() &&
+      payload.back() == std::byte{0x1A};
+    if (is_last_packet)
+      payload = payload.first(payload.size() - 1);
 
     if (skip > 0) {
       const std::size_t n = std::min(skip, payload.size());
