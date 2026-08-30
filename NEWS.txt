@@ -58,6 +58,8 @@ Version 7.46 - not yet released
   - FLARM: automatically restart an interrupted flight download and
     skip the already saved part instead of failing the whole
     transfer
+  - XCVario: allow a second driver on the port, so the flights of a
+    FLARM connected to the XCVario can be downloaded
   - fix the map ground track line following heading instead of ground
     track with Condor 3 UDP in a crosswind #2900
   - fix the Devices Debug button not writing port traffic to xcsoar.log

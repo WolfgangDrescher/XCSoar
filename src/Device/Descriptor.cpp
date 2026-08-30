@@ -683,7 +683,13 @@ DeviceDescriptor::CanDeclare() const noexcept
 bool
 DeviceDescriptor::IsLogger() const noexcept
 {
-  return driver != nullptr && driver->IsLogger();
+  if (driver != nullptr && driver->IsLogger())
+    return true;
+
+  /* the flights are on the device behind a pass-through device, e.g.
+     a FLARM connected to an XCVario; ReadFlightList() and
+     DownloadFlight() use #second_device for those */
+  return second_driver != nullptr && second_driver->IsLogger();
 }
 
 bool
