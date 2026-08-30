@@ -346,6 +346,19 @@ FlarmDevice::DownloadFlight(BufferedOutputStream &os, std::size_t &offset,
     }
 
     if (result != FLARM::MessageType::ACK || length <= 3) {
+      /* the payload of this frame did not arrive completely; if it
+         belongs to the part which a previous attempt has already
+         saved, its contents are not needed and the transfer can carry
+         on instead of starting over once more */
+      if (lost_frame_length > 3 &&
+          skip >= std::size_t(lost_frame_length - 3)) {
+        skip -= lost_frame_length - 3;
+
+        LogFormat("FLARM: stepping over %u lost bytes which are already"
+                  " saved", unsigned(lost_frame_length - 3));
+        continue;
+      }
+
       /* a lost frame must not be requested again: the FLARM does not
          repeat it, it answers the next GETIGCDATA with the *following*
          chunk, and the missing one would leave a hole in the IGC file.
@@ -420,7 +433,7 @@ FlarmDevice::DownloadFlight(const RecordedFlightInfo &flight,
      Every attempt which gets past the previous one makes progress, so
      a link which loses a frame now and then still finishes; the price
      is that each restart reads the flight from the beginning again */
-  static constexpr unsigned session_attempts = 10;
+  static constexpr unsigned session_attempts = 20;
 
   FileOutputStream fos(path);
   BufferedOutputStream os(fos);

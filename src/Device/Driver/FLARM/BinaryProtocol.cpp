@@ -225,6 +225,8 @@ FlarmDevice::WaitForACKOrNACK(uint16_t sequence_number,
 {
   const TimeoutClock timeout(_timeout);
 
+  lost_frame_length = 0;
+
   // Receive frames until timeout or expected frame found
   while (!timeout.HasExpired()) {
     // Wait until the next start byte comes around
@@ -250,11 +252,19 @@ FlarmDevice::WaitForACKOrNACK(uint16_t sequence_number,
 
     // Read payload and check length
     data.GrowDiscard(length);
-    if (!ReceiveEscaped({data.data(), length},
-                        env, timeout.GetRemainingOrZero())) {
-      LogFormat("FLARM: malformed frame payload (type=0x%02x length=%u)",
-                unsigned(header.type), unsigned(length));
-      continue;
+    try {
+      if (!ReceiveEscaped({data.data(), length},
+                          env, timeout.GetRemainingOrZero())) {
+        LogFormat("FLARM: malformed frame payload (type=0x%02x length=%u)",
+                  unsigned(header.type), unsigned(length));
+        continue;
+      }
+    } catch (const DeviceTimeout &) {
+      /* remember how much this frame would have carried: a restarted
+         flight download can step over it if that part of the file has
+         already been saved */
+      lost_frame_length = length;
+      throw;
     }
 
     // Verify CRC
