@@ -319,8 +319,6 @@ FlarmDevice::DownloadFlight(BufferedOutputStream &os, std::size_t &offset,
                             unsigned &max_progress,
                             OperationEnvironment &env)
 {
-  static constexpr unsigned get_igcdata_retries = 3;
-
   /* the FLARM binary protocol cannot seek inside a flight record;
      after a restarted transfer, the part which was already saved is
      discarded instead of being written twice */
@@ -332,40 +330,34 @@ FlarmDevice::DownloadFlight(BufferedOutputStream &os, std::size_t &offset,
 
     AllocatedArray<std::byte> data;
     uint16_t length = 0;
-    bool ack = false;
 
-    for (unsigned retry = 0; retry < get_igcdata_retries; ++retry) {
-      // Send request
-      SendStartByte();
-      SendFrameHeader(header, env, std::chrono::seconds(1));
+    // Send request
+    SendStartByte();
+    SendFrameHeader(header, env, std::chrono::seconds(1));
 
-      /* wait for an answer and save the payload for further
-         processing; an IGC data frame is several hundred bytes,
-         which can take tens of seconds on a slow link (e.g. a
-         Bluetooth LE bridge) - giving up mid-frame would restart
-         the transfer forever without any progress */
-      auto result = FLARM::MessageType::ERROR;
-      try {
-        result = WaitForACKOrNACK(header.sequence_number, data,
-                                  length, env, std::chrono::seconds(30));
-      } catch (const DeviceTimeout &) {
-      }
-
-      ack = result == FLARM::MessageType::ACK;
-      if (ack)
-        break;
-
-      LogFormat("FLARM: %s to GETIGCDATA (attempt %u of %u,"
-                " %lu bytes received so far)",
-                result == FLARM::MessageType::NACK ? "NACK" : "no answer",
-                retry + 1, get_igcdata_retries, (unsigned long)offset);
+    /* wait for an answer and save the payload for further processing;
+       an IGC data frame is several hundred bytes, which can take a
+       while on a slow link (e.g. a Bluetooth LE bridge) */
+    auto result = FLARM::MessageType::ERROR;
+    try {
+      result = WaitForACKOrNACK(header.sequence_number, data,
+                                length, env, std::chrono::seconds(30));
+    } catch (const DeviceTimeout &) {
     }
 
-    // If no ACK was received
-    if (!ack || length <= 3) {
-      if (ack)
-        LogFormat("FLARM: GETIGCDATA answer too short (length=%u)",
-                  unsigned(length));
+    if (result != FLARM::MessageType::ACK || length <= 3) {
+      /* a lost frame must not be requested again: the FLARM does not
+         repeat it, it answers the next GETIGCDATA with the *following*
+         chunk, and the missing one would leave a hole in the IGC file.
+         Fail this session instead; the caller restarts the transfer
+         from the beginning and skips the part which was already
+         written */
+      LogFormat("FLARM: %s to GETIGCDATA after %lu bytes",
+                result == FLARM::MessageType::NACK
+                ? "NACK"
+                : (result == FLARM::MessageType::ACK
+                   ? "short answer" : "no answer"),
+                (unsigned long)offset);
       return false;
     }
 
@@ -426,8 +418,9 @@ FlarmDevice::DownloadFlight(const RecordedFlightInfo &flight,
      FLARM binary protocol cannot resume at an offset, so the
      transfer is restarted and the already saved part is skipped.
      Every attempt which gets past the previous one makes progress, so
-     a link which loses a frame now and then still finishes */
-  static constexpr unsigned session_attempts = 5;
+     a link which loses a frame now and then still finishes; the price
+     is that each restart reads the flight from the beginning again */
+  static constexpr unsigned session_attempts = 10;
 
   FileOutputStream fos(path);
   BufferedOutputStream os(fos);
