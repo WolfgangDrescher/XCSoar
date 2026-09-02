@@ -83,6 +83,12 @@ Version 7.46 - not yet released
   - replace light green on Alternate MANUAL final glide with blue,
     matching Next waypoint
 * ui
+  - add a Scroll bars setting (Config → Display): always show the
+    scroll bar, or show a thin indicator on top of the content only
+    while scrolling, which leaves the full width to the content and
+    can still be grabbed to scroll a long list quickly; Automatic
+    follows the system setting on macOS and iOS and otherwise picks
+    the indicator on touch screens
   - keep pan-mode menu buttons about 20 mm tall on tall phones,
     large enough for a gloved tap
   - fix blurry icons on high-DPI screens, most visible on the large
