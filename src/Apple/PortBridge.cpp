@@ -303,6 +303,17 @@ PortBridge::SelectCharacteristics() noexcept
 {
   CBCharacteristic *rx = nil, *tx = nil;
 
+  /* list what the peripheral offers; without this, a device which
+     serves its data on a service we do not know about looks like a
+     device which does not work at all */
+  for (CBService *service in peripheral.services)
+    for (CBCharacteristic *c in service.characteristics)
+      LogFormat("Bluetooth: %s has service %s characteristic %s props=0x%x",
+                address.UTF8String,
+                service.UUID.UUIDString.UTF8String,
+                c.UUID.UUIDString.UTF8String,
+                unsigned(c.properties));
+
   for (CBService *service in peripheral.services) {
     if ([service.UUID isEqual:BluetoothUuids::Hm10Service()]) {
       /* first choice: HM-10, which uses a single characteristic for
