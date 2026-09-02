@@ -370,7 +370,10 @@ ListControl::SetOrigin(int i) noexcept
   scroll_bar.NotifyScroll();
 
 #ifdef USE_WINUSER
-  if ((unsigned)abs(delta) < items_visible) {
+  /* the overlay indicator is painted on top of the content: blitting
+     it along would leave a ghost behind, so that style repaints */
+  if (scroll_bar.IsReservingSpace() &&
+      (unsigned)abs(delta) < items_visible) {
     PixelRect rc = GetClientRect();
     rc.right = scroll_bar.GetLeft(GetSize());
     Scroll(0, delta * item_height, rc);
@@ -536,6 +539,11 @@ ListControl::drag_end() noexcept
 bool
 ListControl::OnMouseMove(PixelPoint p, unsigned keys) noexcept
 {
+  if (!scroll_bar.IsDragging() && drag_mode == DragMode::NONE)
+    /* a move with no drag in progress is a hover: let the overlay
+       indicator grow under the pointer */
+    scroll_bar.NotifyMouseMove(p);
+
   // If we are currently dragging the ScrollBar slider
   if (scroll_bar.IsDragging()) {
     // -> Update ListBox origin

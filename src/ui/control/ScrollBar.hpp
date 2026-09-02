@@ -86,6 +86,28 @@ private:
    */
   UI::PeriodicTimer indicator_timer{[this]{ OnIndicatorTimer(); }};
 
+  /**
+   * #Style::WHEN_SCROLLING: the gap between the indicator and the
+   * right edge of the window, and the one above and below it, so
+   * that it does not touch the edges (see #SetSize).
+   */
+  unsigned indicator_margin = 0, indicator_padding = 0;
+
+  /**
+   * #Style::WHEN_SCROLLING: is the pointer resting on the indicator?
+   * It then grows to the width of a real scroll bar, the way the
+   * overlay scroll bars on macOS do, so it can be grabbed.
+   */
+  bool indicator_hover = false;
+
+  /**
+   * #Style::WHEN_SCROLLING: paint the indicator in its wide shape?
+   * A hover or a drag sets this, and only the fade-out clears it: the
+   * indicator keeps the shape it has until it is gone, instead of
+   * snapping back to the thin bar while the user is still looking.
+   */
+  bool indicator_wide = false;
+
 protected:
   /** Whether the slider is currently being dragged */
   bool dragging;
@@ -121,9 +143,17 @@ public:
     return rc_slider.GetHeight();
   }
 
+  /**
+   * Returns the height of one arrow button.  The #Style::WHEN_SCROLLING
+   * indicator has no arrows, and scrolls over the full height.
+   */
+  int GetArrowHeight() const noexcept {
+    return IsReservingSpace() ? GetWidth() : 0;
+  }
+
   /** Returns the height of the scrollable area of the ScrollBar */
   int GetNettoHeight() const noexcept {
-    return std::max(GetHeight() - 2 * GetWidth() - 1, 0);
+    return std::max(GetHeight() - 2 * GetArrowHeight() - 1, 0);
   }
 
   /**
@@ -173,14 +203,15 @@ public:
   }
 
   /**
-   * Returns whether the given PixelPoint is in the slider area
+   * Returns whether the given PixelPoint grabs the slider.  The
+   * #Style::WHEN_SCROLLING indicator is only a few pixels wide, but
+   * it can be grabbed from anywhere in its column, so that a finger
+   * can hit it too; it must be visible at the time.
+   *
    * @param pt PixelPoint to check
-   * @return True if the given PixelPoint is in the slider area,
-   * False otherwise
    */
-  bool IsInsideSlider(const PixelPoint pt) const noexcept {
-    return IsReservingSpace() && rc_slider.Contains(pt);
-  }
+  [[gnu::pure]]
+  bool IsInsideSlider(PixelPoint pt) const noexcept;
 
   /**
    * Returns whether the given y-Coordinate is on the up arrow
@@ -240,6 +271,15 @@ public:
   void NotifyScroll() noexcept;
 
   /**
+   * Reports the current mouse position, so the
+   * #Style::WHEN_SCROLLING indicator can appear and grow while the
+   * pointer rests on it (this is what macOS does).  Call this only
+   * while the content is not being dragged, because a touch drag
+   * passing the column is not a hover.
+   */
+  void NotifyMouseMove(PixelPoint pt) noexcept;
+
+  /**
    * Hides the #Style::WHEN_SCROLLING indicator immediately and stops
    * the fade-out animation.  Call this from OnDestroy(), because the
    * animation repaints the window.
@@ -297,6 +337,36 @@ public:
   unsigned DragMove(unsigned  size, unsigned view_size, int y) const noexcept;
 
 private:
+  /**
+   * Is the #Style::WHEN_SCROLLING indicator currently showing its
+   * wide shape, i.e. is it hovered or dragged?
+   */
+  constexpr bool IsIndicatorWide() const noexcept {
+    return indicator_wide;
+  }
+
+  /**
+   * The track of the #Style::WHEN_SCROLLING indicator: the area it is
+   * painted in, and the one the pointer hovers it in.
+   */
+  [[gnu::pure]]
+  PixelRect GetIndicatorTrack() const noexcept;
+
+  /**
+   * The area the #Style::WHEN_SCROLLING indicator can be grabbed in.
+   * It is wider than the bar and reaches past its ends, so that a
+   * finger can hit it.
+   */
+  [[gnu::pure]]
+  PixelRect GetIndicatorGrabRect() const noexcept;
+
+  /** The shape the #Style::WHEN_SCROLLING indicator is painted in */
+  [[gnu::pure]]
+  PixelRect GetIndicatorRect() const noexcept;
+
+  /** Repaints the area the indicator may occupy */
+  void InvalidateIndicator() noexcept;
+
   /** Paints the #Style::ALWAYS scroll bar */
   void PaintBar(Canvas &canvas, ButtonState up_state,
                 ButtonState down_state) noexcept;

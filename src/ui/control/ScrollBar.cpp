@@ -24,14 +24,44 @@
  */
 static constexpr auto INDICATOR_HOLD = std::chrono::milliseconds{800};
 
+/**
+ * How long the indicator stays visible while the pointer rests on it.
+ * A hover is refreshed by every mouse move; this is the safety net
+ * for the pointer leaving the window, where no more moves arrive.
+ */
+static constexpr auto INDICATOR_HOVER_HOLD = std::chrono::seconds{3};
+
 /** The interval between two fade-out steps. */
 static constexpr auto INDICATOR_FADE_INTERVAL = std::chrono::milliseconds{40};
 
 /** The opacity of the indicator while it is fully visible. */
-static constexpr uint8_t INDICATOR_ALPHA = 0xb0;
+static constexpr uint8_t INDICATOR_ALPHA = 0xcc;
+
+/** The opacity of the track behind the indicator, and its two grays. */
+static constexpr uint8_t INDICATOR_TRACK_ALPHA = 0xf4;
+static constexpr uint8_t INDICATOR_TRACK_GRAY = 0xf4;
+static constexpr uint8_t INDICATOR_TRACK_BORDER_GRAY = 0xd2;
 
 /** How much opacity the indicator loses per fade-out step. */
 static constexpr uint8_t INDICATOR_FADE_STEP = 0x20;
+
+/**
+ * The width of the #ScrollBar::Style::WHEN_SCROLLING indicator, and
+ * its width while the pointer rests on it or drags it.  These are the
+ * measurements of the overlay scroll bars on macOS.
+ */
+static constexpr unsigned INDICATOR_WIDTH_PT = 6;
+static constexpr unsigned INDICATOR_WIDE_WIDTH_PT = 11;
+
+/**
+ * The gap between the indicator and the right edge of the window, and
+ * the one above and below it, so that it does not touch the edges.
+ */
+static constexpr unsigned INDICATOR_MARGIN_PT = 2;
+static constexpr unsigned INDICATOR_PADDING_PT = 3;
+
+/** The hairline between the track and the content. */
+static constexpr unsigned INDICATOR_BORDER_PT = 1;
 
 /**
  * The global scroll bar style; see ScrollBar::SetGlobalStyle().  It
@@ -97,22 +127,28 @@ ScrollBar::SetSize(const PixelSize size) noexcept
 {
   style = GetGlobalStyle();
 
-  unsigned width, margin;
+  unsigned width, margin, padding;
 
   if (style == Style::WHEN_SCROLLING) {
-    /* a thin indicator, inset from the right edge by its own width */
-    width = std::max(Layout::VptScale(3), 2u);
-    margin = width;
+    /* a thin bar, inset from the edges, like the overlay scroll bars
+       on macOS */
+    width = std::max(Layout::VptScale(INDICATOR_WIDTH_PT), 3u);
+    margin = std::max(Layout::VptScale(INDICATOR_MARGIN_PT), 2u);
+    padding = std::max(Layout::VptScale(INDICATOR_PADDING_PT), 2u);
   } else {
     width = GetBarWidth();
     margin = 0;
+    padding = 0;
   }
+
+  indicator_margin = margin;
+  indicator_padding = padding;
 
   // Update the coordinates of the scrollbar
   rc.left = size.width - width - margin;
-  rc.top = 0;
+  rc.top = padding;
   rc.right = size.width - margin;
-  rc.bottom = size.height;
+  rc.bottom = size.height - padding;
 }
 
 void
@@ -123,6 +159,118 @@ ScrollBar::Reset() noexcept
   HideIndicator();
 }
 
+/** The width of the indicator while it is hovered or dragged */
+[[gnu::pure]]
+static unsigned
+GetWideIndicatorWidth() noexcept
+{
+  return std::max(Layout::VptScale(INDICATOR_WIDE_WIDTH_PT), 5u);
+}
+
+/** The gap between the indicator and the edges of its track */
+[[gnu::pure]]
+static unsigned
+GetIndicatorTrackInset() noexcept
+{
+  return std::max(Layout::VptScale(INDICATOR_BORDER_PT), 1u);
+}
+
+PixelRect
+ScrollBar::GetIndicatorTrack() const noexcept
+{
+  const int inset = (int)GetIndicatorTrackInset();
+  const int right = rc.right + (int)indicator_margin;
+
+  /* the track holds the wide indicator, one inset away from its right
+     edge and two from its left one */
+  return PixelRect{
+    PixelPoint{right - (int)GetWideIndicatorWidth() - 3 * inset,
+               rc.top - (int)indicator_padding},
+    PixelPoint{right, rc.bottom + (int)indicator_padding},
+  };
+}
+
+PixelRect
+ScrollBar::GetIndicatorGrabRect() const noexcept
+{
+  PixelRect r = GetIndicatorTrack();
+
+  /* wider than the bar, so that a finger can hit it */
+  r.left = std::min(r.left,
+                    r.right - (int)std::max(Layout::GetMinimumControlHeight() / 2,
+                                            (unsigned)r.GetWidth() * 2));
+
+  /* and with some slack past the ends of the thumb, because the thumb
+     of a long list is short */
+  const int slack = (int)Layout::VptScale(6);
+  r.top = std::max(r.top, rc_slider.top - slack);
+  r.bottom = std::min(r.bottom, rc_slider.bottom + slack);
+
+  return r;
+}
+
+PixelRect
+ScrollBar::GetIndicatorRect() const noexcept
+{
+  PixelRect r = rc_slider;
+
+  if (IsIndicatorWide()) {
+    /* grow into the margin and to the left, so that the bar under the
+       pointer looks like a scroll bar that can be grabbed */
+    const int inset = (int)GetIndicatorTrackInset();
+    r.right = rc.right + (int)indicator_margin - inset;
+    r.left = r.right - (int)GetWideIndicatorWidth();
+  }
+
+  return r;
+}
+
+void
+ScrollBar::InvalidateIndicator() noexcept
+{
+  if (window.IsDefined())
+    window.Invalidate(GetIndicatorTrack());
+}
+
+bool
+ScrollBar::IsInsideSlider(PixelPoint pt) const noexcept
+{
+  if (IsReservingSpace())
+    return rc_slider.Contains(pt);
+
+  /* the overlay indicator can only be grabbed while it is visible */
+  if (indicator_alpha == 0 || rc_slider.GetHeight() <= 0)
+    return false;
+
+  return GetIndicatorGrabRect().Contains(pt);
+}
+
+void
+ScrollBar::NotifyMouseMove(PixelPoint pt) noexcept
+{
+  if (style != Style::WHEN_SCROLLING || !IsDefined() || dragging)
+    return;
+
+  const bool hover = GetIndicatorTrack().Contains(pt);
+  const bool changed = hover != indicator_hover;
+
+  indicator_hover = hover;
+
+  if (hover) {
+    /* show it right away and hold it while the pointer rests on it */
+    const bool appeared = indicator_alpha != INDICATOR_ALPHA || !indicator_wide;
+    indicator_alpha = INDICATOR_ALPHA;
+    indicator_wide = true;
+    indicator_timer.Schedule(INDICATOR_HOVER_HOLD);
+
+    if (appeared)
+      InvalidateIndicator();
+  } else if (changed)
+    /* fade it out like after a scroll movement; it keeps its wide
+       shape until it is gone */
+    indicator_timer.Schedule(INDICATOR_HOLD);
+}
+
 void
 ScrollBar::NotifyScroll() noexcept
 {
@@ -131,10 +279,12 @@ ScrollBar::NotifyScroll() noexcept
 
   const bool was_invisible = indicator_alpha == 0;
   indicator_alpha = INDICATOR_ALPHA;
-  indicator_timer.Schedule(INDICATOR_HOLD);
 
-  if (was_invisible && window.IsDefined())
-    window.Invalidate(rc);
+  if (!indicator_hover)
+    indicator_timer.Schedule(INDICATOR_HOLD);
+
+  if (was_invisible)
+    InvalidateIndicator();
 }
 
 void
@@ -142,6 +292,8 @@ ScrollBar::HideIndicator() noexcept
 {
   indicator_timer.Cancel();
   indicator_alpha = 0;
+  indicator_hover = false;
+  indicator_wide = false;
 }
 
 void
@@ -157,11 +309,12 @@ ScrollBar::OnIndicatorTimer() noexcept
     indicator_timer.Schedule(INDICATOR_FADE_INTERVAL);
   } else {
     indicator_alpha = 0;
+    indicator_hover = false;
+    indicator_wide = false;
     indicator_timer.Cancel();
   }
 
-  if (window.IsDefined())
-    window.Invalidate(rc);
+  InvalidateIndicator();
 }
 
 void
@@ -200,7 +353,7 @@ ScrollBar::SetSlider(unsigned size, unsigned view_size,
 
   // Update slider coordinates
   rc_slider.left = rc.left;
-  rc_slider.top = rc.top + GetWidth() + top;
+  rc_slider.top = rc.top + GetArrowHeight() + top;
   rc_slider.right = rc.right;
   rc_slider.bottom = rc_slider.top + height;
 }
@@ -213,7 +366,7 @@ ScrollBar::ToOrigin(unsigned size, unsigned view_size, int y) const noexcept
   if (max_origin <= 0)
     return 0;
 
-  y -= rc.top + GetWidth();
+  y -= rc.top + GetArrowHeight();
   if (y < 0)
     return 0;
 
@@ -243,10 +396,38 @@ ScrollBar::PaintIndicator(Canvas &canvas) noexcept
   if (indicator_alpha == 0 || rc_slider.GetHeight() <= 0)
     return;
 
+  const PixelRect rc_thumb = GetIndicatorRect();
+
 #ifdef ENABLE_OPENGL
   const ScopeAlphaBlend alpha_blend;
-  indicator_brush.Create(Color(uint8_t(0x80), uint8_t(0x80), uint8_t(0x80),
-                               indicator_alpha));
+  const bool wide = IsIndicatorWide();
+
+  if (wide) {
+    /* the track shows up together with the wide bar, so that it reads
+       as something that can be grabbed */
+    const PixelRect track = GetIndicatorTrack();
+    const uint8_t track_alpha = (uint8_t)(indicator_alpha
+                                          * INDICATOR_TRACK_ALPHA
+                                          / INDICATOR_ALPHA);
+    canvas.DrawFilledRectangle(track,
+                               Color(INDICATOR_TRACK_GRAY,
+                                     INDICATOR_TRACK_GRAY,
+                                     INDICATOR_TRACK_GRAY, track_alpha));
+
+    /* a hairline separates the track from the content */
+    const int border = (int)std::max(Layout::VptScale(INDICATOR_BORDER_PT), 1u);
+    canvas.DrawFilledRectangle(PixelRect{track.GetTopLeft(),
+                                         PixelPoint{track.left + border,
+                                                    track.bottom}},
+                               Color(INDICATOR_TRACK_BORDER_GRAY,
+                                     INDICATOR_TRACK_BORDER_GRAY,
+                                     INDICATOR_TRACK_BORDER_GRAY,
+                                     track_alpha));
+  }
+
+  /* the grabbed bar is darker, like the one macOS shows on hover */
+  const uint8_t gray = wide ? 0x60 : 0x80;
+  indicator_brush.Create(Color(gray, gray, gray, indicator_alpha));
 #else
   /* this canvas cannot blend a translucent fill; a plain gray is
      legible on both light and dark backgrounds */
@@ -257,8 +438,8 @@ ScrollBar::PaintIndicator(Canvas &canvas) noexcept
   canvas.SelectNullPen();
   canvas.Select(indicator_brush);
 
-  const unsigned diameter = rc_slider.GetWidth();
-  canvas.DrawRoundRectangle(rc_slider, PixelSize{diameter, diameter});
+  const unsigned diameter = rc_thumb.GetWidth();
+  canvas.DrawRoundRectangle(rc_thumb, PixelSize{diameter, diameter});
 }
 
 void
@@ -374,8 +555,17 @@ ScrollBar::DragBegin(PaintWindow *w, unsigned y) noexcept
   drag_offset = y - rc_slider.top;
   // ... and remember that we are dragging now
   dragging = true;
+
+  if (style == Style::WHEN_SCROLLING) {
+    /* hold the indicator while it is being dragged; it grows, so that
+       the finger does not cover it completely */
+    indicator_alpha = INDICATOR_ALPHA;
+    indicator_wide = true;
+    indicator_timer.Cancel();
+  }
+
   w->SetCapture();
-  w->Invalidate(rc_slider);
+  w->Invalidate(IsReservingSpace() ? rc_slider : GetIndicatorTrack());
 }
 
 void
@@ -387,8 +577,16 @@ ScrollBar::DragEnd(PaintWindow *w) noexcept
 
   // Realize that we are not dragging anymore
   dragging = false;
+
+  if (style == Style::WHEN_SCROLLING) {
+    /* let it fade out again, keeping its wide shape; the next mouse
+       move restores the hover state if the pointer is still on it */
+    indicator_hover = false;
+    indicator_timer.Schedule(INDICATOR_HOLD);
+  }
+
   w->ReleaseCapture();
-  w->Invalidate(rc_slider);
+  w->Invalidate(IsReservingSpace() ? rc_slider : GetIndicatorTrack());
 }
 
 unsigned

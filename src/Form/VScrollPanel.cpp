@@ -298,6 +298,11 @@ VScrollPanel::OnMouseUp(PixelPoint p) noexcept
 bool
 VScrollPanel::OnMouseMove(PixelPoint p, unsigned keys) noexcept
 {
+  if (!scroll_bar.IsDragging() && !dragging && !potential_tap)
+    /* a move with no drag in progress is a hover: let the overlay
+       indicator grow under the pointer */
+    scroll_bar.NotifyMouseMove(p);
+
   if (gesture_tracking) {
     gestures.Update(p);
     Invalidate();
