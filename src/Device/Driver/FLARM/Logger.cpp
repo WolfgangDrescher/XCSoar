@@ -220,8 +220,7 @@ FlarmDevice::ReadFlightInfo(RecordedFlightInfo &flight,
   FLARM::FrameHeader header = PrepareFrameHeader(FLARM::MessageType::GETRECORDINFO);
 
   // Send request
-  SendStartByte();
-  SendFrameHeader(header, env, std::chrono::seconds(1));
+  SendFrame(header, {}, env, std::chrono::seconds(1));
 
   /* wait for an answer and save the payload for further processing;
      the record info frame is ~100 bytes, which can take several
@@ -258,9 +257,7 @@ FlarmDevice::SelectFlight(uint8_t record_number, OperationEnvironment &env)
       PrepareFrameHeader(FLARM::MessageType::SELECTRECORD, std::span{data});
 
     // Send request
-    SendStartByte();
-    SendFrameHeader(header, env, std::chrono::seconds(1));
-    SendEscaped(std::span{data}, env, std::chrono::seconds(1));
+    SendFrame(header, std::span{data}, env, std::chrono::seconds(1));
 
     // Wait for an answer
     try {
@@ -332,8 +329,7 @@ FlarmDevice::DownloadFlight(BufferedOutputStream &os, std::size_t &offset,
     uint16_t length = 0;
 
     // Send request
-    SendStartByte();
-    SendFrameHeader(header, env, std::chrono::seconds(1));
+    SendFrame(header, {}, env, std::chrono::seconds(1));
 
     /* wait for an answer and save the payload for further processing;
        an IGC data frame is several hundred bytes, which can take a
