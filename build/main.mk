@@ -442,6 +442,7 @@ XCSOAR_SOURCES := \
 	$(SRC)/UIGlobals.cpp \
 	$(SRC)/UIState.cpp \
 	$(SRC)/UISettings.cpp \
+	$(SRC)/ScrollBarConfig.cpp \
 	$(SRC)/DisplaySettings.cpp \
 	$(SRC)/MapSettings.cpp \
 	$(SRC)/SystemSettings.cpp \
@@ -659,6 +660,7 @@ XCSOAR_SOURCES += \
 	$(SRC)/Apple/PathProvider.cpp \
 	$(SRC)/Apple/InternalSensors.cpp \
 	$(SRC)/Apple/KeyboardDetection.cpp \
+	$(SRC)/Apple/ScrollBars.cpp \
 	$(SRC)/Device/SmartDeviceSensors.cpp
 endif
 

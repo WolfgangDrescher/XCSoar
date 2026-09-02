@@ -34,7 +34,7 @@ UsePixelPan() noexcept
 
 ListControl::ListControl(const DialogLook &_look) noexcept
   :look(_look),
-   scroll_bar(look.button)
+   scroll_bar(*this, look.button)
 {
 }
 
@@ -343,6 +343,7 @@ ListControl::SetPixelPan(unsigned _pixel_pan) noexcept
     return;
 
   pixel_pan = _pixel_pan;
+  scroll_bar.NotifyScroll();
   Invalidate();
 }
 
@@ -365,6 +366,8 @@ ListControl::SetOrigin(int i) noexcept
 #endif
 
   origin = i;
+
+  scroll_bar.NotifyScroll();
 
 #ifdef USE_WINUSER
   if ((unsigned)abs(delta) < items_visible) {
@@ -497,7 +500,7 @@ ListControl::OnMouseUp(PixelPoint p) noexcept
   }
 
   if (drag_mode == DragMode::CURSOR &&
-      p.x >= 0 && p.x <= ((int)GetSize().width - scroll_bar.GetWidth())) {
+      p.x >= 0 && p.x <= (int)scroll_bar.GetLeft(GetSize())) {
     drag_end();
     ActivateItem();
     return true;
@@ -680,6 +683,7 @@ void
 ListControl::OnDestroy() noexcept
 {
   kinetic_timer.Cancel();
+  scroll_bar.HideIndicator();
 
   PaintWindow::OnDestroy();
 }

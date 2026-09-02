@@ -14,6 +14,7 @@
 #include "Widget/RowFormWidget.hpp"
 #include "UIGlobals.hpp"
 #include "UtilsSettings.hpp"
+#include "ScrollBarConfig.hpp"
 #include "Asset.hpp"
 #include "util/Macros.hpp"
 #include "util/StaticString.hxx"
@@ -45,6 +46,7 @@ enum ControlIndex {
   FullScreen,
 #endif
   DarkMode,
+  ScrollBars,
   UIScale,
 #ifdef DRAW_MOUSE_CURSOR
   CursorSize,
@@ -89,6 +91,20 @@ static constexpr StaticEnumChoice dark_mode_list[] = {
     N_("Black text on white background") },
   { UISettings::DarkMode::ON, N_("On"),
     N_("White text on black background") },
+  nullptr
+};
+
+static constexpr StaticEnumChoice scroll_bars_list[] = {
+  { UISettings::ScrollBars::AUTO, N_("Automatic"),
+    N_("Use the system-wide setting; without one, show the indicator "
+       "only while scrolling on touch screens and a scroll bar "
+       "elsewhere.") },
+  { UISettings::ScrollBars::WHEN_SCROLLING, N_("When scrolling"),
+    N_("Show a thin indicator on top of the content while scrolling, "
+       "leaving the full width to the content.") },
+  { UISettings::ScrollBars::ALWAYS, N_("Always"),
+    N_("Always show a scroll bar with arrow buttons next to the "
+       "content.") },
   nullptr
 };
 
@@ -174,6 +190,11 @@ DisplayConfigPanel::Prepare(ContainerWindow &parent,
   AddEnum(_("Dark mode"), nullptr, dark_mode_list,
           (unsigned)ui_settings.dark_mode);
 
+  AddEnum(_("Scroll bars"),
+          _("When to show the scroll bar of lists and long dialogs."),
+          scroll_bars_list,
+          (unsigned)ui_settings.scroll_bars);
+
   AddInteger(_("Text size"),
              nullptr,
              "%d %%", "%d", 75, 200, 5,
@@ -236,6 +257,12 @@ DisplayConfigPanel::Save(bool &_changed) noexcept
 
   changed |= SaveValueEnum(DarkMode, ProfileKeys::DarkMode,
                            ui_settings.dark_mode);
+
+  if (SaveValueEnum(ScrollBars, ProfileKeys::ScrollBars,
+                    ui_settings.scroll_bars)) {
+    changed = true;
+    ApplyScrollBars(ui_settings);
+  }
 
   if (SaveValueInteger(UIScale, ProfileKeys::UIScale,
                        ui_settings.scale))

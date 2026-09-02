@@ -4,15 +4,87 @@
 #pragma once
 
 #include "ui/dim/Rect.hpp"
+#include "ui/canvas/Brush.hpp"
+#include "ui/event/PeriodicTimer.hpp"
 #include "Renderer/ButtonRenderer.hpp"
 
 #include <algorithm>
+#include <cstdint>
 
 class PaintWindow;
 class Canvas;
 
 class ScrollBar {
+public:
+  /**
+   * How a scroll bar presents itself.  This is a global user setting
+   * (see #UISettings::scroll_bars), not a per-widget decision.
+   */
+  enum class Style : uint_least8_t {
+    /**
+     * A permanently visible scroll bar with arrow buttons.  It
+     * reserves a column of the client area and can be operated with
+     * the mouse.
+     */
+    ALWAYS,
+
+    /**
+     * A thin translucent indicator drawn on top of the content while
+     * it is being scrolled, fading out afterwards.  It reserves no
+     * space and cannot be dragged; the content itself is dragged
+     * instead.
+     */
+    WHEN_SCROLLING,
+  };
+
+  /**
+   * Sets the style for all scroll bars.  It takes effect the next
+   * time a scroll bar is laid out (see #SetSize).
+   */
+  static void SetGlobalStyle(Style style) noexcept;
+
+  [[gnu::pure]]
+  static Style GetGlobalStyle() noexcept;
+
+  /**
+   * Returns the height of one scroll step ("one line") in pixels.  It
+   * does not depend on the current style, so that scrolling by key or
+   * mouse wheel is not affected by the appearance of the scroll bar.
+   */
+  [[gnu::pure]]
+  static unsigned GetScrollStep() noexcept;
+
+private:
+  /** Returns the width of a #Style::ALWAYS scroll bar. */
+  [[gnu::pure]]
+  static unsigned GetBarWidth() noexcept;
+
+  /** The window owning this scroll bar; repainted while fading out. */
+  PaintWindow &window;
+
   ButtonFrameRenderer button_renderer;
+
+  /** The style this scroll bar was laid out with (see #SetSize) */
+  Style style = Style::ALWAYS;
+
+  /**
+   * #Style::WHEN_SCROLLING: the opacity of the indicator; 0 means it
+   * is currently invisible.
+   */
+  uint8_t indicator_alpha = 0;
+
+  /**
+   * #Style::WHEN_SCROLLING: the brush for the indicator.  Where the
+   * canvas can blend, it is recreated whenever #indicator_alpha
+   * changes.
+   */
+  Brush indicator_brush;
+
+  /**
+   * #Style::WHEN_SCROLLING: holds the indicator visible after the
+   * last scroll movement, and then fades it out.
+   */
+  UI::PeriodicTimer indicator_timer{[this]{ OnIndicatorTimer(); }};
 
 protected:
   /** Whether the slider is currently being dragged */
@@ -24,8 +96,15 @@ protected:
   PixelRect rc_slider;
 
 public:
-  /** Constructor of the ScrollBar class */
-  explicit ScrollBar(const ButtonLook &button_look) noexcept;
+  /**
+   * Constructor of the ScrollBar class
+   *
+   * @param window the window this scroll bar is painted on; it is
+   * invalidated while the #Style::WHEN_SCROLLING indicator fades out
+   */
+  ScrollBar(PaintWindow &window, const ButtonLook &button_look) noexcept;
+
+  ~ScrollBar() noexcept;
 
   /** Returns the width of the ScrollBar */
   int GetWidth() const noexcept {
@@ -65,13 +144,22 @@ public:
   }
 
   /**
+   * Returns whether this scroll bar occupies a column of the client
+   * area.  A #Style::WHEN_SCROLLING indicator floats above the
+   * content and does not.
+   */
+  constexpr bool IsReservingSpace() const noexcept {
+    return style == Style::ALWAYS;
+  }
+
+  /**
    * Returns the x-Coordinate of the ScrollBar
    * (remaining client area aside the ScrollBar)
    * @param size Size of the client area including the ScrollBar
    * @return The x-Coordinate of the ScrollBar
    */
   unsigned GetLeft(const PixelSize size) const noexcept {
-    return IsDefined() ? rc.left : size.width;
+    return IsDefined() && IsReservingSpace() ? rc.left : size.width;
   }
 
   /**
@@ -81,7 +169,7 @@ public:
    * False otherwise
    */
   bool IsInside(const PixelPoint &pt) const noexcept {
-    return rc.Contains(pt);
+    return IsReservingSpace() && rc.Contains(pt);
   }
 
   /**
@@ -91,7 +179,7 @@ public:
    * False otherwise
    */
   bool IsInsideSlider(const PixelPoint pt) const noexcept {
-    return rc_slider.Contains(pt);
+    return IsReservingSpace() && rc_slider.Contains(pt);
   }
 
   /**
@@ -144,6 +232,20 @@ public:
   /** Resets the ScrollBar (undefines it) */
   void Reset() noexcept;
 
+  /**
+   * Must be called whenever the content was scrolled.  In
+   * #Style::WHEN_SCROLLING, this shows the indicator and restarts its
+   * fade-out; in #Style::ALWAYS it does nothing.
+   */
+  void NotifyScroll() noexcept;
+
+  /**
+   * Hides the #Style::WHEN_SCROLLING indicator immediately and stops
+   * the fade-out animation.  Call this from OnDestroy(), because the
+   * animation repaints the window.
+   */
+  void HideIndicator() noexcept;
+
   /** Calculates the size and position of the slider */
   void SetSlider(unsigned size, unsigned view_size, unsigned origin) noexcept;
 
@@ -151,7 +253,7 @@ public:
   unsigned ToOrigin(unsigned size, unsigned view_size, int y) const noexcept;
 
   /** Paints the ScollBar */
-  void Paint(Canvas &canvas) const noexcept;
+  void Paint(Canvas &canvas) noexcept;
 
   /**
    * Paints the ScrollBar with explicit button states.
@@ -160,7 +262,7 @@ public:
    * @param down_state State of the down arrow button.
    */
   void Paint(Canvas &canvas, ButtonState up_state,
-             ButtonState down_state) const noexcept;
+             ButtonState down_state) noexcept;
 
   /**
    * Returns whether the slider is currently being dragged
@@ -193,4 +295,14 @@ public:
    * @return "Value" of the ScrollBar
    */
   unsigned DragMove(unsigned  size, unsigned view_size, int y) const noexcept;
+
+private:
+  /** Paints the #Style::ALWAYS scroll bar */
+  void PaintBar(Canvas &canvas, ButtonState up_state,
+                ButtonState down_state) noexcept;
+
+  /** Paints the #Style::WHEN_SCROLLING indicator */
+  void PaintIndicator(Canvas &canvas) noexcept;
+
+  void OnIndicatorTimer() noexcept;
 };

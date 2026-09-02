@@ -72,6 +72,29 @@ struct UISettings {
     AUTO,
   } dark_mode;
 
+  /**
+   * When to show the scroll bar of lists and scrollable dialogs.
+   */
+  enum class ScrollBars : uint_least8_t {
+    /**
+     * Follow the operating system's setting; where there is none,
+     * pick #WHEN_SCROLLING on touch screens and #ALWAYS elsewhere.
+     */
+    AUTO,
+
+    /**
+     * Show a thin translucent indicator on top of the content while
+     * it is being scrolled, and fade it out afterwards.
+     */
+    WHEN_SCROLLING,
+
+    /**
+     * Always show a scroll bar with arrow buttons next to the
+     * content; it can be dragged with the mouse.
+     */
+    ALWAYS,
+  } scroll_bars;
+
   FormatSettings format;
   MapSettings map;
   InfoBoxSettings info_boxes;

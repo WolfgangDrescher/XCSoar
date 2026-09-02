@@ -23,7 +23,7 @@ VScrollPanel::VScrollPanel(ContainerWindow &parent, const DialogLook &look,
                            VScrollPanelListener &_listener) noexcept
   :PanelControl(parent, look, rc, style),
    listener(_listener),
-   scroll_bar(look.button)
+   scroll_bar(*this, look.button)
 {
   gesture_look.Initialise();
 }
@@ -56,8 +56,7 @@ VScrollPanel::SetupScrollBar() noexcept
 int
 VScrollPanel::GetScrollStep() const noexcept
 {
-  const int step = scroll_bar.GetWidth();
-  return step > 0 ? step : 1;
+  return std::max(1, (int)ScrollBar::GetScrollStep());
 }
 
 /**
@@ -159,6 +158,7 @@ VScrollPanel::SetOriginClamped(int new_origin) noexcept
     return;
 
   origin = (unsigned)new_origin;
+  scroll_bar.NotifyScroll();
   listener.OnVScrollPanelChange();
   Invalidate();
 }
@@ -178,6 +178,7 @@ VScrollPanel::OnDestroy() noexcept
   smooth_scroll_timer.Cancel();
   defer_swipe_timer.Cancel();
   defer_swipe_queue.clear();
+  scroll_bar.HideIndicator();
   PanelControl::OnDestroy();
 }
 

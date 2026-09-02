@@ -6,36 +6,112 @@
 #include "Screen/Layout.hpp"
 #include "ui/window/PaintWindow.hpp"
 #include "Asset.hpp"
+#include "Hardware/CPU.hpp"
 #include "Look/ButtonLook.hpp"
 #include "util/Compiler.h"
 #include "util/Macros.hpp"
 
-#include <cassert>
+#ifdef ENABLE_OPENGL
+#include "ui/canvas/opengl/Scope.hpp"
+#endif
 
-ScrollBar::ScrollBar(const ButtonLook &_button_look) noexcept
-  :button_renderer(_button_look), dragging(false)
+#include <cassert>
+#include <chrono>
+
+/**
+ * How long the #ScrollBar::Style::WHEN_SCROLLING indicator stays
+ * fully visible after the last scroll movement.
+ */
+static constexpr auto INDICATOR_HOLD = std::chrono::milliseconds{800};
+
+/** The interval between two fade-out steps. */
+static constexpr auto INDICATOR_FADE_INTERVAL = std::chrono::milliseconds{40};
+
+/** The opacity of the indicator while it is fully visible. */
+static constexpr uint8_t INDICATOR_ALPHA = 0xb0;
+
+/** How much opacity the indicator loses per fade-out step. */
+static constexpr uint8_t INDICATOR_FADE_STEP = 0x20;
+
+/**
+ * The global scroll bar style; see ScrollBar::SetGlobalStyle().  It
+ * defaults to the traditional scroll bar, so that unconfigured code
+ * paths (e.g. test programs) behave as before.
+ */
+static ScrollBar::Style global_style = ScrollBar::Style::ALWAYS;
+
+void
+ScrollBar::SetGlobalStyle(Style _style) noexcept
+{
+  global_style = _style;
+}
+
+ScrollBar::Style
+ScrollBar::GetGlobalStyle() noexcept
+{
+  return global_style;
+}
+
+unsigned
+ScrollBar::GetBarWidth() noexcept
+{
+  // if the device has a pointer (mouse/touchscreen/etc.)
+  if (HasPointer())
+    /* with a mouse, the scroll bar can be smaller */
+    return Layout::GetMinimumControlHeight();
+  else
+    // thin for devices without touch screen
+    return Layout::VptScale(10);
+}
+
+unsigned
+ScrollBar::GetScrollStep() noexcept
+{
+  return GetBarWidth();
+}
+
+/**
+ * Can the indicator be faded out smoothly?  E-paper and slow CPUs
+ * cannot keep up with the animation and hide it in one step instead
+ * (same gate as the scroll animations in List and VScrollPanel).
+ */
+[[gnu::pure]]
+static bool
+UseIndicatorFade() noexcept
+{
+  return !HasEPaper() && !IsSlowCPU();
+}
+
+ScrollBar::ScrollBar(PaintWindow &_window,
+                     const ButtonLook &_button_look) noexcept
+  :window(_window), button_renderer(_button_look), dragging(false)
 {
   // Reset the ScrollBar on creation
   Reset();
 }
 
+ScrollBar::~ScrollBar() noexcept = default;
+
 void
 ScrollBar::SetSize(const PixelSize size) noexcept
 {
-  unsigned width;
+  style = GetGlobalStyle();
 
-  // if the device has a pointer (mouse/touchscreen/etc.)
-  if (HasPointer())
-    /* with a mouse, the scroll bar can be smaller */
-    width = Layout::GetMinimumControlHeight();
-  else
-    // thin for devices without touch screen
-    width = Layout::VptScale(10);
+  unsigned width, margin;
+
+  if (style == Style::WHEN_SCROLLING) {
+    /* a thin indicator, inset from the right edge by its own width */
+    width = std::max(Layout::VptScale(3), 2u);
+    margin = width;
+  } else {
+    width = GetBarWidth();
+    margin = 0;
+  }
 
   // Update the coordinates of the scrollbar
-  rc.left = size.width - width;
+  rc.left = size.width - width - margin;
   rc.top = 0;
-  rc.right = size.width;
+  rc.right = size.width - margin;
   rc.bottom = size.height;
 }
 
@@ -44,6 +120,48 @@ ScrollBar::Reset() noexcept
 {
   rc.SetEmpty();
   rc_slider.SetEmpty();
+  HideIndicator();
+}
+
+void
+ScrollBar::NotifyScroll() noexcept
+{
+  if (style != Style::WHEN_SCROLLING || !IsDefined())
+    return;
+
+  const bool was_invisible = indicator_alpha == 0;
+  indicator_alpha = INDICATOR_ALPHA;
+  indicator_timer.Schedule(INDICATOR_HOLD);
+
+  if (was_invisible && window.IsDefined())
+    window.Invalidate(rc);
+}
+
+void
+ScrollBar::HideIndicator() noexcept
+{
+  indicator_timer.Cancel();
+  indicator_alpha = 0;
+}
+
+void
+ScrollBar::OnIndicatorTimer() noexcept
+{
+  if (indicator_alpha == 0) {
+    indicator_timer.Cancel();
+    return;
+  }
+
+  if (UseIndicatorFade() && indicator_alpha > INDICATOR_FADE_STEP) {
+    indicator_alpha -= INDICATOR_FADE_STEP;
+    indicator_timer.Schedule(INDICATOR_FADE_INTERVAL);
+  } else {
+    indicator_alpha = 0;
+    indicator_timer.Cancel();
+  }
+
+  if (window.IsDefined())
+    window.Invalidate(rc);
 }
 
 void
@@ -57,8 +175,13 @@ ScrollBar::SetSlider(unsigned size, unsigned view_size,
     ? (int)(netto_height * view_size / size)
     : netto_height;
   // Prevent the slider from getting to small
-  if (height < GetWidth())
-    height = GetWidth();
+  const int min_height = style == Style::WHEN_SCROLLING
+    /* the indicator is only a few pixels wide, but it must stay long
+       enough to be recognisable */
+    ? (int)Layout::VptScale(16)
+    : GetWidth();
+  if (height < min_height)
+    height = min_height;
 
   if (height > netto_height)
     height = netto_height;
@@ -99,14 +222,48 @@ ScrollBar::ToOrigin(unsigned size, unsigned view_size, int y) const noexcept
 }
 
 void
-ScrollBar::Paint(Canvas &canvas) const noexcept
+ScrollBar::Paint(Canvas &canvas) noexcept
 {
   Paint(canvas, ButtonState::ENABLED, ButtonState::ENABLED);
 }
 
 void
 ScrollBar::Paint(Canvas &canvas, ButtonState up_state,
-                 ButtonState down_state) const noexcept
+                 ButtonState down_state) noexcept
+{
+  if (style == Style::WHEN_SCROLLING)
+    PaintIndicator(canvas);
+  else
+    PaintBar(canvas, up_state, down_state);
+}
+
+void
+ScrollBar::PaintIndicator(Canvas &canvas) noexcept
+{
+  if (indicator_alpha == 0 || rc_slider.GetHeight() <= 0)
+    return;
+
+#ifdef ENABLE_OPENGL
+  const ScopeAlphaBlend alpha_blend;
+  indicator_brush.Create(Color(uint8_t(0x80), uint8_t(0x80), uint8_t(0x80),
+                               indicator_alpha));
+#else
+  /* this canvas cannot blend a translucent fill; a plain gray is
+     legible on both light and dark backgrounds */
+  if (!indicator_brush.IsDefined())
+    indicator_brush.Create(IsDithered() ? COLOR_BLACK : COLOR_GRAY);
+#endif
+
+  canvas.SelectNullPen();
+  canvas.Select(indicator_brush);
+
+  const unsigned diameter = rc_slider.GetWidth();
+  canvas.DrawRoundRectangle(rc_slider, PixelSize{diameter, diameter});
+}
+
+void
+ScrollBar::PaintBar(Canvas &canvas, ButtonState up_state,
+                    ButtonState down_state) noexcept
 {
   // draw rectangle around entire scrollbar area
   canvas.SelectBlackPen();
