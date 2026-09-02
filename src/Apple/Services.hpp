@@ -28,8 +28,12 @@ void DeinitializeAppleServices();
 void ActivateAudioSession();
 
 /**
- * Deactivates the shared AVAudioSession, notifying other apps so that
- * any audio they had ducked while ours was playing is restored.
+ * Deactivates the shared AVAudioSession once XCSoar has finished
+ * playing, so that it is not left active for the rest of the flight.
+ *
+ * Other audio sources are deliberately not notified that they may
+ * resume: our session mixes with others and never interrupts them, and
+ * the notification makes a CarPlay head unit resume its own source.
  *
  * Does nothing while the audio vario's audio device is marked active
  * (see SetAudioVarioSessionActive()), because deactivating the session

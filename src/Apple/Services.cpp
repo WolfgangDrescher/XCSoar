@@ -87,12 +87,17 @@ DeactivateAudioSession()
     return;
   }
 
-  LogString("AVAudioSession: deactivating, notifying others");
+  LogString("AVAudioSession: deactivating");
 
+  // Deliberately without
+  // AVAudioSessionSetActiveOptionNotifyOthersOnDeactivation: that option
+  // tells other audio sources that they may resume playback, which makes
+  // e.g. a CarPlay head unit switch back to its radio source after a
+  // one-shot XCSoar sound, even when the driver had paused that source
+  // themselves. Our session uses MixWithOthers and therefore never
+  // interrupts or ducks anybody, so there is nothing for them to resume.
   NSError *error = nil;
-  [[AVAudioSession sharedInstance] setActive:NO
-                                   withOptions:AVAudioSessionSetActiveOptionNotifyOthersOnDeactivation
-                                   error:&error];
+  [[AVAudioSession sharedInstance] setActive:NO error:&error];
   if (error) {
     LogFmt("AVAudioSession deactivate error: {}",
            [[error localizedDescription] UTF8String]);

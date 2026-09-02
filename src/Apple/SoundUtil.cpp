@@ -18,10 +18,9 @@
 #if TARGET_OS_IPHONE
 
 /**
- * Deactivates the AVAudioSession once playback has finished, notifying
- * other apps so that any audio they had ducked or paused while our sound
- * was playing is restored. Without this, the session stays active
- * indefinitely and other apps' audio remains ducked forever.
+ * Deactivates the AVAudioSession once playback has finished. Without
+ * this, the session stays active indefinitely, which used to leave other
+ * apps' audio ducked forever.
  *
  * (DeactivateAudioSession() skips the deactivation while the audio
  * vario is active, so it keeps playing.)
