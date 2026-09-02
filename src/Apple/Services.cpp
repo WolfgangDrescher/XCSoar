@@ -46,6 +46,8 @@ SetAudioVarioSessionActive(bool active)
 void
 ActivateAudioSession()
 {
+  LogString("AVAudioSession: activating");
+
   NSError *error = nil;
   AVAudioSession *session = [AVAudioSession sharedInstance];
 
@@ -81,8 +83,11 @@ DeactivateAudioSession()
     // keep the session active while the audio vario's audio device is
     // open: deactivating it would also silence the audio vario, which
     // SDL would not resume on its own
+    LogString("AVAudioSession: not deactivating, audio vario is active");
     return;
   }
+
+  LogString("AVAudioSession: deactivating, notifying others");
 
   NSError *error = nil;
   [[AVAudioSession sharedInstance] setActive:NO
@@ -114,6 +119,8 @@ DeinitializeAppleServices()
 {
 #if TARGET_OS_IPHONE
   // Deinitialize AVAudioSession
+  LogString("AVAudioSession: deactivating on shutdown, notifying others");
+
   NSError *error = nil;
   [[AVAudioSession sharedInstance] setActive:NO
                                    withOptions:AVAudioSessionSetActiveOptionNotifyOthersOnDeactivation
