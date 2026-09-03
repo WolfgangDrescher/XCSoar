@@ -30,6 +30,7 @@
 #include "Dialogs/StartupDialog.hpp"
 #include "Dialogs/dlgSimulatorPrompt.hpp"
 #include "Dialogs/dlgQuickGuide.hpp"
+#include "Dialogs/GroupedListTestDialog.hpp"
 #include "Language/LanguageGlue.hpp"
 #include "Language/Language.hpp"
 #include "Protection.hpp"
@@ -774,6 +775,8 @@ Startup(UI::Display &display)
 
   main_window->FinishStartup();
   main_window->SchedulePageActionsUpdate();
+
+  ShowGroupedListTestDialog();
 
   return true;
 }
