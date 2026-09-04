@@ -7,11 +7,200 @@
 #include "Form/DataField/Listener.hpp"
 #include "Interface.hpp"
 #include "Language/Language.hpp"
+#include "Engine/Waypoint/Waypoint.hpp"
+#include "Look/DialogLook.hpp"
 #include "Look/Look.hpp"
 #include "Look/MapLook.hpp"
 #include "MainWindow.hpp"
+#include "Look/WaypointLook.hpp"
+#include "Renderer/LabelBlock.hpp"
+#include "Renderer/TextInBox.hpp"
+#include "Renderer/WaypointIconRenderer.hpp"
+#include "Renderer/WaypointLabelFormat.hpp"
+#include "Screen/Layout.hpp"
+#include "Units/Units.hpp"
 #include "Widget/RowFormWidget.hpp"
+#include "Widget/WindowWidget.hpp"
 #include "UIGlobals.hpp"
+#include "ui/canvas/Canvas.hpp"
+#include "ui/window/ContainerWindow.hpp"
+#include "ui/window/PaintWindow.hpp"
+#include "util/Macros.hpp"
+#include "util/TruncateString.hpp"
+
+#include <memory>
+#include <span>
+#include <string.h>
+#include <vector>
+
+/**
+ * A preview of a handful of waypoint labels on a schematic map, so
+ * the label settings can be judged without leaving the dialog.
+ */
+class WaypointPreviewWindow final : public PaintWindow {
+  struct Sample {
+    Waypoint waypoint;
+
+    /** relative position in the preview */
+    double x, y;
+
+    /** made up values; the preview shows the layout, not a solution */
+    WaypointArrivalValues values;
+
+    bool reachable;
+  };
+
+  WaypointRendererSettings settings;
+
+  /**
+   * The preview needs the icons of the style which is selected in the
+   * dialog, not the one the map currently uses.
+   */
+  WaypointLook look;
+
+  std::vector<Sample> samples;
+
+public:
+  explicit WaypointPreviewWindow(const WaypointRendererSettings &_settings)
+    noexcept
+    :settings(_settings)
+  {
+    const auto &map_look = UIGlobals::GetMapLook().waypoint;
+    look.Initialise(settings, *map_look.font, *map_look.bold_font);
+
+    samples.reserve(8);
+
+    Runway runway = Runway::Null();
+    runway.SetDirectionDegrees(160);
+    runway.SetLength(1000);
+
+    /* Freiburg in the middle, the others roughly where they are from
+       there */
+    auto &freiburg = Add("Freiburg", "EDTF", Waypoint::Type::AIRFIELD,
+                         0.42, 0.46, true);
+    freiburg.waypoint.runway = runway;
+    freiburg.values.height_straight = (int)Units::ToUserAltitude(450);
+    freiburg.values.height_terrain = (int)Units::ToUserAltitude(380);
+    freiburg.values.considerable_delta = true;
+    freiburg.values.glide_ratio = 24;
+
+    /* north west, the Kaiserstuhl */
+    auto &kaiserstuhl = Add("Totenkopf", nullptr,
+                            Waypoint::Type::MOUNTAIN_TOP, 0.12, 0.16, false);
+    kaiserstuhl.values.height_straight = (int)Units::ToUserAltitude(210);
+    kaiserstuhl.values.glide_ratio = 18;
+
+    /* east south east, a glider site */
+    auto &kirchzarten = Add("Kirchzarten", nullptr,
+                            Waypoint::Type::AIRFIELD, 0.60, 0.52, false);
+    Runway kirchzarten_runway = Runway::Null();
+    kirchzarten_runway.SetDirectionDegrees(70);
+    kirchzarten_runway.SetLength(600);
+    kirchzarten.waypoint.runway = kirchzarten_runway;
+    kirchzarten.values.height_straight = (int)Units::ToUserAltitude(120);
+    kirchzarten.values.glide_ratio = 27;
+
+    /* south south east, the Feldberg */
+    auto &feldberg = Add("Feldberg", nullptr,
+                         Waypoint::Type::MOUNTAIN_TOP, 0.46, 0.74, false);
+    feldberg.values.height_straight = (int)Units::ToUserAltitude(-180);
+    feldberg.values.glide_ratio = 62;
+
+    /* east south east, an outlanding field */
+    auto &loeffingen = Add("Löffingen", nullptr,
+                           Waypoint::Type::OUTLANDING, 0.72, 0.70, false);
+    loeffingen.values.height_straight = (int)Units::ToUserAltitude(-40);
+    loeffingen.values.glide_ratio = 38;
+
+    /* south, in the Hotzenwald */
+    auto &huetten = Add("Hütten Hotzenwald", "EDXX",
+                        Waypoint::Type::AIRFIELD, 0.30, 0.86, false);
+    Runway huetten_runway = Runway::Null();
+    huetten_runway.SetDirectionDegrees(120);
+    huetten_runway.SetLength(700);
+    huetten.waypoint.runway = huetten_runway;
+    huetten.values.height_straight = (int)Units::ToUserAltitude(-90);
+    huetten.values.glide_ratio = 41;
+  }
+
+  void SetSettings(const WaypointRendererSettings &_settings) noexcept {
+    if (_settings.landable_style != settings.landable_style)
+      look.Reinitialise(_settings);
+
+    settings = _settings;
+    Invalidate();
+  }
+
+protected:
+  Sample &Add(const char *name, const char *shortname,
+              Waypoint::Type type, double x, double y,
+              bool reachable) noexcept {
+    auto &sample = samples.emplace_back(Sample{Waypoint{GeoPoint::Zero()},
+                                              x, y, {}, reachable});
+    sample.waypoint.name = name;
+    if (shortname != nullptr)
+      sample.waypoint.shortname = shortname;
+    sample.waypoint.type = type;
+    sample.waypoint.elevation = 400;
+    sample.waypoint.has_elevation = true;
+    return sample;
+  }
+
+  /** keeps the labels from overlapping, just like on the map */
+  LabelBlock label_block;
+
+  void DrawSample(Canvas &canvas, const PixelRect &rc,
+                  const Sample &sample) noexcept;
+
+  /* virtual methods from class PaintWindow */
+  void OnPaint(Canvas &canvas) noexcept override;
+};
+
+/**
+ * The row which holds the preview.  It asks for more height than a
+ * control row, which is what makes the page scroll.
+ */
+class WaypointPreviewWidget final : public WindowWidget {
+  const WaypointRendererSettings &settings;
+
+public:
+  explicit WaypointPreviewWidget(const WaypointRendererSettings &_settings)
+    noexcept
+    :settings(_settings) {}
+
+  void SetSettings(const WaypointRendererSettings &_settings) noexcept {
+    if (IsDefined())
+      ((WaypointPreviewWindow &)GetWindow()).SetSettings(_settings);
+  }
+
+  /* virtual methods from class Widget */
+  PixelSize GetMinimumSize() const noexcept override {
+    return {0u, Layout::GetMaximumControlHeight() * 5};
+  }
+
+  PixelSize GetMaximumSize() const noexcept override {
+    return {0u, Layout::GetMaximumControlHeight() * 7};
+  }
+
+  void Prepare(ContainerWindow &parent,
+               const PixelRect &rc) noexcept override {
+    WindowStyle style;
+    style.Hide();
+    style.Border();
+
+    /* Window::IsDefined() is false for a zero width, and the row
+       position may still be empty at this point */
+    PixelRect safe_rc = rc;
+    if (safe_rc.GetWidth() == 0)
+      safe_rc.right = safe_rc.left + 1;
+    if (safe_rc.GetHeight() == 0)
+      safe_rc.bottom = safe_rc.top + 1;
+
+    auto window = std::make_unique<WaypointPreviewWindow>(settings);
+    window->Create(parent, safe_rc, style);
+    SetWindow(std::move(window));
+  }
+};
 
 enum ControlIndex {
   WaypointLabels,
@@ -31,12 +220,16 @@ enum ControlIndex {
 
 class WaypointDisplayConfigPanel final
   : public RowFormWidget, DataFieldListener {
+
+  WaypointPreviewWidget *preview = nullptr;
+
 public:
   WaypointDisplayConfigPanel()
     :RowFormWidget(UIGlobals::GetDialogLook()) {}
 
 public:
   void UpdateVisibilities();
+  void UpdatePreview();
 
   /* methods from Widget */
   void Prepare(ContainerWindow &parent, const PixelRect &rc) noexcept override;
@@ -46,6 +239,136 @@ private:
   /* methods from DataFieldListener */
   void OnModified(DataField &df) noexcept override;
 };
+
+/**
+ * Split a label into the segments which are drawn side by side.
+ */
+static std::size_t
+SplitSegments(char *text, std::span<const char *> segments) noexcept
+{
+  std::size_t n = 0;
+  char *p = text;
+  segments[n++] = p;
+
+  while (n < segments.size()) {
+    char *separator = strchr(p, '\n');
+    if (separator == nullptr)
+      break;
+
+    *separator = '\0';
+    p = separator + 1;
+    segments[n++] = p;
+  }
+
+  return n;
+}
+
+void
+WaypointPreviewWindow::DrawSample(Canvas &canvas, const PixelRect &rc,
+                                  const Sample &sample) noexcept
+{
+  const Waypoint &way_point = sample.waypoint;
+
+  const PixelPoint p(rc.left + (int)(rc.GetWidth() * sample.x),
+                     rc.top + (int)(rc.GetHeight() * sample.y));
+
+  const auto reachability = sample.reachable
+    ? WaypointReachability::TERRAIN
+    : WaypointReachability::UNREACHABLE;
+
+  WaypointIconRenderer icon_renderer(settings, look, canvas);
+  icon_renderer.Draw(way_point, p, reachability);
+
+  /* a reachable landable is what the highlight style is for */
+  const auto appearance = GetWaypointLabelAppearance(settings,
+                                                     sample.reachable);
+
+  char buffer[64];
+  FormatWaypointLabelTitle(buffer, ARRAY_SIZE(buffer) - 20, settings,
+                           way_point);
+
+  char info[16];
+  info[0] = '\0';
+
+  /* without a glide solution, an unreachable waypoint gets its value
+     only in the "all labelled waypoints" mode, just like on the map */
+  if (sample.reachable ||
+      settings.arrival_info_visibility ==
+      WaypointRendererSettings::ArrivalInfoVisibility::ALL)
+    FormatWaypointArrivalInfo(info, ARRAY_SIZE(info), settings,
+                              sample.values, Units::GetAltitudeName());
+
+  const bool info_below = info[0] != '\0' &&
+    settings.arrival_info_position ==
+    WaypointRendererSettings::ArrivalInfoPosition::BADGE_BELOW;
+
+  TextInBoxMode mode;
+  mode.shape = appearance.shape;
+
+  if (info[0] != '\0' && !info_below) {
+    size_t length = strlen(buffer);
+    if (length > 0)
+      buffer[length++] = '\n';
+
+    CopyTruncateString(buffer + length, ARRAY_SIZE(buffer) - length, info);
+
+    mode.compact = true;
+  }
+
+  const PixelSize size = canvas.GetSize();
+  const auto label_pos = p.At(Layout::Scale(10), 0);
+
+  canvas.Select(appearance.bold ? *look.bold_font : *look.font);
+
+  const char *segments[3];
+  std::size_t n = SplitSegments(buffer, segments);
+  TextInBox(canvas, std::span{segments}.first(n), label_pos, mode, size,
+            &label_block);
+
+  if (info_below) {
+    TextInBoxMode info_mode;
+    info_mode.shape = LabelShape::ROUNDED_WHITE;
+    info_mode.compact = true;
+
+    canvas.Select(*look.font);
+
+    n = SplitSegments(info, segments);
+    TextInBox(canvas, std::span{segments}.first(n),
+              label_pos.At(0, canvas.GetFontHeight() +
+                           Layout::GetTextPadding()),
+              info_mode, size, &label_block);
+  }
+}
+
+void
+WaypointPreviewWindow::OnPaint(Canvas &canvas) noexcept
+{
+  const PixelRect rc = canvas.GetRect();
+
+  /* a schematic map: a plain background would not show what the
+     outline and the badge are for.  These are fixed, muted versions
+     of the terrain ramp */
+  static constexpr Color terrain[] = {
+    Color(0xa7, 0xbc, 0x94),
+    Color(0xc4, 0xc7, 0x97),
+    Color(0xd6, 0xbb, 0x8f),
+    Color(0xc2, 0x9b, 0x7e),
+  };
+
+  const int height = (int)rc.GetHeight();
+
+  for (unsigned i = 0; i < ARRAY_SIZE(terrain); ++i) {
+    PixelRect band = rc;
+    band.top = rc.top + height * int(i) / int(ARRAY_SIZE(terrain));
+    band.bottom = rc.top + height * int(i + 1) / int(ARRAY_SIZE(terrain));
+    canvas.DrawFilledRectangle(band, terrain[i]);
+  }
+
+  label_block.reset();
+
+  for (const auto &sample : samples)
+    DrawSample(canvas, rc, sample);
+}
 
 void
 WaypointDisplayConfigPanel::UpdateVisibilities()
@@ -67,11 +390,45 @@ WaypointDisplayConfigPanel::UpdateVisibilities()
 }
 
 void
+WaypointDisplayConfigPanel::UpdatePreview()
+{
+  if (preview == nullptr)
+    return;
+
+  WaypointRendererSettings s = CommonInterface::GetMapSettings().waypoint;
+
+  s.display_text_type = (WaypointRendererSettings::DisplayTextType)
+    GetValueEnum(WaypointLabels);
+  s.label_style = (WaypointRendererSettings::LabelStyle)
+    GetValueEnum(WaypointTextStyle);
+  s.highlight_style = (WaypointRendererSettings::HighlightStyle)
+    GetValueEnum(WaypointHighlightStyle);
+  s.arrival_info = (WaypointRendererSettings::ArrivalInfo)
+    GetValueEnum(WaypointArrivalInfo);
+  s.arrival_calculation = (WaypointRendererSettings::ArrivalCalculation)
+    GetValueEnum(WaypointArrivalCalculation);
+  s.arrival_info_position = (WaypointRendererSettings::ArrivalInfoPosition)
+    GetValueEnum(WaypointArrivalInfoPosition);
+  s.arrival_info_visibility = (WaypointRendererSettings::ArrivalInfoVisibility)
+    GetValueEnum(WaypointArrivalInfoVisibility);
+  s.landable_style = (WaypointRendererSettings::LandableStyle)
+    GetValueEnum(AppIndLandable);
+  s.map_waypoint_icon_scale = GetValueInteger(MapWaypointIconScale);
+  s.vector_landable_rendering = GetValueBoolean(AppUseSWLandablesRendering);
+  s.landable_rendering_scale = GetValueInteger(AppLandableRenderingScale);
+  s.scale_runway_length = GetValueBoolean(AppScaleRunwayLength);
+
+  preview->SetSettings(s);
+}
+
+void
 WaypointDisplayConfigPanel::OnModified(DataField &df) noexcept
 {
   if (IsDataField(AppUseSWLandablesRendering, df) ||
       IsDataField(WaypointArrivalInfo, df))
     UpdateVisibilities();
+
+  UpdatePreview();
 }
 
 void
@@ -183,7 +540,7 @@ WaypointDisplayConfigPanel::Prepare(ContainerWindow &parent,
 
   AddEnum(_("Arrival info"),
           _("Which value is displayed with the waypoint label."),
-          wp_arrival_info_list, (unsigned)settings.arrival_info, this);
+          wp_arrival_info_list, (unsigned)settings.arrival_info);
   SetExpertRow(WaypointArrivalInfo);
 
   static constexpr StaticEnumChoice wp_arrival_calculation_list[] = {
@@ -269,7 +626,7 @@ WaypointDisplayConfigPanel::Prepare(ContainerWindow &parent,
   AddBoolean(_("Detailed landables"),
              _("[Off] Display fixed icons for landables.\n"
                  "[On] Show landables with variable information like runway length and heading."),
-             settings.vector_landable_rendering, this);
+             settings.vector_landable_rendering);
   SetExpertRow(AppUseSWLandablesRendering);
 
   AddInteger(_("Landable size"),
@@ -283,7 +640,19 @@ WaypointDisplayConfigPanel::Prepare(ContainerWindow &parent,
              settings.scale_runway_length);
   SetExpertRow(AppScaleRunwayLength);
 
+  /* every row feeds the preview; the listener must not be set at Add()
+     time as well, DataField::SetListener() allows only one */
+  for (unsigned i = WaypointLabels; i <= AppScaleRunwayLength; ++i)
+    GetDataField(i).SetListener(this);
+
+  AddSpacer();
+
+  auto preview_widget = std::make_unique<WaypointPreviewWidget>(settings);
+  preview = preview_widget.get();
+  Add(std::move(preview_widget));
+
   UpdateVisibilities();
+  UpdatePreview();
 }
 
 bool
