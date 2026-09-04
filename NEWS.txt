@@ -83,6 +83,9 @@ Version 7.46 - not yet released
     from ground speed and wind instead of an instrument
   - replace light green on Alternate MANUAL final glide with blue,
     matching Next waypoint
+  - add a Spacer InfoBox which is not displayed and hands its space to
+    the other InfoBoxes of the same row or column, so a row can hold
+    fewer but wider InfoBoxes than the chosen geometry provides
 * ui
   - keep pan-mode menu buttons about 20 mm tall on tall phones,
     large enough for a gloved tap
