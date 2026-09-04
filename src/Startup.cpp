@@ -2,6 +2,7 @@
 // Copyright The XCSoar Project
 
 #include "Startup.hpp"
+#include "Restart.hpp"
 #include "Interface.hpp"
 #include "Components.hpp"
 #include "NetComponents.hpp"
@@ -379,8 +380,10 @@ Startup(UI::Display &display)
   main_window->Initialise();
 
 #ifdef SIMULATOR_AVAILABLE
-  // prompt for simulator if not set by command line argument "-simulator" or "-fly"
-  if (!sim_set_in_cmd_line_flag) {
+  /* prompt for simulator if not set by command line argument
+     "-simulator" or "-fly"; after a restart (see Restart.hpp), keep
+     the mode the user has chosen already */
+  if (!sim_set_in_cmd_line_flag && !IsRestart()) {
     SimulatorPromptResult result = dlgSimulatorPromptShowModal();
     switch (result) {
     case SPR_QUIT:

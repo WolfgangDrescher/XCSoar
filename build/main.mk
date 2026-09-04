@@ -483,6 +483,7 @@ XCSOAR_SOURCES := \
 	$(SRC)/DataFilePath.cpp \
 	$(SRC)/LocalPath.cpp \
 	$(SRC)/UIActions.cpp \
+	$(SRC)/Restart.cpp \
 	$(SRC)/Interface.cpp \
 	$(SRC)/ActionInterface.cpp \
 	$(SRC)/ProgressWindow.cpp \

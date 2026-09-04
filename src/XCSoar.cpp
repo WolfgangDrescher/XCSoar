@@ -7,6 +7,7 @@
  */
 
 #include "Startup.hpp"
+#include "Restart.hpp"
 #include "LocalPath.hpp"
 #include "Version.hpp"
 #include "LogFile.hpp"
@@ -77,17 +78,27 @@ Main()
 
   // Perform application initialization and run loop
   int ret = EXIT_FAILURE;
-  if (Startup(screen_init.GetDisplay()))
-    ret = CommonInterface::main_window->RunEventLoop();
-  else if (WasStartupCancelledByUser())
-    /* quitting from the startup dialogs is a deliberate user action,
-       not an error */
-    ret = EXIT_SUCCESS;
+  while (true) {
+    if (Startup(screen_init.GetDisplay()))
+      ret = CommonInterface::main_window->RunEventLoop();
+    else if (WasStartupCancelledByUser())
+      /* quitting from the startup dialogs is a deliberate user action,
+         not an error */
+      ret = EXIT_SUCCESS;
 
-  /* The export-flight cache owns an InjectTask on the Asio event loop. */
-  ShutdownExportFlightsPanel();
+    /* The export-flight cache owns an InjectTask on the Asio event loop. */
+    ShutdownExportFlightsPanel();
 
-  Shutdown();
+    Shutdown();
+
+    if (!ConsumeRestartRequest())
+      break;
+
+    /* boot up again in this process (see Restart.hpp); the
+       #EventQueue is not owned by the event loop, and its "quit" flag
+       must be cleared before it can be entered again */
+    screen_init.GetEventQueue().ClearQuit();
+  }
 
   DisallowLanguage();
 

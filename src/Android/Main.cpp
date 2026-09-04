@@ -39,6 +39,7 @@
 #include "Profile/Profile.hpp"
 #include "MainWindow.hpp"
 #include "Startup.hpp"
+#include "Restart.hpp"
 #include "Interface.hpp"
 #include "java/Global.hxx"
 #include "java/File.hxx"
@@ -350,14 +351,24 @@ try {
     }
   };
 
-  {
-    const ScopeUnlock shutdown_unlock{shutdown_mutex};
+  while (true) {
+    {
+      const ScopeUnlock shutdown_unlock{shutdown_mutex};
 
-    if (Startup(screen_init.GetDisplay()))
-      CommonInterface::main_window->RunEventLoop();
+      if (Startup(screen_init.GetDisplay()))
+        CommonInterface::main_window->RunEventLoop();
+    }
+
+    Shutdown();
+
+    if (!ConsumeRestartRequest())
+      break;
+
+    /* boot up again in this process (see Restart.hpp); the
+       #EventQueue is not owned by the event loop, and its "quit" flag
+       must be cleared before it can be entered again */
+    screen_init.GetEventQueue().ClearQuit();
   }
-
-  Shutdown();
 } catch (...) {
   /* if an error occurs, rethrow the C++ exception as Java exception,
      to be displayed by the Java glue code */
