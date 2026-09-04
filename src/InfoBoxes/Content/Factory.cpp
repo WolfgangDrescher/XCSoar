@@ -1211,6 +1211,14 @@ static constexpr MetaData meta_data[] = {
     IBFHelper<InfoBoxContentPreviousWaypoint>::Create,
   },
 
+  // e_Spacer
+  {
+    NC_("InfoBox", "Spacer"),
+    NC_("Abbreviation", "Spacer"),
+    N_("Placeholder which is not displayed and claims no space of its own: the other InfoBoxes of the same row (or column) grow into the gap. Use it for a row with fewer but wider InfoBoxes than the selected geometry provides."),
+    UpdateInfoBoxSpacer,
+  },
+
 };
 
 static_assert(ARRAY_SIZE(meta_data) == NUM_TYPES,

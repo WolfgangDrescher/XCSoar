@@ -29,6 +29,9 @@ UpdateInfoBoxFreeRAM(InfoBoxData &data) noexcept;
 void
 UpdateInfoBoxNbrSat(InfoBoxData &data) noexcept;
 
+void
+UpdateInfoBoxSpacer(InfoBoxData &data) noexcept;
+
 class InfoBoxContentNbrSat final : public InfoBoxContent {
 public:
   void Update(InfoBoxData &data) noexcept override;

@@ -134,6 +134,14 @@ UpdateInfoBoxFreeRAM(InfoBoxData &data) noexcept
 }
 
 void
+UpdateInfoBoxSpacer(InfoBoxData &data) noexcept
+{
+  /* this InfoBox is never displayed; it only releases its space to
+     its neighbours */
+  data.SetInvalid();
+}
+
+void
 InfoBoxContentHorizon::OnCustomPaint(Canvas &canvas,
                                      const PixelRect &rc) noexcept
 {
