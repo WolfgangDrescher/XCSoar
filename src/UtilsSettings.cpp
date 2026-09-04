@@ -39,6 +39,7 @@
 #include "Audio/VarioGlue.hpp"
 #include "Audio/VolumeController.hpp"
 #include "PageActions.hpp"
+#include "Restart.hpp"
 #include "FLARM/Glue.hpp"
 #include "Weather/Rasp/RaspStore.hpp"
 #include "Weather/Rasp/Configured.hpp"
@@ -241,6 +242,14 @@ SettingsLeave(const UISettings &old_ui_settings)
   main_window.FlushRendererCaches();
   main_window.FullRedraw();
   main_window.SetDefaultFocus();
+
+  if (require_restart) {
+    /* some settings are evaluated during startup only; offer to
+       restart XCSoar right away instead of asking the user to
+       terminate and launch it again */
+    require_restart = false;
+    ShowRestartRequiredDialog();
+  }
 }
 
 void
