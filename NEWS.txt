@@ -62,6 +62,10 @@ Version 7.46 - not yet released
     crew or empty mass were sent before the device polar was known;
     preserve max weight and glider name when sending a polar #2397
 * dialogs
+  - offer to restart XCSoar right away when a setting needs a restart
+    (input file, airspace warning times, average efficiency time,
+    flight logger); the app restarts itself, which on Android and iOS
+    saves closing and launching it by hand
   - put the Close button on the right of the Status and Weather
     tab strips
   - label Close on the Quick Menu, BlueFly setup, and file Download
@@ -84,6 +88,9 @@ Version 7.46 - not yet released
   - replace light green on Alternate MANUAL final glide with blue,
     matching Next waypoint
 * ui
+  - apply the UI scale and the custom DPI right away instead of
+    asking for a restart: fonts, InfoBoxes, gauges and the map area
+    are rebuilt like after a screen rotation
   - keep pan-mode menu buttons about 20 mm tall on tall phones,
     large enough for a gloved tap
   - fix blurry icons on high-DPI screens, most visible on the large
