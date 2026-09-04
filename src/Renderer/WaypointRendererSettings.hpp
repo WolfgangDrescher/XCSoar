@@ -19,15 +19,26 @@ struct WaypointRendererSettings {
   } display_text_type;
 
   /**
-   * Which arrival info to display with waypoint labels; the arrival
-   * height and the glide ratio which is required to get there.
+   * Which arrival info to display with waypoint labels.  This is a
+   * bit set: the height above the safety arrival height, the glide
+   * ratio which is required to get there, and the altitude at which
+   * one arrives.
    */
   enum class ArrivalInfo : uint8_t {
     NONE = 0,
-    ARRIVAL_HEIGHT,
-    GLIDE_RATIO,
-    BOTH,
+    HEIGHT = 0x1,
+    GLIDE_RATIO = 0x2,
+    HEIGHT_AND_GLIDE_RATIO = HEIGHT | GLIDE_RATIO,
+    ALTITUDE = 0x4,
+    ALTITUDE_AND_GLIDE_RATIO = ALTITUDE | GLIDE_RATIO,
+    HEIGHT_AND_ALTITUDE = HEIGHT | ALTITUDE,
+    ALL = HEIGHT | ALTITUDE | GLIDE_RATIO,
   } arrival_info;
+
+  static constexpr bool Contains(ArrivalInfo value,
+                                 ArrivalInfo bit) noexcept {
+    return ((uint8_t)value & (uint8_t)bit) != 0;
+  }
 
   /** How the arrival height is calculated */
   enum class ArrivalCalculation : uint8_t {
@@ -46,6 +57,7 @@ struct WaypointRendererSettings {
   enum class ArrivalInfoVisibility : uint8_t {
     REACHABLE = 0,
     ALL,
+    LANDABLE,
   } arrival_info_visibility;
 
   /** How waypoint labels are drawn */
@@ -98,7 +110,7 @@ struct WaypointRendererSettings {
 
   void SetDefaults() noexcept {
     display_text_type = DisplayTextType::SHORT_NAME;
-    arrival_info = ArrivalInfo::ARRIVAL_HEIGHT;
+    arrival_info = ArrivalInfo::HEIGHT;
     arrival_calculation = ArrivalCalculation::STRAIGHT;
     arrival_info_position = ArrivalInfoPosition::AFTER_NAME;
     arrival_info_visibility = ArrivalInfoVisibility::REACHABLE;

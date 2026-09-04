@@ -258,9 +258,16 @@ protected:
   bool HasArrivalInfo(const Waypoint &way_point,
                       WaypointReachability reachable,
                       const ReachResult &reach) const noexcept {
-    if (settings.arrival_info_visibility ==
-        WaypointRendererSettings::ArrivalInfoVisibility::ALL)
+    switch (settings.arrival_info_visibility) {
+    case WaypointRendererSettings::ArrivalInfoVisibility::ALL:
       return true;
+
+    case WaypointRendererSettings::ArrivalInfoVisibility::LANDABLE:
+      return way_point.IsLandable() || way_point.flags.watched;
+
+    case WaypointRendererSettings::ArrivalInfoVisibility::REACHABLE:
+      break;
+    }
 
     return reachable != WaypointReachability::INVALID &&
       (reach.IsReachableDirect() || way_point.flags.watched);
@@ -291,6 +298,13 @@ protected:
 
       if (reach.IsReachableTerrain())
         values.height_terrain = (int)Units::ToUserAltitude(reach.terrain);
+
+      if (way_point.has_elevation)
+        /* the altitude one arrives at, safety height included */
+        values.altitude = (int)
+          Units::ToUserAltitude(way_point.elevation +
+                                task_behaviour.safety_height_arrival +
+                                reach.direct);
     }
 
     values.glide_ratio = CalculateRequiredGlideRatio(way_point);
@@ -533,9 +547,10 @@ MapWaypointLabelRender(Canvas &canvas, PixelSize clip_size,
   for (const auto &l : labels) {
     canvas.Select(l.bold ? *look.bold_font : *look.font);
 
-    /* the arrival info badge goes below the waypoint label */
+    /* the arrival info badge goes below the waypoint label, and must
+       clear it, or the label block drops one of the two */
     const int offset = l.isArrivalInfo
-      ? (int)(canvas.GetFontHeight() + Layout::GetTextPadding())
+      ? (int)(look.bold_font->GetHeight() + 2 * Layout::GetTextPadding() + 2)
       : 0;
 
     char buffer[NAME_SIZE + 1];

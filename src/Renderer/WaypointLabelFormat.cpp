@@ -9,6 +9,7 @@
 #include "util/TruncateString.hpp"
 
 #include <cassert>
+#include <climits>
 #include <math.h>
 #include <string.h>
 
@@ -158,27 +159,42 @@ FormatWaypointArrivalInfo(char *buffer, size_t buffer_size,
                           const WaypointArrivalValues &values,
                           const char *altitude_unit) noexcept
 {
+  using ArrivalInfo = WaypointRendererSettings::ArrivalInfo;
+
   assert(buffer_size > 8);
 
   buffer[0] = '\0';
 
-  if (settings.arrival_info == WaypointRendererSettings::ArrivalInfo::NONE)
+  if (settings.arrival_info == ArrivalInfo::NONE)
     return false;
 
   size_t length = 0;
 
-  if (settings.arrival_info !=
-      WaypointRendererSettings::ArrivalInfo::GLIDE_RATIO)
+  /* each value is a segment of its own, separated by a rule inside
+     the label */
+  const auto Separate = [&length, buffer, buffer_size]() {
+    if (length > 0 && length + 1 < buffer_size)
+      buffer[length++] = '\n';
+  };
+
+  if (WaypointRendererSettings::Contains(settings.arrival_info,
+                                         ArrivalInfo::HEIGHT))
     length = FormatArrivalHeight(buffer, buffer_size, settings, values,
                                  altitude_unit);
 
-  if (settings.arrival_info !=
-      WaypointRendererSettings::ArrivalInfo::ARRIVAL_HEIGHT &&
-      values.glide_ratio > 0) {
-    /* a line of its own, separated by a rule inside the label */
-    if (length > 0 && length + 1 < buffer_size)
-      buffer[length++] = '\n';
+  if (WaypointRendererSettings::Contains(settings.arrival_info,
+                                         ArrivalInfo::ALTITUDE) &&
+      values.altitude != INT_MIN) {
+    Separate();
+    StringFormat(buffer + length, buffer_size - length, "%d%s",
+                 values.altitude, altitude_unit);
+    length = strlen(buffer);
+  }
 
+  if (WaypointRendererSettings::Contains(settings.arrival_info,
+                                         ArrivalInfo::GLIDE_RATIO) &&
+      values.glide_ratio > 0) {
+    Separate();
     StringFormat(buffer + length, buffer_size - length, "%d",
                  (int)lround(values.glide_ratio));
   }

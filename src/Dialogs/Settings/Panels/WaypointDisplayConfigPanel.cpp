@@ -383,8 +383,11 @@ WaypointDisplayConfigPanel::UpdateVisibilities()
     arrival_info != WaypointRendererSettings::ArrivalInfo::NONE;
 
   /* the glide ratio is always calculated straight over ground */
-  SetRowEnabled(WaypointArrivalCalculation, has_arrival_info &&
-                arrival_info != WaypointRendererSettings::ArrivalInfo::GLIDE_RATIO);
+  SetRowEnabled(WaypointArrivalCalculation,
+                WaypointRendererSettings::Contains(arrival_info,
+                                                   WaypointRendererSettings::ArrivalInfo::HEIGHT) ||
+                WaypointRendererSettings::Contains(arrival_info,
+                                                   WaypointRendererSettings::ArrivalInfo::ALTITUDE));
   SetRowEnabled(WaypointArrivalInfoPosition, has_arrival_info);
   SetRowEnabled(WaypointArrivalInfoVisibility, has_arrival_info);
 }
@@ -516,25 +519,34 @@ WaypointDisplayConfigPanel::Prepare(ContainerWindow &parent,
     nullptr
   };
 
-  AddEnum(_("Highlight"),
-          _("How the labels of reachable landables, task waypoints and "
-            "watched waypoints are drawn."),
+  AddEnum(_("Reachable label style"),
+          _("How the labels of reachable landables are drawn; task "
+            "waypoints and watched waypoints get the same treatment."),
           wp_highlight_list, (unsigned)settings.highlight_style);
   SetExpertRow(WaypointHighlightStyle);
 
   static constexpr StaticEnumChoice wp_arrival_info_list[] = {
     { WaypointRendererSettings::ArrivalInfo::NONE,
       N_("None"), N_("No arrival info is displayed.") },
-    { WaypointRendererSettings::ArrivalInfo::ARRIVAL_HEIGHT,
+    { WaypointRendererSettings::ArrivalInfo::HEIGHT,
       N_("Arrival height"),
       N_("The height above the safety arrival height at the waypoint.") },
+    { WaypointRendererSettings::ArrivalInfo::ALTITUDE,
+      N_("Arrival altitude"),
+      N_("The altitude at which the waypoint is reached, safety arrival "
+         "height included.") },
     { WaypointRendererSettings::ArrivalInfo::GLIDE_RATIO,
       N_("Required glide ratio"),
       N_("The glide ratio over ground required to get there, as a whole "
          "number.") },
-    { WaypointRendererSettings::ArrivalInfo::BOTH,
-      N_("Both"),
-      N_("The arrival height followed by the required glide ratio.") },
+    { WaypointRendererSettings::ArrivalInfo::HEIGHT_AND_GLIDE_RATIO,
+      N_("Height & glide ratio") },
+    { WaypointRendererSettings::ArrivalInfo::ALTITUDE_AND_GLIDE_RATIO,
+      N_("Altitude & glide ratio") },
+    { WaypointRendererSettings::ArrivalInfo::HEIGHT_AND_ALTITUDE,
+      N_("Height & altitude") },
+    { WaypointRendererSettings::ArrivalInfo::ALL,
+      N_("Height, altitude & glide ratio") },
     nullptr
   };
 
@@ -582,11 +594,17 @@ WaypointDisplayConfigPanel::Prepare(ContainerWindow &parent,
 
   static constexpr StaticEnumChoice wp_arrival_visibility_list[] = {
     { WaypointRendererSettings::ArrivalInfoVisibility::REACHABLE,
-      N_("Reachable only"),
-      N_("Only waypoints which can be reached, plus the watched ones.") },
+      N_("Reachable landables"),
+      N_("Only landables which can be reached, plus the watched "
+         "waypoints.") },
+    { WaypointRendererSettings::ArrivalInfoVisibility::LANDABLE,
+      N_("All landables"),
+      N_("All landables, whether they can be reached or not, plus the "
+         "watched waypoints.") },
     { WaypointRendererSettings::ArrivalInfoVisibility::ALL,
       N_("All labelled waypoints"),
-      N_("Every waypoint which has a label, including unreachable ones.") },
+      N_("Every waypoint which has a label, including the ones which are "
+         "not landable.") },
     nullptr
   };
 

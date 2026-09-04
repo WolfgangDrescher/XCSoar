@@ -251,8 +251,9 @@ settings, one of them reachable and one of them not.
   {\bf Inverted text}: White text with a black outline. \\
   {\bf Badge}: Text on a rounded translucent background.
 
-\item[Highlight*] \label{conf:labelhighlight} How the labels of the reachable
-  landables, the task waypoints and the watched waypoints are drawn. Every
+\item[Reachable label style*] \label{conf:labelhighlight} How the labels of the
+  reachable landables are drawn; the task waypoints and the watched waypoints
+  get the same treatment. Every
   option except the first one also draws them in bold. \\
   {\bf Same as others}: Nothing is highlighted. \\
   {\bf Bold}: The label style in bold. \\
@@ -265,10 +266,16 @@ settings, one of them reachable and one of them not.
   {\bf None}: No value is displayed. \\
   {\bf Arrival height}: The height above the safety 'Arrival height'
   (\ref{sec:safety-factors}) at the waypoint. (default option) \\
+  {\bf Arrival altitude}: The altitude at which the waypoint is reached, the
+  safety 'Arrival height' included. \\
   {\bf Required glide ratio}: The glide ratio over the ground required to get
   there, as a whole number. It is shown whenever the aircraft is higher than
   that height, regardless of how shallow the glide is. \\
-  {\bf Both}: The arrival height followed by the required glide ratio.
+  {\bf Height \& glide ratio}, {\bf Altitude \& glide ratio},
+  {\bf Height \& altitude}, {\bf Height, altitude \& glide ratio}: The
+  combinations of the three values above.
+
+  Several values are separated by a thin rule inside the label.
 
 \item[Calculation*] How the arrival height is calculated. The required glide
   ratio is always calculated straight over the ground and ignores this
@@ -303,18 +310,19 @@ settings, one of them reachable and one of them not.
   no terrain in your way).
 
 \item[Arrival info position*] Where the value is drawn. \\
-  {\bf After the name}: Appended to the waypoint label, separated by a colon,
-  as in 'Moontown:100m'. (default option) \\
+  {\bf After the name}: Inside the waypoint label, separated from the name by
+  a thin rule. (default option) \\
   {\bf Badge below}: On a rounded label of its own below the waypoint label.
   It is the first label to be dropped when the map gets crowded.
 
 \item[Show arrival info*] Which waypoints get the value. \\
-  {\bf Reachable only}: Only waypoints which can be reached, plus the watched
-  ones. Negative arrival heights are shown for the watched waypoints only.
-  (default option) \\
+  {\bf Reachable landables}: Only landables which can be reached, plus the
+  watched waypoints. Negative arrival heights are shown for the watched
+  waypoints only. (default option) \\
+  {\bf All landables}: All landables, whether they can be reached or not,
+  plus the watched waypoints. \\
   {\bf All labelled waypoints}: Every waypoint which has a label, including
-  the unreachable ones and the ones which are not landable. Negative arrival
-  heights are shown as well. This calculates a glide solution for every
+  the ones which are not landable. This calculates a glide solution for every
   waypoint on the screen, which costs noticeably more on slow devices.
 
 \item[Landable symbols]  \label{conf:waypointicons} Three styles are available:

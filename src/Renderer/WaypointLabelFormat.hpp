@@ -21,6 +21,10 @@ struct WaypointArrivalValues {
   /** terrain avoidance arrival height; INT_MIN if unavailable */
   int height_terrain = INT_MIN;
 
+  /** the altitude at which the waypoint is reached; INT_MIN if
+      unavailable */
+  int altitude = INT_MIN;
+
   /** the required glide ratio; 0 if unavailable */
   double glide_ratio = 0;
 

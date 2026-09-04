@@ -30,17 +30,17 @@ WaypointRendererSettings::MigrateArrivalHeightDisplay() noexcept
     break;
 
   case Obsolete::GLIDE:
-    arrival_info = ArrivalInfo::ARRIVAL_HEIGHT;
+    arrival_info = ArrivalInfo::HEIGHT;
     arrival_calculation = ArrivalCalculation::STRAIGHT;
     break;
 
   case Obsolete::TERRAIN:
-    arrival_info = ArrivalInfo::ARRIVAL_HEIGHT;
+    arrival_info = ArrivalInfo::HEIGHT;
     arrival_calculation = ArrivalCalculation::TERRAIN;
     break;
 
   case Obsolete::GLIDE_AND_TERRAIN:
-    arrival_info = ArrivalInfo::ARRIVAL_HEIGHT;
+    arrival_info = ArrivalInfo::HEIGHT;
     arrival_calculation = ArrivalCalculation::BOTH;
     break;
 
@@ -49,7 +49,7 @@ WaypointRendererSettings::MigrateArrivalHeightDisplay() noexcept
     break;
 
   case Obsolete::REQUIRED_GR_AND_TERRAIN:
-    arrival_info = ArrivalInfo::BOTH;
+    arrival_info = ArrivalInfo::HEIGHT_AND_GLIDE_RATIO;
     arrival_calculation = ArrivalCalculation::TERRAIN;
     break;
   }
