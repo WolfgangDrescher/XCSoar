@@ -397,6 +397,7 @@ XCSOAR_SOURCES := \
 	$(SRC)/Renderer/WaypointRenderer.cpp \
 	$(SRC)/Renderer/WaypointRendererSettings.cpp \
 	$(SRC)/Renderer/WaypointLabelList.cpp \
+	$(SRC)/Renderer/WaypointLabelFormat.cpp \
 	$(SRC)/Renderer/WindArrowRenderer.cpp \
 	$(SRC)/Renderer/NextArrowRenderer.cpp \
 	$(SRC)/Renderer/WaveRenderer.cpp \

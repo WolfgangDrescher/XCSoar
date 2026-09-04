@@ -6,6 +6,7 @@
 #include "Renderer/MapWaypointDrawLimits.hpp"
 #include "WaypointRendererSettings.hpp"
 #include "WaypointIconRenderer.hpp"
+#include "WaypointLabelFormat.hpp"
 #include "WaypointLabelList.hpp"
 #include "Projection/MapWindowProjection.hpp"
 #include "Computer/Settings.hpp"
@@ -25,7 +26,6 @@
 #include "ui/canvas/Canvas.hpp"
 #include "Screen/Layout.hpp"
 #include "Units/Units.hpp"
-#include "util/StringFormat.hpp"
 #include "util/TruncateString.hpp"
 #include "util/StaticArray.hxx"
 #include "util/Macros.hpp"
@@ -35,7 +35,6 @@
 #include "Look/WaypointLook.hpp"
 
 #include <cassert>
-#include <math.h>
 #include <stdio.h>
 
 WaypointReach
@@ -227,118 +226,28 @@ public:
 
 
 protected:
-  void FormatTitle(char *buffer, size_t buffer_size,
-                   const Waypoint &way_point) const noexcept {
-    buffer[0] = '\0';
-
-    switch (settings.display_text_type) {
-    case WaypointRendererSettings::DisplayTextType::NAME:
-      CopyTruncateString(buffer, buffer_size, way_point.name.c_str());
-      break;
-
-    case WaypointRendererSettings::DisplayTextType::FIRST_FIVE:
-      CopyTruncateString(buffer, buffer_size, way_point.name.c_str(), 5);
-      break;
-
-    case WaypointRendererSettings::DisplayTextType::FIRST_THREE:
-      CopyTruncateString(buffer, buffer_size, way_point.name.c_str(), 3);
-      break;
-
-    case WaypointRendererSettings::DisplayTextType::NONE:
-      buffer[0] = '\0';
-      break;
-
-    case WaypointRendererSettings::DisplayTextType::FIRST_WORD:
-      CopyTruncateString(buffer, buffer_size, way_point.name.c_str());
-      char *tmp;
-      tmp = strstr(buffer, " ");
-      if (tmp != nullptr)
-        tmp[0] = '\0';
-      break;
-
-    case WaypointRendererSettings::DisplayTextType::SHORT_NAME:
-      if (!way_point.shortname.empty())
-        CopyTruncateString(buffer, buffer_size, way_point.shortname.c_str());
-      else
-        CopyTruncateString(buffer, buffer_size, way_point.name.c_str(), 5);
-      break;
-
-    case WaypointRendererSettings::DisplayTextType::OBSOLETE_DONT_USE_NUMBER:
-    case WaypointRendererSettings::DisplayTextType::OBSOLETE_DONT_USE_NAMEIFINTASK:
-      assert(false);
-      gcc_unreachable();
-    }
-  }
-
   /**
-   * Format the arrival height of the waypoint, according to the
-   * configured calculation.
-   *
-   * @return false if no arrival height is available
-   */
-  bool FormatArrivalHeight(char *buffer, size_t buffer_size,
-                           WaypointReachability reachable,
-                           const ReachResult &reach) const noexcept {
-    if (reachable == WaypointReachability::INVALID)
-      return false;
-
-    const int uah_glide = (int)Units::ToUserAltitude(reach.direct);
-    const int uah_terrain = (int)Units::ToUserAltitude(reach.terrain);
-
-    switch (settings.arrival_calculation) {
-    case WaypointRendererSettings::ArrivalCalculation::TERRAIN:
-      if (!reach.IsReachableTerrain())
-        return false;
-
-      StringFormat(buffer, buffer_size, "%d%s", uah_terrain, altitude_unit);
-      return true;
-
-    case WaypointRendererSettings::ArrivalCalculation::BOTH:
-      /* two values are only worth the space if the detour really
-         costs something */
-      if (reach.IsReachableDirect() && reach.IsReachableTerrain() &&
-          reach.IsDeltaConsiderable()) {
-        StringFormat(buffer, buffer_size, "%d/%d%s", uah_glide,
-                     uah_terrain, altitude_unit);
-        return true;
-      }
-
-      break;
-
-    case WaypointRendererSettings::ArrivalCalculation::STRAIGHT:
-      break;
-    }
-
-    StringFormat(buffer, buffer_size, "%d%s", uah_glide, altitude_unit);
-    return true;
-  }
-
-  /**
-   * Format the glide ratio over ground which is required to reach the
+   * The glide ratio over ground which is required to reach the
    * waypoint at the configured arrival safety height.
    *
-   * @return false if no glide ratio is available
+   * @return 0 if there is no glide ratio to show
    */
-  bool FormatRequiredGlideRatio(char *buffer, size_t buffer_size,
-                                const Waypoint &way_point) const noexcept {
+  [[gnu::pure]]
+  double CalculateRequiredGlideRatio(const Waypoint &way_point) const noexcept {
     if (!basic.location_available || !basic.NavAltitudeAvailable() ||
         !way_point.has_elevation)
-      return false;
+      return 0;
 
     const auto safety_height = task_behaviour.safety_height_arrival;
     const auto target_altitude = way_point.elevation + safety_height;
     const auto delta_h = basic.nav_altitude - target_altitude;
     if (delta_h <= 0)
       /* no glide ratio if below the waypoint */
-      return false;
+      return 0;
 
     const auto distance = basic.location.DistanceS(way_point.location);
     const auto gr = distance / delta_h;
-    if (!GradientValid(gr))
-      return false;
-
-    StringFormat(buffer, buffer_size, "%d", (int)lround(gr));
-    return true;
+    return GradientValid(gr) ? gr : 0;
   }
 
   /**
@@ -372,22 +281,20 @@ protected:
     if (!HasArrivalInfo(way_point, reachable, reach))
       return false;
 
-    size_t length = 0;
+    WaypointArrivalValues values;
 
-    if (settings.arrival_info != WaypointRendererSettings::ArrivalInfo::GLIDE_RATIO &&
-        FormatArrivalHeight(buffer, buffer_size, reachable, reach))
-      length = strlen(buffer);
+    if (reachable != WaypointReachability::INVALID) {
+      values.height_straight = (int)Units::ToUserAltitude(reach.direct);
+      values.considerable_delta = reach.IsDeltaConsiderable();
 
-    if (settings.arrival_info != WaypointRendererSettings::ArrivalInfo::ARRIVAL_HEIGHT) {
-      if (length > 0 && length + 1 < buffer_size)
-        buffer[length++] = ' ';
-
-      if (!FormatRequiredGlideRatio(buffer + length, buffer_size - length,
-                                    way_point))
-        buffer[length] = '\0';
+      if (reach.IsReachableTerrain())
+        values.height_terrain = (int)Units::ToUserAltitude(reach.terrain);
     }
 
-    return buffer[0] != '\0';
+    values.glide_ratio = CalculateRequiredGlideRatio(way_point);
+
+    return FormatWaypointArrivalInfo(buffer, buffer_size, settings, values,
+                                     altitude_unit);
   }
 
   /**
@@ -396,25 +303,6 @@ protected:
   bool IsHighlighted(const VisibleWaypoint &vwp) const noexcept {
     return (vwp.IsReachable() && vwp.waypoint->IsLandable()) ||
       vwp.in_task || vwp.waypoint->flags.watched;
-  }
-
-  [[gnu::pure]]
-  static LabelShape ToLabelShape(WaypointRendererSettings::LabelStyle style) noexcept {
-    switch (style) {
-    case WaypointRendererSettings::LabelStyle::OUTLINED:
-      return LabelShape::OUTLINED;
-
-    case WaypointRendererSettings::LabelStyle::OUTLINED_INVERTED:
-      return LabelShape::OUTLINED_INVERTED;
-
-    case WaypointRendererSettings::LabelStyle::BADGE:
-      return LabelShape::ROUNDED_WHITE;
-
-    case WaypointRendererSettings::LabelStyle::TEXT:
-      break;
-    }
-
-    return LabelShape::SIMPLE;
   }
 
   void DrawWaypoint(const VisibleWaypoint &vwp) noexcept {
@@ -449,36 +337,18 @@ protected:
       break;
     }
 
+    const auto appearance = GetWaypointLabelAppearance(settings,
+                                                       IsHighlighted(vwp));
+    const bool bold = appearance.bold;
+
     TextInBoxMode text_mode;
-    text_mode.shape = ToLabelShape(settings.label_style);
-    bool bold = false;
-
-    if (settings.highlight_style !=
-        WaypointRendererSettings::HighlightStyle::NONE && IsHighlighted(vwp)) {
-      text_mode.move_in_view = true;
-      bold = true;
-
-      switch (settings.highlight_style) {
-      case WaypointRendererSettings::HighlightStyle::OUTLINED:
-        text_mode.shape = LabelShape::OUTLINED;
-        break;
-
-      case WaypointRendererSettings::HighlightStyle::OUTLINED_INVERTED:
-        text_mode.shape = LabelShape::OUTLINED_INVERTED;
-        break;
-
-      case WaypointRendererSettings::HighlightStyle::BADGE:
-        text_mode.shape = LabelShape::ROUNDED_WHITE;
-        break;
-
-      case WaypointRendererSettings::HighlightStyle::NONE:
-      case WaypointRendererSettings::HighlightStyle::BOLD:
-        break;
-      }
-    }
+    text_mode.shape = appearance.shape;
+    /* the highlighted labels are the ones worth pulling into view */
+    text_mode.move_in_view = appearance.bold;
 
     char buffer[NAME_SIZE+1];
-    FormatTitle(buffer, ARRAY_SIZE(buffer) - 20, way_point);
+    FormatWaypointLabelTitle(buffer, ARRAY_SIZE(buffer) - 20, settings,
+                             way_point);
 
     char info[16];
     const bool has_info = FormatArrivalInfo(info, ARRAY_SIZE(info),
