@@ -35,7 +35,9 @@
 #include "Look/WaypointLook.hpp"
 
 #include <cassert>
+#include <span>
 #include <stdio.h>
+#include <string.h>
 
 WaypointReach
 CalculateWaypointReachRoute(const Waypoint &waypoint,
@@ -360,11 +362,14 @@ protected:
       WaypointRendererSettings::ArrivalInfoPosition::BADGE_BELOW;
 
     if (has_info && !info_below) {
+      /* the info goes on its own line, separated by a rule */
       size_t length = strlen(buffer);
       if (length > 0)
-        buffer[length++] = ':';
+        buffer[length++] = '\n';
 
       CopyTruncateString(buffer + length, ARRAY_SIZE(buffer) - length, info);
+
+      text_mode.compact = true;
     }
 
     auto sc = vwp.point;
@@ -387,6 +392,7 @@ protected:
       TextInBoxMode info_mode;
       info_mode.shape = LabelShape::ROUNDED_WHITE;
       info_mode.move_in_view = true;
+      info_mode.compact = true;
 
       labels.Add(info, sc, info_mode, false, arrival_agl,
                  vwp.in_task, way_point.IsLandable(), way_point.IsAirport(),
@@ -492,6 +498,30 @@ public:
   }
 };
 
+/**
+ * Split a label into its segments, in place.  The segments are drawn
+ * side by side, separated by a rule.
+ */
+static std::size_t
+SplitLabelSegments(char *text, std::span<const char *> segments) noexcept
+{
+  std::size_t n = 0;
+  char *p = text;
+  segments[n++] = p;
+
+  while (n < segments.size()) {
+    char *separator = strchr(p, '\n');
+    if (separator == nullptr)
+      break;
+
+    *separator = '\0';
+    p = separator + 1;
+    segments[n++] = p;
+  }
+
+  return n;
+}
+
 static void
 MapWaypointLabelRender(Canvas &canvas, PixelSize clip_size,
                        LabelBlock &label_block,
@@ -508,8 +538,14 @@ MapWaypointLabelRender(Canvas &canvas, PixelSize clip_size,
       ? (int)(canvas.GetFontHeight() + Layout::GetTextPadding())
       : 0;
 
-    TextInBox(canvas, l.Name, l.Pos.At(0, offset), l.Mode, clip_size,
-              &label_block);
+    char buffer[NAME_SIZE + 1];
+    strcpy(buffer, l.Name);
+
+    const char *segments[3];
+    const std::size_t n = SplitLabelSegments(buffer, segments);
+
+    TextInBox(canvas, std::span{segments}.first(n), l.Pos.At(0, offset),
+              l.Mode, clip_size, &label_block);
   }
 }
 

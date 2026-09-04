@@ -175,8 +175,9 @@ FormatWaypointArrivalInfo(char *buffer, size_t buffer_size,
   if (settings.arrival_info !=
       WaypointRendererSettings::ArrivalInfo::ARRIVAL_HEIGHT &&
       values.glide_ratio > 0) {
+    /* a line of its own, separated by a rule inside the label */
     if (length > 0 && length + 1 < buffer_size)
-      buffer[length++] = ' ';
+      buffer[length++] = '\n';
 
     StringFormat(buffer + length, buffer_size - length, "%d",
                  (int)lround(values.glide_ratio));
