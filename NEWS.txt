@@ -86,6 +86,9 @@ Version 7.46 - not yet released
   - add a Spacer InfoBox which is not displayed and hands its space to
     the other InfoBoxes of the same row or column, so a row can hold
     fewer but wider InfoBoxes than the chosen geometry provides
+  - add a Merge with previous InfoBox which is not displayed and lets
+    the InfoBox before it grow over its place, giving long values such
+    as waypoint names or frequencies more room
 * ui
   - keep pan-mode menu buttons about 20 mm tall on tall phones,
     large enough for a gloved tap
