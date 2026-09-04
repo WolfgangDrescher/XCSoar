@@ -7,6 +7,9 @@
 #include "Form/DataField/Listener.hpp"
 #include "Interface.hpp"
 #include "Language/Language.hpp"
+#include "Look/Look.hpp"
+#include "Look/MapLook.hpp"
+#include "MainWindow.hpp"
 #include "Widget/RowFormWidget.hpp"
 #include "UIGlobals.hpp"
 
@@ -318,7 +321,14 @@ WaypointDisplayConfigPanel::Save(bool &_changed) noexcept
                            ProfileKeys::WaypointArrivalInfoVisibility,
                            settings.arrival_info_visibility);
 
-  changed |= SaveValueEnum(AppIndLandable, ProfileKeys::AppIndLandable, settings.landable_style);
+  if (SaveValueEnum(AppIndLandable, ProfileKeys::AppIndLandable,
+                    settings.landable_style)) {
+    changed = true;
+
+    /* the landable icons are loaded for one style only */
+    auto &look = CommonInterface::main_window->SetLook().map.waypoint;
+    look.Reinitialise(settings);
+  }
 
   changed |= SaveValueInteger(MapWaypointIconScale, ProfileKeys::MapWaypointIconScale,
                               settings.map_waypoint_icon_scale);
