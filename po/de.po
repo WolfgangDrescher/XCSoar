@@ -1527,6 +1527,11 @@ msgstr ""
 "Änderungen an der Konfiguration gespeichert. \n"
 "XCSoar neustarten um Änderungen zu übernehmen."
 
+msgid "Changes to configuration saved. Restart XCSoar now to apply changes?"
+msgstr ""
+"Änderungen an der Konfiguration gespeichert.\n"
+"XCSoar jetzt neu starten, um die Änderungen zu übernehmen?"
+
 msgid "Calibrate"
 msgstr "Kalibriere"
 
