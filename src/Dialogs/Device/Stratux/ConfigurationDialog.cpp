@@ -4,7 +4,7 @@
 #include "ConfigurationDialog.hpp"
 #include "Device/Driver/Stratux/Driver.hpp"
 #include "Dialogs/WidgetDialog.hpp"
-#include "Dialogs/Message.hpp"
+#include "Restart.hpp"
 #include "Dialogs/Error.hpp"
 #include "Language/Language.hpp"
 #include "Profile/Profile.hpp"
@@ -50,8 +50,8 @@ public:
     Profile::Save();
 
     _changed |= changed;
-    if (_changed) ShowMessageBox(_("Changes to configuration saved. Restart XCSoar to apply changes."),
-                    "", MB_OK);
+    if (_changed)
+      ShowRestartRequiredDialog();
     return true;
   }
 };
