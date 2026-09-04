@@ -10,7 +10,7 @@
 #include "Input/InputEvents.hpp"
 #include "Menu/MenuBar.hpp"
 #include "Menu/Glue.hpp"
-#include "ui/canvas/Features.hpp" // for DRAW_MOUSE_CURSOR
+#include "ui/canvas/Features.hpp" // for DRAW_MOUSE_CURSOR, HAVE_TEXT_CACHE
 #include "Screen/Layout.hpp"
 #include "Dialogs/Airspace/AirspaceWarningDialog.hpp"
 #include "Audio/Sound.hpp"
@@ -25,6 +25,9 @@
 #include "Look/GlobalFonts.hpp"
 #include "Look/DefaultFonts.hpp"
 #include "Look/Look.hpp"
+#ifdef HAVE_TEXT_CACHE
+#include "ui/canvas/custom/Cache.hpp"
+#endif
 #include "Operation/PopupOperationEnvironment.hpp"
 #include "Operation/PluggableOperationEnvironment.hpp"
 #include "Device/MultipleDevices.hpp"
@@ -889,6 +892,42 @@ MainWindow::ReinitialiseLook() noexcept
 
   InfoBoxManager::ScheduleRedraw();
   Invalidate();
+}
+
+void
+MainWindow::ReinitialiseDisplayScale() noexcept
+{
+  const auto &ui_settings = CommonInterface::GetUISettings();
+
+  Layout::Initialise(GetDisplay(), GetSize(),
+                     ui_settings.GetPercentScale(),
+                     ui_settings.custom_dpi);
+
+  /* the font sizes are derived from the #Layout metrics */
+  Fonts::Initialize();
+
+#ifdef HAVE_TEXT_CACHE
+  /* the cache is keyed by the address of the #Font, which did not
+     change, but its contents did */
+  TextCache::Flush();
+#endif
+
+  if (look != nullptr) {
+    look->Initialise(Fonts::map);
+    ReinitialiseLook();
+  }
+
+  ReinitialiseLayout();
+
+  const PixelRect rc = GetClientRect();
+
+  if (menu_bar != nullptr)
+    menu_bar->OnResize(rc);
+
+  ProgressGlue::Move(rc);
+
+  FlushRendererCaches();
+  FullRedraw();
 }
 
 #ifdef ANDROID

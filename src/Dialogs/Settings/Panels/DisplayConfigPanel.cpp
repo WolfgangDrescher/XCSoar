@@ -202,7 +202,7 @@ DisplayConfigPanel::Save(bool &_changed) noexcept
 
   if (SaveValueEnum(CustomDPI, ProfileKeys::CustomDPI,
                     ui_settings.custom_dpi))
-    require_restart = changed = true;
+    DisplayScaleChanged = changed = true;
 
   if (Display::RotateSupported() &&
       SaveValueEnum(Orientation, ProfileKeys::MapOrientation,
@@ -239,7 +239,7 @@ DisplayConfigPanel::Save(bool &_changed) noexcept
 
   if (SaveValueInteger(UIScale, ProfileKeys::UIScale,
                        ui_settings.scale))
-    require_restart = changed = true;
+    DisplayScaleChanged = changed = true;
 
 #ifdef DRAW_MOUSE_CURSOR
   changed |= SaveValueInteger(CursorSize, ProfileKeys::CursorSize,

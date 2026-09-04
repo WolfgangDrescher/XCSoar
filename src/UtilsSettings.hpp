@@ -16,6 +16,14 @@ extern bool RaspFileChanged;
 extern bool ChecklistFileChanged;
 extern bool UserRepositoriesListChanged;
 extern bool LanguageChanged;
+
+/**
+ * The UI scale or the custom DPI was changed; the fonts and the whole
+ * layout need to be reloaded (see
+ * MainWindow::ReinitialiseDisplayScale()).
+ */
+extern bool DisplayScaleChanged;
+
 extern bool require_restart;
 
 struct UISettings;

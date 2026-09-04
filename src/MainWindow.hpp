@@ -343,6 +343,14 @@ public:
   void ReinitialiseLook() noexcept;
 
   /**
+   * Apply a new UI scale or a new custom DPI: reload the #Layout
+   * metrics, the fonts and the #Look, and rebuild everything which
+   * was sized with the old values.  This does what a resize does,
+   * plus the fonts, which do not depend on the window size.
+   */
+  void ReinitialiseDisplayScale() noexcept;
+
+  /**
    * Suspend threads that are owned by this object.
    */
   void SuspendThreads() noexcept;
