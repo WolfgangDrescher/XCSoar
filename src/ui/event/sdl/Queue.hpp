@@ -47,6 +47,14 @@ public:
     quit = true;
   }
 
+  /**
+   * Undo Quit(); this is needed because the #EventQueue outlives the
+   * event loop, and XCSoar may restart itself in the same process.
+   */
+  void ClearQuit() noexcept {
+    quit = false;
+  }
+
   void InjectCall(EventLoop::Callback callback, void *ctx) noexcept;
 
 private:

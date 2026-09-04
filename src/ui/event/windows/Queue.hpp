@@ -41,6 +41,13 @@ public:
   void Resume() noexcept {}
 
   /**
+   * Stub for API compatibility with the other #EventQueue
+   * implementations; quitting is signalled by WM_QUIT, which the
+   * message loop consumes.
+   */
+  void ClearQuit() noexcept {}
+
+  /**
    * Caching wrapper for std::chrono::steady_clock::now().  The
    * real clock is queried at most once per event loop
    * iteration, because it is assumed that the event loop runs
