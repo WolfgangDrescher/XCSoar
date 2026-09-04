@@ -105,23 +105,26 @@ RenderShadowedText(Canvas &canvas, const char *text,
 
 /**
  * The gap on either side of the rule which separates two segments.
+ * The values need more air around them than the box needs around its
+ * text.
  */
-[[gnu::pure]]
+[[gnu::const]]
 static unsigned
-GetSegmentGap(unsigned padding) noexcept
+GetSegmentGap() noexcept
 {
-  return std::max(1u, padding);
+  return std::max(2u, Layout::GetTextPadding());
 }
 
 /**
  * The thin vertical rule which separates the segments inside a box.
+ * It is as thin as the outline of the box, and has its colour.
  */
 static void
-DrawSeparator(Canvas &canvas, const PixelRect &rc, int x) noexcept
+DrawSeparator(Canvas &canvas, const PixelRect &rc, int x,
+              Color color, unsigned width) noexcept
 {
-  const unsigned width = std::max(1u, canvas.GetFontHeight() / 16u);
   canvas.DrawFilledRectangle({x, rc.top, x + (int)width, rc.bottom},
-                             COLOR_BLACK);
+                             color);
 }
 
 // returns true if really wrote something
@@ -134,14 +137,21 @@ TextInBox(Canvas &canvas, std::span<const char *const> segments,
 
   assert(!segments.empty());
 
-  const char *text[3];
-  unsigned width[3];
+  const char *text[4];
+  unsigned width[4];
   const std::size_t n = std::min(segments.size(), ARRAY_SIZE(text));
 
   const unsigned padding = mode.compact
     ? std::max(1u, Layout::GetTextPadding() / 2)
     : Layout::GetTextPadding();
-  const unsigned gap = GetSegmentGap(padding);
+  const unsigned gap = GetSegmentGap();
+
+  /* the same hairline the rounded box is outlined with */
+  unsigned rule_width = 1;
+#ifdef ENABLE_OPENGL
+  if (!UseOpenGLLineLoopOutline(rule_width))
+    rule_width = std::max(2u, Layout::ScaleFinePenWidth(1));
+#endif
 
   PixelSize tsize{0u, canvas.GetFontHeight()};
 
@@ -156,7 +166,7 @@ TextInBox(Canvas &canvas, std::span<const char *const> segments,
 
     if (i > 0)
       /* the gap on both sides of the rule, and the rule itself */
-      tsize.width += 2 * gap + 1;
+      tsize.width += 2 * gap + rule_width;
 
     tsize.width += size.width;
   }
@@ -190,6 +200,11 @@ TextInBox(Canvas &canvas, std::span<const char *const> segments,
     mode.shape == LabelShape::ROUNDED_WHITE ||
     mode.shape == LabelShape::FILLED;
 
+  /* the rule has the colour of the box outline */
+  const Color rule_color = mode.shape == LabelShape::ROUNDED_WHITE
+    ? COLOR_WHITE
+    : COLOR_BLACK;
+
   if (mode.shape == LabelShape::ROUNDED_BLACK ||
       mode.shape == LabelShape::ROUNDED_WHITE) {
     /* A hairline pen breaks up along the rounded corners where the
@@ -200,11 +215,7 @@ TextInBox(Canvas &canvas, std::span<const char *const> segments,
        merely make the box fat and - because LineToTriangles() rounds
        the segment offsets to whole pixels - ragged around the corners;
        on a 3x iPhone it turns the 1px hairline into 3px. */
-    unsigned outline_width = 1;
-#ifdef ENABLE_OPENGL
-    if (!UseOpenGLLineLoopOutline(outline_width))
-      outline_width = std::max(2u, Layout::ScaleFinePenWidth(1));
-#endif
+    const unsigned outline_width = rule_width;
 
     const Pen outline_pen{outline_width,
                           mode.shape == LabelShape::ROUNDED_BLACK
@@ -246,9 +257,9 @@ TextInBox(Canvas &canvas, std::span<const char *const> segments,
       /* the rule reads as a table column separator inside a box; on
          plain text it would just be a stray line on the map */
       if (boxed)
-        DrawSeparator(canvas, rc, x);
+        DrawSeparator(canvas, rc, x, rule_color, rule_width);
 
-      x += 1 + gap;
+      x += rule_width + gap;
     }
 
     const PixelPoint q{x, p.y};
