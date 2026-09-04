@@ -57,10 +57,16 @@ TopCanvas::TopCanvas(UI::Display &_display, SDL_Window *_window)
   :display(_display), window(_window)
 {
 #ifdef USE_MEMORY_CANVAS
-  renderer = SDL_CreateRenderer(window, -1, 0);
-  if (renderer == nullptr)
-    throw FmtRuntimeError("SDL_CreateRenderer({}, {}, {}) has failed: {}",
-                          (const void *)window, -1, 0, ::SDL_GetError());
+  /* after a restart of XCSoar in this process (see Restart.hpp), the
+     window still has the renderer of the previous run, and libSDL
+     allows only one renderer per window */
+  renderer = SDL_GetRenderer(window);
+  if (renderer == nullptr) {
+    renderer = SDL_CreateRenderer(window, -1, 0);
+    if (renderer == nullptr)
+      throw FmtRuntimeError("SDL_CreateRenderer({}, {}, {}) has failed: {}",
+                            (const void *)window, -1, 0, ::SDL_GetError());
+  }
 
   int width, height;
   SDL_GetRendererOutputSize(renderer, &width, &height);
@@ -77,21 +83,27 @@ TopCanvas::TopCanvas(UI::Display &_display, SDL_Window *_window)
 #endif
 
 #ifdef ENABLE_OPENGL
-  if (::SDL_GL_CreateContext(window) == nullptr)
-    throw FmtRuntimeError("SDL_GL_CreateContext({}) has failed: {}",
-                          (const void *)window, ::SDL_GetError());
+  /* keep the OpenGL context of the previous run when XCSoar restarts
+     itself in this process (see Restart.hpp): all textures and
+     shaders belong to it, and the window it was created for is reused
+     as well */
+  if (::SDL_GL_GetCurrentContext() == nullptr) {
+    if (::SDL_GL_CreateContext(window) == nullptr)
+      throw FmtRuntimeError("SDL_GL_CreateContext({}) has failed: {}",
+                            (const void *)window, ::SDL_GetError());
 
-  LogFormat("SDL_GL config: RGB=%d/%d/%d alpha=%d depth=%d stencil=%d",
-            GetConfigAttrib(SDL_GL_RED_SIZE, 0),
-            GetConfigAttrib(SDL_GL_GREEN_SIZE, 0),
-            GetConfigAttrib(SDL_GL_BLUE_SIZE, 0),
-            GetConfigAttrib(SDL_GL_ALPHA_SIZE, 0),
-            GetConfigAttrib(SDL_GL_DEPTH_SIZE, 0),
-            GetConfigAttrib(SDL_GL_STENCIL_SIZE, 0));
+    LogFormat("SDL_GL config: RGB=%d/%d/%d alpha=%d depth=%d stencil=%d",
+              GetConfigAttrib(SDL_GL_RED_SIZE, 0),
+              GetConfigAttrib(SDL_GL_GREEN_SIZE, 0),
+              GetConfigAttrib(SDL_GL_BLUE_SIZE, 0),
+              GetConfigAttrib(SDL_GL_ALPHA_SIZE, 0),
+              GetConfigAttrib(SDL_GL_DEPTH_SIZE, 0),
+              GetConfigAttrib(SDL_GL_STENCIL_SIZE, 0));
 
-  /* this is usually done by OpenGL::Display, but libSDL doesn't allow
-     that */
-  OpenGL::SetupContext();
+    /* this is usually done by OpenGL::Display, but libSDL doesn't
+       allow that */
+    OpenGL::SetupContext();
+  }
 
   SetupViewport(GetNativeSize());
 #endif

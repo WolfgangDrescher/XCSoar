@@ -20,11 +20,26 @@
 
 namespace UI {
 
+/**
+ * The X11 window of this process.  It is never destroyed; when XCSoar
+ * restarts itself (see Restart.hpp), the new #TopWindow reuses it
+ * instead of mapping a second window.
+ */
+static X11Window x11_window;
+
 void
 TopWindow::CreateNative(const char *text, PixelSize size,
                         TopWindowStyle style)
 {
   const auto x_display = display.GetXDisplay();
+
+  if (x11_window != 0) {
+    /* reuse the window of the previous run (see above) */
+    x_window = x11_window;
+    XStoreName(x_display, x_window, text);
+    return;
+  }
+
 #ifdef USE_GLX
   XVisualInfo *vi = glXGetVisualFromFBConfig(display.GetXDisplay(),
                                              display.GetFBConfig());
@@ -90,6 +105,8 @@ TopWindow::CreateNative(const char *text, PixelSize size,
   /* receive "Close" button clicks from the window manager */
   auto wm_delete_window = XInternAtom(x_display, "WM_DELETE_WINDOW", false);
   XSetWMProtocols(x_display, x_window, &wm_delete_window, 1);
+
+  x11_window = x_window;
 }
 
 bool

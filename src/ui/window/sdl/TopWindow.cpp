@@ -177,6 +177,14 @@ MakeSDLFlags([[maybe_unused]] bool full_screen, bool resizable) noexcept
   return flags;
 }
 
+/**
+ * The SDL window of this process.  It is never destroyed; when XCSoar
+ * restarts itself (see Restart.hpp), the new #TopWindow reuses it,
+ * because libSDL ties the OpenGL context (and thus all textures) to
+ * the window.
+ */
+static SDL_Window *sdl_window;
+
 void
 TopWindow::CreateNative(const char *_text, PixelSize new_size,
                         TopWindowStyle style)
@@ -186,6 +194,14 @@ TopWindow::CreateNative(const char *_text, PixelSize new_size,
   const bool full_screen = style.GetFullScreen();
   const bool resizable = style.GetResizable();
   const Uint32 flags = MakeSDLFlags(full_screen, resizable);
+
+  if (sdl_window != nullptr) {
+    /* reuse the window of the previous run (see above); it is already
+       set up, only the title may have changed */
+    window = sdl_window;
+    ::SDL_SetWindowTitle(window, text);
+    return;
+  }
 
   window = ::SDL_CreateWindow(text, SDL_WINDOWPOS_UNDEFINED,
                               SDL_WINDOWPOS_UNDEFINED, new_size.width,
@@ -213,6 +229,7 @@ TopWindow::CreateNative(const char *_text, PixelSize new_size,
   }
 #endif
 
+  sdl_window = window;
 }
 
 #ifdef HAVE_MULTI_TOUCH
