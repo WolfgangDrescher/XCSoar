@@ -3,8 +3,6 @@
 
 #pragma once
 
-#include "LabelShape.hpp"
-
 #include <cstdint>
 
 struct WaypointRendererSettings {
@@ -20,16 +18,56 @@ struct WaypointRendererSettings {
     SHORT_NAME,
   } display_text_type;
 
-  /** Which arrival height to display next to waypoint labels */
-
-  enum class ArrivalHeightDisplay : uint8_t {
+  /**
+   * Which arrival info to display with waypoint labels; the arrival
+   * height and the glide ratio which is required to get there.
+   */
+  enum class ArrivalInfo : uint8_t {
     NONE = 0,
-    GLIDE,
+    ARRIVAL_HEIGHT,
+    GLIDE_RATIO,
+    BOTH,
+  } arrival_info;
+
+  /** How the arrival height is calculated */
+  enum class ArrivalCalculation : uint8_t {
+    STRAIGHT = 0,
     TERRAIN,
-    GLIDE_AND_TERRAIN,
-    REQUIRED_GR,
-    REQUIRED_GR_AND_TERRAIN,
-  } arrival_height_display;
+    BOTH,
+  } arrival_calculation;
+
+  /** Where the arrival info is drawn */
+  enum class ArrivalInfoPosition : uint8_t {
+    AFTER_NAME = 0,
+    BADGE_BELOW,
+  } arrival_info_position;
+
+  /** Which waypoints get arrival info */
+  enum class ArrivalInfoVisibility : uint8_t {
+    REACHABLE = 0,
+    ALL,
+  } arrival_info_visibility;
+
+  /** How waypoint labels are drawn */
+  enum class LabelStyle : uint8_t {
+    TEXT = 0,
+    OUTLINED,
+    OUTLINED_INVERTED,
+    BADGE,
+  } label_style;
+
+  /**
+   * How the labels of highlighted waypoints are drawn; those are the
+   * reachable landables, the task waypoints and the watched
+   * waypoints.  Everything but NONE also makes them bold.
+   */
+  enum class HighlightStyle : uint8_t {
+    NONE = 0,
+    BOLD,
+    OUTLINED,
+    OUTLINED_INVERTED,
+    BADGE,
+  } highlight_style;
 
   /** What type of waypoint labels to render */
   enum class LabelSelection : uint8_t {
@@ -39,9 +77,6 @@ struct WaypointRendererSettings {
     NONE,
     TASK_AND_AIRFIELD,
   } label_selection;
-
-  /** What type of waypoint labels to render */
-  LabelShape landable_render_mode;
 
   enum class LandableStyle : uint8_t {
     PURPLE_CIRCLE,
@@ -63,9 +98,13 @@ struct WaypointRendererSettings {
 
   void SetDefaults() noexcept {
     display_text_type = DisplayTextType::SHORT_NAME;
-    arrival_height_display = ArrivalHeightDisplay::GLIDE;
+    arrival_info = ArrivalInfo::ARRIVAL_HEIGHT;
+    arrival_calculation = ArrivalCalculation::STRAIGHT;
+    arrival_info_position = ArrivalInfoPosition::AFTER_NAME;
+    arrival_info_visibility = ArrivalInfoVisibility::REACHABLE;
     label_selection = LabelSelection::ALL;
-    landable_render_mode = LabelShape::ROUNDED_BLACK;
+    label_style = LabelStyle::OUTLINED;
+    highlight_style = HighlightStyle::BADGE;
 
     landable_style = LandableStyle::PURPLE_CIRCLE;
     vector_landable_rendering = true;
@@ -75,4 +114,8 @@ struct WaypointRendererSettings {
   }
 
   void LoadFromProfile() noexcept;
+
+private:
+  void MigrateArrivalHeightDisplay() noexcept;
+  void MigrateLabelStyle() noexcept;
 };

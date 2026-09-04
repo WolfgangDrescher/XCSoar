@@ -2,7 +2,74 @@
 // Copyright The XCSoar Project
 
 #include "WaypointRendererSettings.hpp"
+#include "LabelShape.hpp"
 #include "Profile/Profile.hpp"
+
+/**
+ * Migrate the obsolete "WaypointArrivalHeightDisplay" setting, which
+ * combined the arrival info with the way it was calculated.
+ */
+void
+WaypointRendererSettings::MigrateArrivalHeightDisplay() noexcept
+{
+  enum class Obsolete : uint8_t {
+    NONE = 0,
+    GLIDE,
+    TERRAIN,
+    GLIDE_AND_TERRAIN,
+    REQUIRED_GR,
+    REQUIRED_GR_AND_TERRAIN,
+  } value = Obsolete::GLIDE;
+
+  if (!Profile::GetEnum(ProfileKeys::WaypointArrivalHeightDisplay, value))
+    return;
+
+  switch (value) {
+  case Obsolete::NONE:
+    arrival_info = ArrivalInfo::NONE;
+    break;
+
+  case Obsolete::GLIDE:
+    arrival_info = ArrivalInfo::ARRIVAL_HEIGHT;
+    arrival_calculation = ArrivalCalculation::STRAIGHT;
+    break;
+
+  case Obsolete::TERRAIN:
+    arrival_info = ArrivalInfo::ARRIVAL_HEIGHT;
+    arrival_calculation = ArrivalCalculation::TERRAIN;
+    break;
+
+  case Obsolete::GLIDE_AND_TERRAIN:
+    arrival_info = ArrivalInfo::ARRIVAL_HEIGHT;
+    arrival_calculation = ArrivalCalculation::BOTH;
+    break;
+
+  case Obsolete::REQUIRED_GR:
+    arrival_info = ArrivalInfo::GLIDE_RATIO;
+    break;
+
+  case Obsolete::REQUIRED_GR_AND_TERRAIN:
+    arrival_info = ArrivalInfo::BOTH;
+    arrival_calculation = ArrivalCalculation::TERRAIN;
+    break;
+  }
+}
+
+/**
+ * Migrate the obsolete "WaypointLabelStyle" setting, which applied to
+ * the reachable landables only.
+ */
+void
+WaypointRendererSettings::MigrateLabelStyle() noexcept
+{
+  LabelShape shape = LabelShape::ROUNDED_BLACK;
+  if (!Profile::GetEnum(ProfileKeys::WaypointLabelStyle, shape))
+    return;
+
+  highlight_style = shape == LabelShape::OUTLINED_INVERTED
+    ? HighlightStyle::OUTLINED_INVERTED
+    : HighlightStyle::BADGE;
+}
 
 void
 WaypointRendererSettings::LoadFromProfile() noexcept
@@ -25,8 +92,18 @@ WaypointRendererSettings::LoadFromProfile() noexcept
   // NOTE: DisplayTextType must be loaded before this code
   //       due to pref migration dependencies!
   GetEnum(ProfileKeys::WaypointLabelSelection, label_selection);
-  GetEnum(ProfileKeys::WaypointArrivalHeightDisplay, arrival_height_display);
-  GetEnum(ProfileKeys::WaypointLabelStyle, landable_render_mode);
+
+  GetEnum(ProfileKeys::WaypointArrivalCalculation, arrival_calculation);
+  GetEnum(ProfileKeys::WaypointArrivalInfoPosition, arrival_info_position);
+  GetEnum(ProfileKeys::WaypointArrivalInfoVisibility, arrival_info_visibility);
+
+  // pref migration; only when this profile has never seen the new settings
+  if (!GetEnum(ProfileKeys::WaypointArrivalInfo, arrival_info))
+    MigrateArrivalHeightDisplay();
+
+  GetEnum(ProfileKeys::WaypointTextStyle, label_style);
+  if (!GetEnum(ProfileKeys::WaypointHighlightStyle, highlight_style))
+    MigrateLabelStyle();
 
   GetEnum(ProfileKeys::AppIndLandable, landable_style);
   Get(ProfileKeys::AppUseSWLandablesRendering, vector_landable_rendering);

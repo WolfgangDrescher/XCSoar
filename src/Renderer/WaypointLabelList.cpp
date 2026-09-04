@@ -12,6 +12,11 @@ static bool
 MapWaypointLabelListCompare(const WaypointLabelList::Label &e1,
                             const WaypointLabelList::Label &e2) noexcept
 {
+  /* the arrival info badges come last; they are the ones to drop when
+     the map gets too crowded */
+  if (e1.isArrivalInfo != e2.isArrivalInfo)
+    return !e1.isArrivalInfo;
+
   if (e1.inTask && !e2.inTask)
     return true;
 
@@ -50,7 +55,7 @@ WaypointLabelList::Add(const char *Name, PixelPoint p,
                        TextInBoxMode Mode, bool bold,
                        int AltArivalAGL, bool inTask,
                        bool isLandable, bool isAirport,
-                       bool isWatchedWaypoint) noexcept
+                       bool isWatchedWaypoint, bool isArrivalInfo) noexcept
 {
   if (!clip_rect.Contains(p))
     return;
@@ -69,6 +74,7 @@ WaypointLabelList::Add(const char *Name, PixelPoint p,
   l.isLandable = isLandable;
   l.isAirport  = isAirport;
   l.isWatchedWaypoint = isWatchedWaypoint;
+  l.isArrivalInfo = isArrivalInfo;
 }
 
 void

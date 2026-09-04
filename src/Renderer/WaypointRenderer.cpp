@@ -2,6 +2,7 @@
 // Copyright The XCSoar Project
 
 #include "WaypointRenderer.hpp"
+#include "Renderer/LabelShape.hpp"
 #include "Renderer/MapWaypointDrawLimits.hpp"
 #include "WaypointRendererSettings.hpp"
 #include "WaypointIconRenderer.hpp"
@@ -22,7 +23,9 @@
 #include "Task/ProtectedTaskManager.hpp"
 #include "Task/ProtectedRoutePlanner.hpp"
 #include "ui/canvas/Canvas.hpp"
+#include "Screen/Layout.hpp"
 #include "Units/Units.hpp"
+#include "util/StringFormat.hpp"
 #include "util/TruncateString.hpp"
 #include "util/StaticArray.hxx"
 #include "util/Macros.hpp"
@@ -32,6 +35,7 @@
 #include "Look/WaypointLook.hpp"
 
 #include <cassert>
+#include <math.h>
 #include <stdio.h>
 
 WaypointReach
@@ -266,84 +270,151 @@ protected:
     }
   }
 
-  void FormatLabel(char *buffer, size_t buffer_size,
-                   const Waypoint &way_point,
-                   WaypointReachability reachable,
-                   const ReachResult &reach) const noexcept {
-    FormatTitle(buffer, buffer_size - 20, way_point);
-
-    if (!way_point.IsLandable() && !way_point.flags.watched)
-      return;
-
-    if (settings.arrival_height_display == WaypointRendererSettings::ArrivalHeightDisplay::REQUIRED_GR ||
-        settings.arrival_height_display == WaypointRendererSettings::ArrivalHeightDisplay::REQUIRED_GR_AND_TERRAIN) {
-      if (!basic.location_available || !basic.NavAltitudeAvailable() ||
-          !way_point.has_elevation)
-        return;
-
-      const auto safety_height = task_behaviour.safety_height_arrival;
-      const auto target_altitude = way_point.elevation + safety_height;
-      const auto delta_h = basic.nav_altitude - target_altitude;
-      if (delta_h <= 0)
-        /* no L/D if below waypoint */
-        return;
-
-      const auto distance = basic.location.DistanceS(way_point.location);
-      const auto gr = distance / delta_h;
-      if (!GradientValid(gr))
-        return;
-
-      size_t length = strlen(buffer);
-      if (length > 0)
-        buffer[length++] = ':';
-
-      if (settings.arrival_height_display == WaypointRendererSettings::ArrivalHeightDisplay::REQUIRED_GR_AND_TERRAIN &&
-         reach.IsReachableTerrain()) {
-          int uah_terrain = (int)Units::ToUserAltitude(reach.terrain);
-          StringFormatUnsafe(buffer + length, "%.1f/%d%s", (double) gr,
-                            uah_terrain, altitude_unit);
-          return;
-         }
-
-      StringFormatUnsafe(buffer + length, "%.1f", (double) gr);
-      return;
-    }
-
+  /**
+   * Format the arrival height of the waypoint, according to the
+   * configured calculation.
+   *
+   * @return false if no arrival height is available
+   */
+  bool FormatArrivalHeight(char *buffer, size_t buffer_size,
+                           WaypointReachability reachable,
+                           const ReachResult &reach) const noexcept {
     if (reachable == WaypointReachability::INVALID)
-      return;
+      return false;
 
-    if (!reach.IsReachableDirect() && !way_point.flags.watched)
-      return;
+    const int uah_glide = (int)Units::ToUserAltitude(reach.direct);
+    const int uah_terrain = (int)Units::ToUserAltitude(reach.terrain);
 
-    if (settings.arrival_height_display == WaypointRendererSettings::ArrivalHeightDisplay::NONE)
-      return;
+    switch (settings.arrival_calculation) {
+    case WaypointRendererSettings::ArrivalCalculation::TERRAIN:
+      if (!reach.IsReachableTerrain())
+        return false;
 
-    size_t length = strlen(buffer);
-    int uah_glide = (int)Units::ToUserAltitude(reach.direct);
-    int uah_terrain = (int)Units::ToUserAltitude(reach.terrain);
+      StringFormat(buffer, buffer_size, "%d%s", uah_terrain, altitude_unit);
+      return true;
 
-    if (settings.arrival_height_display == WaypointRendererSettings::ArrivalHeightDisplay::TERRAIN) {
-      if (reach.IsReachableTerrain()) {
-        if (length > 0)
-          buffer[length++] = ':';
-        StringFormatUnsafe(buffer + length, "%d%s",
-                           uah_terrain, altitude_unit);
+    case WaypointRendererSettings::ArrivalCalculation::BOTH:
+      /* two values are only worth the space if the detour really
+         costs something */
+      if (reach.IsReachableDirect() && reach.IsReachableTerrain() &&
+          reach.IsDeltaConsiderable()) {
+        StringFormat(buffer, buffer_size, "%d/%d%s", uah_glide,
+                     uah_terrain, altitude_unit);
+        return true;
       }
-      return;
+
+      break;
+
+    case WaypointRendererSettings::ArrivalCalculation::STRAIGHT:
+      break;
     }
 
-    if (length > 0)
-      buffer[length++] = ':';
+    StringFormat(buffer, buffer_size, "%d%s", uah_glide, altitude_unit);
+    return true;
+  }
 
-    if (settings.arrival_height_display == WaypointRendererSettings::ArrivalHeightDisplay::GLIDE_AND_TERRAIN &&
-        reach.IsReachableDirect() && reach.IsReachableTerrain() &&
-        reach.IsDeltaConsiderable()) {
-      StringFormatUnsafe(buffer + length, "%d/%d%s", uah_glide,
-                         uah_terrain, altitude_unit);
-      return;
+  /**
+   * Format the glide ratio over ground which is required to reach the
+   * waypoint at the configured arrival safety height.
+   *
+   * @return false if no glide ratio is available
+   */
+  bool FormatRequiredGlideRatio(char *buffer, size_t buffer_size,
+                                const Waypoint &way_point) const noexcept {
+    if (!basic.location_available || !basic.NavAltitudeAvailable() ||
+        !way_point.has_elevation)
+      return false;
+
+    const auto safety_height = task_behaviour.safety_height_arrival;
+    const auto target_altitude = way_point.elevation + safety_height;
+    const auto delta_h = basic.nav_altitude - target_altitude;
+    if (delta_h <= 0)
+      /* no glide ratio if below the waypoint */
+      return false;
+
+    const auto distance = basic.location.DistanceS(way_point.location);
+    const auto gr = distance / delta_h;
+    if (!GradientValid(gr))
+      return false;
+
+    StringFormat(buffer, buffer_size, "%d", (int)lround(gr));
+    return true;
+  }
+
+  /**
+   * Is this waypoint reachable enough to be worth arrival info?
+   */
+  bool HasArrivalInfo(const Waypoint &way_point,
+                      WaypointReachability reachable,
+                      const ReachResult &reach) const noexcept {
+    if (settings.arrival_info_visibility ==
+        WaypointRendererSettings::ArrivalInfoVisibility::ALL)
+      return true;
+
+    return reachable != WaypointReachability::INVALID &&
+      (reach.IsReachableDirect() || way_point.flags.watched);
+  }
+
+  /**
+   * Format the arrival info which is drawn with the waypoint label.
+   *
+   * @return false if there is nothing to draw
+   */
+  bool FormatArrivalInfo(char *buffer, size_t buffer_size,
+                         const Waypoint &way_point,
+                         WaypointReachability reachable,
+                         const ReachResult &reach) const noexcept {
+    buffer[0] = '\0';
+
+    if (settings.arrival_info == WaypointRendererSettings::ArrivalInfo::NONE)
+      return false;
+
+    if (!HasArrivalInfo(way_point, reachable, reach))
+      return false;
+
+    size_t length = 0;
+
+    if (settings.arrival_info != WaypointRendererSettings::ArrivalInfo::GLIDE_RATIO &&
+        FormatArrivalHeight(buffer, buffer_size, reachable, reach))
+      length = strlen(buffer);
+
+    if (settings.arrival_info != WaypointRendererSettings::ArrivalInfo::ARRIVAL_HEIGHT) {
+      if (length > 0 && length + 1 < buffer_size)
+        buffer[length++] = ' ';
+
+      if (!FormatRequiredGlideRatio(buffer + length, buffer_size - length,
+                                    way_point))
+        buffer[length] = '\0';
     }
 
-    StringFormatUnsafe(buffer + length, "%d%s", uah_glide, altitude_unit);
+    return buffer[0] != '\0';
+  }
+
+  /**
+   * Is this waypoint drawn with the highlight style?
+   */
+  bool IsHighlighted(const VisibleWaypoint &vwp) const noexcept {
+    return (vwp.IsReachable() && vwp.waypoint->IsLandable()) ||
+      vwp.in_task || vwp.waypoint->flags.watched;
+  }
+
+  [[gnu::pure]]
+  static LabelShape ToLabelShape(WaypointRendererSettings::LabelStyle style) noexcept {
+    switch (style) {
+    case WaypointRendererSettings::LabelStyle::OUTLINED:
+      return LabelShape::OUTLINED;
+
+    case WaypointRendererSettings::LabelStyle::OUTLINED_INVERTED:
+      return LabelShape::OUTLINED_INVERTED;
+
+    case WaypointRendererSettings::LabelStyle::BADGE:
+      return LabelShape::ROUNDED_WHITE;
+
+    case WaypointRendererSettings::LabelStyle::TEXT:
+      break;
+    }
+
+    return LabelShape::SIMPLE;
   }
 
   void DrawWaypoint(const VisibleWaypoint &vwp) noexcept {
@@ -379,22 +450,52 @@ protected:
     }
 
     TextInBoxMode text_mode;
+    text_mode.shape = ToLabelShape(settings.label_style);
     bool bold = false;
-    if (vwp.IsReachable() && way_point.IsLandable()) {
-      text_mode.shape = settings.landable_render_mode;
-      bold = true;
+
+    if (settings.highlight_style !=
+        WaypointRendererSettings::HighlightStyle::NONE && IsHighlighted(vwp)) {
       text_mode.move_in_view = true;
-    } else if (vwp.in_task) {
-      text_mode.shape = LabelShape::OUTLINED_INVERTED;
       bold = true;
-    } else if (watchedWaypoint) {
-      text_mode.shape = LabelShape::OUTLINED;
-      text_mode.move_in_view = true;
+
+      switch (settings.highlight_style) {
+      case WaypointRendererSettings::HighlightStyle::OUTLINED:
+        text_mode.shape = LabelShape::OUTLINED;
+        break;
+
+      case WaypointRendererSettings::HighlightStyle::OUTLINED_INVERTED:
+        text_mode.shape = LabelShape::OUTLINED_INVERTED;
+        break;
+
+      case WaypointRendererSettings::HighlightStyle::BADGE:
+        text_mode.shape = LabelShape::ROUNDED_WHITE;
+        break;
+
+      case WaypointRendererSettings::HighlightStyle::NONE:
+      case WaypointRendererSettings::HighlightStyle::BOLD:
+        break;
+      }
     }
 
     char buffer[NAME_SIZE+1];
-    FormatLabel(buffer, ARRAY_SIZE(buffer),
-                way_point, vwp.reachable, vwp.reach);
+    FormatTitle(buffer, ARRAY_SIZE(buffer) - 20, way_point);
+
+    char info[16];
+    const bool has_info = FormatArrivalInfo(info, ARRAY_SIZE(info),
+                                            way_point, vwp.reachable,
+                                            vwp.reach);
+
+    const bool info_below = has_info &&
+      settings.arrival_info_position ==
+      WaypointRendererSettings::ArrivalInfoPosition::BADGE_BELOW;
+
+    if (has_info && !info_below) {
+      size_t length = strlen(buffer);
+      if (length > 0)
+        buffer[length++] = ':';
+
+      CopyTruncateString(buffer + length, ARRAY_SIZE(buffer) - length, info);
+    }
 
     auto sc = vwp.point;
     sc.x += 5;
@@ -404,10 +505,23 @@ protected:
       // make space for the green circle
       sc.x += 5;
 
-    labels.Add(buffer, sc, text_mode, bold,
-               vwp.reachable != WaypointReachability::INVALID ? vwp.reach.direct : INT_MIN,
+    const int arrival_agl = vwp.reachable != WaypointReachability::INVALID
+      ? vwp.reach.direct
+      : INT_MIN;
+
+    labels.Add(buffer, sc, text_mode, bold, arrival_agl,
                vwp.in_task, way_point.IsLandable(), way_point.IsAirport(),
-               watchedWaypoint);
+               watchedWaypoint, false);
+
+    if (info_below) {
+      TextInBoxMode info_mode;
+      info_mode.shape = LabelShape::ROUNDED_WHITE;
+      info_mode.move_in_view = true;
+
+      labels.Add(info, sc, info_mode, false, arrival_agl,
+                 vwp.in_task, way_point.IsLandable(), way_point.IsAirport(),
+                 watchedWaypoint, true);
+    }
   }
 
   void AddWaypoint(const WaypointPtr &way_point, bool in_task) noexcept {
@@ -448,11 +562,27 @@ public:
     task_valid = true;
   }
 
+  /**
+   * Does the arrival height need to be calculated for waypoints which
+   * are neither landable nor watched?
+   */
+  [[gnu::pure]]
+  bool NeedsReachEverywhere() const noexcept {
+    return settings.arrival_info_visibility ==
+      WaypointRendererSettings::ArrivalInfoVisibility::ALL &&
+      settings.arrival_info != WaypointRendererSettings::ArrivalInfo::NONE &&
+      settings.arrival_info != WaypointRendererSettings::ArrivalInfo::GLIDE_RATIO;
+  }
+
+  [[gnu::pure]]
+  bool NeedsReach(const Waypoint &way_point) const noexcept {
+    return way_point.IsLandable() || way_point.flags.watched ||
+      NeedsReachEverywhere();
+  }
+
   void CalculateRoute(const ProtectedRoutePlanner &route_planner) noexcept {
     for (VisibleWaypoint &vwp : waypoints) {
-      const Waypoint &way_point = *vwp.waypoint;
-
-      if (way_point.IsLandable() || way_point.flags.watched)
+      if (NeedsReach(*vwp.waypoint))
         vwp.CalculateReachability(route_planner, task_behaviour);
     }
   }
@@ -470,9 +600,7 @@ public:
     const MacCready mac_cready(task_behaviour.glide, glide_polar);
 
     for (VisibleWaypoint &vwp : waypoints) {
-      const Waypoint &way_point = *vwp.waypoint;
-
-      if (way_point.IsLandable() || way_point.flags.watched)
+      if (NeedsReach(*vwp.waypoint))
         vwp.CalculateReachabilityDirect(basic, calculated.GetWindOrZero(),
                                         mac_cready, task_behaviour);
     }
@@ -505,7 +633,13 @@ MapWaypointLabelRender(Canvas &canvas, PixelSize clip_size,
   for (const auto &l : labels) {
     canvas.Select(l.bold ? *look.bold_font : *look.font);
 
-    TextInBox(canvas, l.Name, l.Pos, l.Mode, clip_size, &label_block);
+    /* the arrival info badge goes below the waypoint label */
+    const int offset = l.isArrivalInfo
+      ? (int)(canvas.GetFontHeight() + Layout::GetTextPadding())
+      : 0;
+
+    TextInBox(canvas, l.Name, l.Pos.At(0, offset), l.Mode, clip_size,
+              &label_block);
   }
 }
 

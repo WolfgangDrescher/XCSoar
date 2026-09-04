@@ -231,35 +231,64 @@ This page provides options for how waypoints are displayed on the map.
   {\bf First 5 letters}: The first 5 letters of the waypoint name are displayed. \\
   {\bf None}: No name is displayed with the waypoint.
 
-\item[Arrival height*] \label{conf:arrivalheight} This setting allows arrival height
-and/or required glide ratio to also be shown in labels for landable waypoints. See Section~\ref{sec:waypoint-schemes} for more information.\\
-  {\bf None}: Neither arrival height nor required glide ratio is displayed. \\
-  {\bf Straight glide}: Straight glide arrival height (no terrain is considered). (default option) \\
-  {\bf Terrain avoidance glide}: Arrival height considering any detour needed to avoid terrain. \\
-  {\bf Straight \& terrain glide}: Both arrival heights. \\
-  {\bf Required glide ratio}: Glide ratio over the ground required to reach the waypoint. \\
-  {\bf Required GR \& terrain glide}: Both required glide ratio and terrain avoidance glide arrival height.
+\item[Label visibility*]  \label{conf:labelvisibility} Controls which waypoints
+  are displayed with a label on the map: \\
+  {\bf All}: All waypoint labels will be displayed. \\
+  {\bf Task waypoints \& airfields}: All waypoints part of a task and all
+  airfields will be displayed. \\
+  {\bf Task waypoints \& landables}: All waypoints part of a task and all
+  landables will be displayed. \\
+  {\bf Task waypoints}: All waypoints part of a task will be displayed. \\
+  {\bf None}:  No waypoint labels will be displayed.
 
-  For any option including terrain avoidance glide arrival height, the 'Reach
-  mode' setting (on the 'Glide Computer / Route' configuration page,
-  ~\ref{sec:glide-comp-route}) must be set to 'Turning'.
+\item[Label style*] \label{conf:labelstyle} How waypoint labels are drawn. This
+  applies to every waypoint label on the map. \\
+  {\bf Text}: Plain text without an outline. \\
+  {\bf Outlined text}: Black text with a white outline, readable on any
+  background. (default option) \\
+  {\bf Inverted text}: White text with a black outline. \\
+  {\bf Badge}: Text on a rounded translucent background.
 
-  Glide ratio will be shown whenever the aircraft is higher than the waypoint
-  regardless of how shallow the glide is and
-  regardless of which configured waypoint file contains the waypoint. Negative
-  straight glide arrival heights, however, will only be shown for
-  waypoints in the 'Watched waypoints' file (selected on the
-  'Site Files / Site Files' configuration page, \ref{sec:site-files}). Negative
-  \emph{terrain avoidance} arrival heights will never be shown for any waypoints.
+\item[Highlight*] \label{conf:labelhighlight} How the labels of the reachable
+  landables, the task waypoints and the watched waypoints are drawn. Every
+  option except the first one also draws them in bold. \\
+  {\bf Same as others}: Nothing is highlighted. \\
+  {\bf Bold}: The label style in bold. \\
+  {\bf Outlined text}, {\bf Inverted text}, {\bf Badge}: As above, in bold.
+  (default option: Badge)
+
+\item[Arrival info*] \label{conf:arrivalheight} Which value is displayed with
+  the waypoint label. See Section~\ref{sec:waypoint-schemes} for more
+  information. \\
+  {\bf None}: No value is displayed. \\
+  {\bf Arrival height}: The height above the safety 'Arrival height'
+  (\ref{sec:safety-factors}) at the waypoint. (default option) \\
+  {\bf Required glide ratio}: The glide ratio over the ground required to get
+  there, as a whole number. It is shown whenever the aircraft is higher than
+  that height, regardless of how shallow the glide is. \\
+  {\bf Both}: The arrival height followed by the required glide ratio.
+
+\item[Calculation*] How the arrival height is calculated. The required glide
+  ratio is always calculated straight over the ground and ignores this
+  setting. \\
+  {\bf Straight glide}: Straight glide arrival height (no terrain is
+  considered). (default option) \\
+  {\bf Terrain avoidance glide}: Arrival height considering any detour needed
+  to avoid terrain. \\
+  {\bf Straight \& terrain glide}: Both arrival heights, but only where the
+  detour costs at least 10 m and 5 \%; otherwise the straight glide arrival
+  height alone.
+
+  For the last two options, the 'Reach mode' setting (on the 'Glide Computer /
+  Route' configuration page, ~\ref{sec:glide-comp-route}) must be set to
+  'Turning'.
 
   \warning
-  Also, if the 'Straight \& terrain glide' option is selected and only one
-  arrival height (a positive one) is shown for a waypoint (e.g.,
-  'Moontown:100m'), either no detour around terrain is needed or there's
-  interfering terrain and no possible detour will get you to the waypoint at
-  an acceptable height (the configured safety 'Arrival height'
-  (\ref{sec:safety-factors}) above the ground at the waypoint). These are two
-  \emph{very different situations} safety-wise!
+  If 'Straight \& terrain glide' is selected and only one arrival height (a
+  positive one) is shown for a waypoint (e.g., 'Moontown:100m'), either no
+  detour around terrain is needed or there's interfering terrain and no
+  possible detour will get you to the waypoint at an acceptable height. These
+  are two \emph{very different situations} safety-wise!
   Use other clues, like the reach line or the waypoint
   appearance (e.g., color), to determine which is the case in this scenario.
   Both arrival altitudes will be shown only if there's a detour that
@@ -271,15 +300,21 @@ and/or required glide ratio to also be shown in labels for landable waypoints. S
   you must detour, and the detour will cost you 150m (compared to if there were
   no terrain in your way).
 
-\item[Label style*]  Labels for landables can be shown on a rounded rectangle with 
-  white background, or with outlined letters.
-\item[Waypoint label visibility*]  \label{conf:labelvisibility} Controls which waypoints 
-  are displayed with names and arrival altitudes on the map: \\
-  {\bf All}: All waypoint labels will be displayed. \\
-  {\bf Task waypoints and landables}: All waypoints part of a task and all landables 
-  will be displayed. \\
-  {\bf Task waypoints}: All waypoints part of a task will be displayed. \\
-  {\bf None}:  No waypoint labels will be displayed.
+\item[Arrival info position*] Where the value is drawn. \\
+  {\bf After the name}: Appended to the waypoint label, separated by a colon,
+  as in 'Moontown:100m'. (default option) \\
+  {\bf Badge below}: On a rounded label of its own below the waypoint label.
+  It is the first label to be dropped when the map gets crowded.
+
+\item[Show arrival info*] Which waypoints get the value. \\
+  {\bf Reachable only}: Only waypoints which can be reached, plus the watched
+  ones. Negative arrival heights are shown for the watched waypoints only.
+  (default option) \\
+  {\bf All labelled waypoints}: Every waypoint which has a label, including
+  the unreachable ones and the ones which are not landable. Negative arrival
+  heights are shown as well. This calculates a glide solution for every
+  waypoint on the screen, which costs noticeably more on slow devices.
+
 \item[Landable symbols]  \label{conf:waypointicons} Three styles are available:
   Purple circles (WinPilot style), a high contrast style with icons,
   and icons with a traffic light colour scheme. See Section~\ref{sec:waypoint-schemes} for details.

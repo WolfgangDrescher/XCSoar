@@ -12,9 +12,13 @@
 
 enum ControlIndex {
   WaypointLabels,
-  WaypointArrivalHeightDisplay,
-  WaypointLabelStyle,
   WaypointLabelSelection,
+  WaypointTextStyle,
+  WaypointHighlightStyle,
+  WaypointArrivalInfo,
+  WaypointArrivalCalculation,
+  WaypointArrivalInfoPosition,
+  WaypointArrivalInfoVisibility,
   AppIndLandable,
   MapWaypointIconScale,
   AppUseSWLandablesRendering,
@@ -46,12 +50,24 @@ WaypointDisplayConfigPanel::UpdateVisibilities()
   bool visible = GetValueBoolean(AppUseSWLandablesRendering);
   SetRowVisible(AppLandableRenderingScale, visible);
   SetRowVisible(AppScaleRunwayLength, visible);
+
+  const auto arrival_info = (WaypointRendererSettings::ArrivalInfo)
+    GetValueEnum(WaypointArrivalInfo);
+  const bool has_arrival_info =
+    arrival_info != WaypointRendererSettings::ArrivalInfo::NONE;
+
+  /* the glide ratio is always calculated straight over ground */
+  SetRowEnabled(WaypointArrivalCalculation, has_arrival_info &&
+                arrival_info != WaypointRendererSettings::ArrivalInfo::GLIDE_RATIO);
+  SetRowEnabled(WaypointArrivalInfoPosition, has_arrival_info);
+  SetRowEnabled(WaypointArrivalInfoVisibility, has_arrival_info);
 }
 
 void
 WaypointDisplayConfigPanel::OnModified(DataField &df) noexcept
 {
-  if (IsDataField(AppUseSWLandablesRendering, df))
+  if (IsDataField(AppUseSWLandablesRendering, df) ||
+      IsDataField(WaypointArrivalInfo, df))
     UpdateVisibilities();
 }
 
@@ -86,44 +102,6 @@ WaypointDisplayConfigPanel::Prepare(ContainerWindow &parent,
   AddEnum(_("Label format"), _("Determines how labels are displayed with each waypoint"),
           wp_labels_list, (unsigned)settings.display_text_type);
 
-  static constexpr StaticEnumChoice wp_arrival_list[] = {
-    { WaypointRendererSettings::ArrivalHeightDisplay::NONE,
-      N_("None"),
-      N_("No arrival height is displayed.") },
-    { WaypointRendererSettings::ArrivalHeightDisplay::GLIDE,
-      N_("Straight glide"),
-      N_("Straight glide arrival height (no terrain is considered).") },
-    { WaypointRendererSettings::ArrivalHeightDisplay::TERRAIN,
-      N_("Terrain avoidance glide"),
-      N_("Arrival height considering terrain avoidance. "
-         "Requires \"Reach mode: Turning\" in \"Glide Computer > Route\" settings.") },
-    { WaypointRendererSettings::ArrivalHeightDisplay::GLIDE_AND_TERRAIN,
-      N_("Straight & terrain glide"),
-      N_("Both arrival heights are displayed. "
-         "Requires \"Reach mode: Turning\" in \"Glide Computer > Route\" settings.") },
-    { WaypointRendererSettings::ArrivalHeightDisplay::REQUIRED_GR,
-      N_("Required glide ratio") },
-    { WaypointRendererSettings::ArrivalHeightDisplay::REQUIRED_GR_AND_TERRAIN,
-      N_("Required GR & terrain glide"),
-      N_("Both Required glide ratio and terrain avoidance height are displayed. "
-         "Requires \"Reach mode: Turning\" in \"Glide Computer > Route\" settings.") },
-    nullptr
-  };
-
-  AddEnum(_("Arrival height"), _("Determines how arrival height is displayed in waypoint labels"),
-          wp_arrival_list, (unsigned)settings.arrival_height_display);
-  SetExpertRow(WaypointArrivalHeightDisplay);
-
-  static constexpr StaticEnumChoice wp_label_list[] = {
-    { LabelShape::ROUNDED_BLACK, N_("Rounded rectangle") },
-    { LabelShape::OUTLINED_INVERTED, N_("Outlined") },
-    nullptr
-  };
-
-  AddEnum(_("Label style"), nullptr, wp_label_list,
-          (unsigned)settings.landable_render_mode);
-  SetExpertRow(WaypointLabelStyle);
-
   static constexpr StaticEnumChoice wp_selection_list[] = {
     { WaypointRendererSettings::LabelSelection::ALL,
       N_("All"), N_("All labels will be displayed.") },
@@ -145,6 +123,117 @@ WaypointDisplayConfigPanel::Prepare(ContainerWindow &parent,
           _("Determines what labels are displayed."),
           wp_selection_list, (unsigned)settings.label_selection);
   SetExpertRow(WaypointLabelSelection);
+
+  static constexpr StaticEnumChoice wp_label_style_list[] = {
+    { WaypointRendererSettings::LabelStyle::TEXT,
+      N_("Text"), N_("Plain text without an outline.") },
+    { WaypointRendererSettings::LabelStyle::OUTLINED,
+      N_("Outlined text"),
+      N_("Black text with a white outline, readable on any background.") },
+    { WaypointRendererSettings::LabelStyle::OUTLINED_INVERTED,
+      N_("Inverted text"), N_("White text with a black outline.") },
+    { WaypointRendererSettings::LabelStyle::BADGE,
+      N_("Badge"), N_("Text on a rounded translucent background.") },
+    nullptr
+  };
+
+  AddEnum(_("Label style"),
+          _("How waypoint labels are drawn on the map."),
+          wp_label_style_list, (unsigned)settings.label_style);
+  SetExpertRow(WaypointTextStyle);
+
+  static constexpr StaticEnumChoice wp_highlight_list[] = {
+    { WaypointRendererSettings::HighlightStyle::NONE,
+      N_("Same as others"), N_("Nothing is highlighted.") },
+    { WaypointRendererSettings::HighlightStyle::BOLD,
+      N_("Bold"), N_("The label style in bold.") },
+    { WaypointRendererSettings::HighlightStyle::OUTLINED,
+      N_("Outlined text"), N_("Bold black text with a white outline.") },
+    { WaypointRendererSettings::HighlightStyle::OUTLINED_INVERTED,
+      N_("Inverted text"), N_("Bold white text with a black outline.") },
+    { WaypointRendererSettings::HighlightStyle::BADGE,
+      N_("Badge"), N_("Bold text on a rounded translucent background.") },
+    nullptr
+  };
+
+  AddEnum(_("Highlight"),
+          _("How the labels of reachable landables, task waypoints and "
+            "watched waypoints are drawn."),
+          wp_highlight_list, (unsigned)settings.highlight_style);
+  SetExpertRow(WaypointHighlightStyle);
+
+  static constexpr StaticEnumChoice wp_arrival_info_list[] = {
+    { WaypointRendererSettings::ArrivalInfo::NONE,
+      N_("None"), N_("No arrival info is displayed.") },
+    { WaypointRendererSettings::ArrivalInfo::ARRIVAL_HEIGHT,
+      N_("Arrival height"),
+      N_("The height above the safety arrival height at the waypoint.") },
+    { WaypointRendererSettings::ArrivalInfo::GLIDE_RATIO,
+      N_("Required glide ratio"),
+      N_("The glide ratio over ground required to get there, as a whole "
+         "number.") },
+    { WaypointRendererSettings::ArrivalInfo::BOTH,
+      N_("Both"),
+      N_("The arrival height followed by the required glide ratio.") },
+    nullptr
+  };
+
+  AddEnum(_("Arrival info"),
+          _("Which value is displayed with the waypoint label."),
+          wp_arrival_info_list, (unsigned)settings.arrival_info, this);
+  SetExpertRow(WaypointArrivalInfo);
+
+  static constexpr StaticEnumChoice wp_arrival_calculation_list[] = {
+    { WaypointRendererSettings::ArrivalCalculation::STRAIGHT,
+      N_("Straight glide"),
+      N_("Straight glide arrival height (no terrain is considered).") },
+    { WaypointRendererSettings::ArrivalCalculation::TERRAIN,
+      N_("Terrain avoidance glide"),
+      N_("Arrival height considering terrain avoidance. "
+         "Requires \"Reach mode: Turning\" in \"Glide Computer > Route\" settings.") },
+    { WaypointRendererSettings::ArrivalCalculation::BOTH,
+      N_("Straight & terrain glide"),
+      N_("Both arrival heights, but only where the detour costs at least "
+         "10 m and 5 %. "
+         "Requires \"Reach mode: Turning\" in \"Glide Computer > Route\" settings.") },
+    nullptr
+  };
+
+  AddEnum(_("Calculation"),
+          _("How the arrival height is calculated. The required glide ratio "
+            "is always calculated straight over ground."),
+          wp_arrival_calculation_list, (unsigned)settings.arrival_calculation);
+  SetExpertRow(WaypointArrivalCalculation);
+
+  static constexpr StaticEnumChoice wp_arrival_position_list[] = {
+    { WaypointRendererSettings::ArrivalInfoPosition::AFTER_NAME,
+      N_("After the name"),
+      N_("Appended to the waypoint label, separated by a colon.") },
+    { WaypointRendererSettings::ArrivalInfoPosition::BADGE_BELOW,
+      N_("Badge below"),
+      N_("On a rounded label of its own below the waypoint label.") },
+    nullptr
+  };
+
+  AddEnum(_("Arrival info position"), nullptr,
+          wp_arrival_position_list,
+          (unsigned)settings.arrival_info_position);
+  SetExpertRow(WaypointArrivalInfoPosition);
+
+  static constexpr StaticEnumChoice wp_arrival_visibility_list[] = {
+    { WaypointRendererSettings::ArrivalInfoVisibility::REACHABLE,
+      N_("Reachable only"),
+      N_("Only waypoints which can be reached, plus the watched ones.") },
+    { WaypointRendererSettings::ArrivalInfoVisibility::ALL,
+      N_("All labelled waypoints"),
+      N_("Every waypoint which has a label, including unreachable ones.") },
+    nullptr
+  };
+
+  AddEnum(_("Show arrival info"), nullptr,
+          wp_arrival_visibility_list,
+          (unsigned)settings.arrival_info_visibility);
+  SetExpertRow(WaypointArrivalInfoVisibility);
 
   static constexpr StaticEnumChoice wp_style_list[] = {
     { WaypointRendererSettings::LandableStyle::PURPLE_CIRCLE,
@@ -203,14 +292,31 @@ WaypointDisplayConfigPanel::Save(bool &_changed) noexcept
 
   changed |= SaveValueEnum(WaypointLabels, ProfileKeys::DisplayText, settings.display_text_type);
 
-  changed |= SaveValueEnum(WaypointArrivalHeightDisplay, ProfileKeys::WaypointArrivalHeightDisplay,
-                           settings.arrival_height_display);
-
-  changed |= SaveValueEnum(WaypointLabelStyle, ProfileKeys::WaypointLabelStyle,
-                           settings.landable_render_mode);
-
   changed |= SaveValueEnum(WaypointLabelSelection, ProfileKeys::WaypointLabelSelection,
                            settings.label_selection);
+
+  changed |= SaveValueEnum(WaypointTextStyle, ProfileKeys::WaypointTextStyle,
+                           settings.label_style);
+
+  changed |= SaveValueEnum(WaypointHighlightStyle,
+                           ProfileKeys::WaypointHighlightStyle,
+                           settings.highlight_style);
+
+  changed |= SaveValueEnum(WaypointArrivalInfo,
+                           ProfileKeys::WaypointArrivalInfo,
+                           settings.arrival_info);
+
+  changed |= SaveValueEnum(WaypointArrivalCalculation,
+                           ProfileKeys::WaypointArrivalCalculation,
+                           settings.arrival_calculation);
+
+  changed |= SaveValueEnum(WaypointArrivalInfoPosition,
+                           ProfileKeys::WaypointArrivalInfoPosition,
+                           settings.arrival_info_position);
+
+  changed |= SaveValueEnum(WaypointArrivalInfoVisibility,
+                           ProfileKeys::WaypointArrivalInfoVisibility,
+                           settings.arrival_info_visibility);
 
   changed |= SaveValueEnum(AppIndLandable, ProfileKeys::AppIndLandable, settings.landable_style);
 

@@ -25,6 +25,9 @@ public:
     bool isAirport;
     bool isWatchedWaypoint;
     bool bold;
+
+    /** is this the arrival info badge of a waypoint? */
+    bool isArrivalInfo;
   };
 
 protected:
@@ -44,7 +47,7 @@ public:
            TextInBoxMode Mode, bool bold,
            int AltArivalAGL,
            bool inTask, bool isLandable, bool isAirport,
-           bool isWatchedWaypoint) noexcept;
+           bool isWatchedWaypoint, bool isArrivalInfo) noexcept;
   void Sort() noexcept;
 
   auto begin() const noexcept {
