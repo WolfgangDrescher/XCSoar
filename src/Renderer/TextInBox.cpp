@@ -7,9 +7,11 @@
 #include "ui/canvas/Pen.hpp"
 #include "Math/Angle.hpp"
 #include "Screen/Layout.hpp"
+#include "util/Macros.hpp"
 #include "util/UTF8.hpp"
 
 #include <algorithm>
+#include <cassert>
 
 #include <math.h>
 
@@ -101,18 +103,63 @@ RenderShadowedText(Canvas &canvas, const char *text,
   canvas.DrawText(p, text);
 }
 
+/**
+ * The gap on either side of the rule which separates two segments.
+ */
+[[gnu::pure]]
+static unsigned
+GetSegmentGap(unsigned padding) noexcept
+{
+  return std::max(1u, padding);
+}
+
+/**
+ * The thin vertical rule which separates the segments inside a box.
+ */
+static void
+DrawSeparator(Canvas &canvas, const PixelRect &rc, int x) noexcept
+{
+  const unsigned width = std::max(1u, canvas.GetFontHeight() / 16u);
+  canvas.DrawFilledRectangle({x, rc.top, x + (int)width, rc.bottom},
+                             COLOR_BLACK);
+}
+
 // returns true if really wrote something
 bool
-TextInBox(Canvas &canvas, const char *text, PixelPoint p,
-          TextInBoxMode mode, const PixelRect &map_rc,
+TextInBox(Canvas &canvas, std::span<const char *const> segments,
+          PixelPoint p, TextInBoxMode mode, const PixelRect &map_rc,
           LabelBlock *label_block) noexcept
 {
   // landable waypoint label inside white box
 
-  if (text == nullptr || text[0] == '\0' || !ValidateUTF8(text))
-    text = "?";
+  assert(!segments.empty());
 
-  PixelSize tsize = canvas.CalcTextSize(text);
+  const char *text[3];
+  unsigned width[3];
+  const std::size_t n = std::min(segments.size(), ARRAY_SIZE(text));
+
+  const unsigned padding = mode.compact
+    ? std::max(1u, Layout::GetTextPadding() / 2)
+    : Layout::GetTextPadding();
+  const unsigned gap = GetSegmentGap(padding);
+
+  PixelSize tsize{0u, canvas.GetFontHeight()};
+
+  for (std::size_t i = 0; i < n; ++i) {
+    text[i] = segments[i];
+    if (text[i] == nullptr || text[i][0] == '\0' || !ValidateUTF8(text[i]))
+      text[i] = "?";
+
+    const auto size = canvas.CalcTextSize(text[i]);
+    width[i] = size.width;
+    tsize.height = std::max(tsize.height, size.height);
+
+    if (i > 0)
+      /* the gap on both sides of the rule, and the rule itself */
+      tsize.width += 2 * gap + 1;
+
+    tsize.width += size.width;
+  }
 
   if (mode.align == TextInBoxMode::Alignment::RIGHT)
     p.x -= tsize.width;
@@ -124,7 +171,6 @@ TextInBox(Canvas &canvas, const char *text, PixelPoint p,
   else if (mode.vertical_position == TextInBoxMode::VerticalPosition::CENTERED)
     p.y -= tsize.height / 2;
 
-  const unsigned padding = Layout::GetTextPadding();
   PixelRect rc;
   rc.left = p.x - padding - 1;
   rc.right = p.x + tsize.width + padding;
@@ -139,6 +185,10 @@ TextInBox(Canvas &canvas, const char *text, PixelPoint p,
 
   if (label_block != nullptr && !label_block->check(rc))
     return false;
+
+  const bool boxed = mode.shape == LabelShape::ROUNDED_BLACK ||
+    mode.shape == LabelShape::ROUNDED_WHITE ||
+    mode.shape == LabelShape::FILLED;
 
   if (mode.shape == LabelShape::ROUNDED_BLACK ||
       mode.shape == LabelShape::ROUNDED_WHITE) {
@@ -180,22 +230,62 @@ TextInBox(Canvas &canvas, const char *text, PixelPoint p,
 
     canvas.SetBackgroundTransparent();
     canvas.SetTextColor(COLOR_BLACK);
-    canvas.DrawText(p, text);
   } else if (mode.shape == LabelShape::FILLED) {
     canvas.SetBackgroundColor(COLOR_WHITE);
     canvas.SetTextColor(COLOR_BLACK);
-    canvas.DrawOpaqueText(p, rc, text);
-  } else if (mode.shape == LabelShape::OUTLINED) {
-    RenderShadowedText(canvas, text, p, false);
-  } else if (mode.shape == LabelShape::OUTLINED_INVERTED) {
-    RenderShadowedText(canvas, text, p, true);
-  } else {
+    canvas.DrawFilledRectangle(rc, COLOR_WHITE);
     canvas.SetBackgroundTransparent();
-    canvas.SetTextColor(COLOR_BLACK);
-    canvas.DrawText(p, text);
+  }
+
+  int x = p.x;
+
+  for (std::size_t i = 0; i < n; ++i) {
+    if (i > 0) {
+      x += gap;
+
+      /* the rule reads as a table column separator inside a box; on
+         plain text it would just be a stray line on the map */
+      if (boxed)
+        DrawSeparator(canvas, rc, x);
+
+      x += 1 + gap;
+    }
+
+    const PixelPoint q{x, p.y};
+
+    if (mode.shape == LabelShape::OUTLINED)
+      RenderShadowedText(canvas, text[i], q, false);
+    else if (mode.shape == LabelShape::OUTLINED_INVERTED)
+      RenderShadowedText(canvas, text[i], q, true);
+    else {
+      canvas.SetBackgroundTransparent();
+      canvas.SetTextColor(COLOR_BLACK);
+      canvas.DrawText(q, text[i]);
+    }
+
+    x += width[i];
   }
 
   return true;
+}
+
+bool
+TextInBox(Canvas &canvas, std::span<const char *const> lines, PixelPoint p,
+          TextInBoxMode mode, PixelSize screen_size,
+          LabelBlock *label_block) noexcept
+{
+  return TextInBox(canvas, lines, p, mode, PixelRect{screen_size},
+                   label_block);
+}
+
+bool
+TextInBox(Canvas &canvas, const char *text, PixelPoint p,
+          TextInBoxMode mode, const PixelRect &map_rc,
+          LabelBlock *label_block) noexcept
+{
+  const char *lines[]{text};
+  return TextInBox(canvas, std::span<const char *const>{lines}, p, mode,
+                   map_rc, label_block);
 }
 
 bool

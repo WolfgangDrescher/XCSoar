@@ -5,6 +5,8 @@
 
 #include "LabelShape.hpp"
 
+#include <span>
+
 struct PixelPoint;
 struct PixelSize;
 struct PixelRect;
@@ -32,6 +34,9 @@ struct TextInBoxMode {
   Alignment align = Alignment::LEFT;
   VerticalPosition vertical_position = VerticalPosition::BELOW;
   bool move_in_view = false;
+
+  /** keep the padding around the text as small as possible */
+  bool compact = false;
 };
 
 bool
@@ -43,4 +48,18 @@ bool
 TextInBox(Canvas &canvas, const char *value, PixelPoint p,
           TextInBoxMode mode,
           PixelSize screen_size,
+          LabelBlock *label_block=nullptr) noexcept;
+
+/**
+ * Draw several lines of text in one box.  Inside a box shape, the
+ * lines are separated by a thin horizontal rule.
+ */
+bool
+TextInBox(Canvas &canvas, std::span<const char *const> lines, PixelPoint p,
+          TextInBoxMode mode, const PixelRect &map_rc,
+          LabelBlock *label_block=nullptr) noexcept;
+
+bool
+TextInBox(Canvas &canvas, std::span<const char *const> lines, PixelPoint p,
+          TextInBoxMode mode, PixelSize screen_size,
           LabelBlock *label_block=nullptr) noexcept;
