@@ -156,6 +156,7 @@ namespace InfoBoxFactory
     e_ActiveWaypoint, /* Active waypoint infobox: shows the current task's next waypoint name (or Goto waypoint if no task), arrival altitude diff, and distance */
     e_PreviousWaypoint, /* Previous waypoint infobox: shows the task waypoint before the active leg (start when on the first leg) with arrival altitude diff and distance; selection is informational only and never advances the task or sets a Goto */
     e_ReleaseSpace, /* Occupies no space of its own: the InfoBox is not displayed and the other InfoBoxes of the same line grow into the gap */
+    e_MergeAlongLine, /* Occupies no space of its own: the InfoBox is not displayed and the preceding InfoBox of the same line grows over it */
     e_NUM_TYPES /* Last item */
   };
 
