@@ -137,7 +137,7 @@ void
 UpdateInfoBoxSpacer(InfoBoxData &data) noexcept
 {
   /* this InfoBox is never displayed; it only releases its space to
-     its neighbours */
+     its neighbours (also used by e_MergePrevious) */
   data.SetInvalid();
 }
 

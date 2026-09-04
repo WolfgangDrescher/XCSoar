@@ -1075,13 +1075,33 @@ InfoBoxLayout::ApplyContents(Layout &layout,
     unsigned weights[InfoBoxSettings::Panel::MAX_CONTENTS];
     unsigned total = 0, collapsed = 0;
 
+    /* the most recent InfoBox which claims space of its own;
+       #InfoBoxFactory::e_MergePrevious hands its slot to that one */
+    unsigned previous = group.end;
+
     for (unsigned i = start; i < group.end; ++i) {
-      if (panel.contents[i] == InfoBoxFactory::e_Spacer) {
+      switch (panel.contents[i]) {
+      case InfoBoxFactory::e_Spacer:
         weights[i] = 0;
         ++collapsed;
-      } else {
+        break;
+
+      case InfoBoxFactory::e_MergePrevious:
+        weights[i] = 0;
+        ++collapsed;
+
+        if (previous < group.end) {
+          ++weights[previous];
+          ++total;
+        }
+
+        break;
+
+      default:
         weights[i] = 1;
         ++total;
+        previous = i;
+        break;
       }
     }
 

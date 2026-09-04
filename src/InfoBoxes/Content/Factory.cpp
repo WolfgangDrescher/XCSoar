@@ -1219,6 +1219,14 @@ static constexpr MetaData meta_data[] = {
     UpdateInfoBoxSpacer,
   },
 
+  // e_MergePrevious
+  {
+    NC_("InfoBox", "Merge with previous"),
+    NC_("Abbreviation", "Merge"),
+    N_("Placeholder which is not displayed: the preceding InfoBox of the same row (or column) grows over it and gets twice the space, which helps with long values such as waypoint names. Several in a row widen it further; in the first slot of a row it behaves like a Spacer."),
+    UpdateInfoBoxSpacer,
+  },
+
 };
 
 static_assert(ARRAY_SIZE(meta_data) == NUM_TYPES,
