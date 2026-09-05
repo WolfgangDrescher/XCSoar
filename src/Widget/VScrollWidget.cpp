@@ -117,6 +117,15 @@ VScrollWidget::Prepare(ContainerWindow &, const PixelRect &rc) noexcept
   widget->Prepare(GetWindow(), AdjustForScrollbar(rc));
 }
 
+void
+VScrollWidget::Unprepare() noexcept
+{
+  /* the child must be unprepared before it is destroyed; its rows may
+     hold widgets of their own, and those expect to be hidden while
+     their windows still exist */
+  widget->Unprepare();
+}
+
 bool
 VScrollWidget::Save(bool &changed) noexcept
 {

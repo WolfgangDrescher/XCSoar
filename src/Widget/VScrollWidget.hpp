@@ -93,6 +93,7 @@ public:
   PixelSize GetMaximumSize() const noexcept override;
   void Initialise(ContainerWindow &parent, const PixelRect &rc) noexcept override;
   void Prepare(ContainerWindow &parent, const PixelRect &rc) noexcept override;
+  void Unprepare() noexcept override;
   bool Save(bool &changed) noexcept override;
   bool Click() noexcept override;
   void ReClick() noexcept override;
