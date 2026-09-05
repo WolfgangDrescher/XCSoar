@@ -5,7 +5,9 @@
 
 #include "InfoBoxSettings.hpp"
 #include "Renderer/TextButtonRenderer.hpp"
+#include "Renderer/TextRenderer.hpp"
 #include "ui/event/PeriodicTimer.hpp"
+#include "ui/event/Timer.hpp"
 #include "ui/window/PaintWindow.hpp"
 #include "util/StaticArray.hxx"
 
@@ -103,6 +105,14 @@ private:
    */
   unsigned card_number[InfoBoxSettings::Panel::MAX_CONTENTS];
 
+  /** the InfoBox whose description is shown, or -1 */
+  int described_slot = -1;
+
+  TextRenderer name_renderer, description_renderer;
+
+  /** opens the InfoBox picker when an InfoBox is held down */
+  UI::Timer picker_timer{[this]{ OnPickerTimer(); }};
+
   UI::PeriodicTimer shuffle_timer{[this]{ OnShuffleTimer(); }};
 
 public:
@@ -198,6 +208,7 @@ private:
   void PaintCards(Canvas &canvas) noexcept;
   void PaintButtons(Canvas &canvas) noexcept;
   void PaintPanelName(Canvas &canvas) noexcept;
+  void PaintDescription(Canvas &canvas) noexcept;
 
   void ResetCardNumbers() noexcept;
 
@@ -209,6 +220,9 @@ private:
   PixelPoint GetShuffleOffset(unsigned slot) const noexcept;
 
   void OnShuffleTimer() noexcept;
+
+  /** Open the picker for the InfoBox which is being held down. */
+  void OnPickerTimer() noexcept;
 
   /** Let the user choose a different InfoBox for @p slot. */
   void ShowPicker(unsigned slot) noexcept;

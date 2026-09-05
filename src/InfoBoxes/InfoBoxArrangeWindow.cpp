@@ -35,6 +35,9 @@ constexpr uint8_t OVERLAY_ALPHA = 0xe6;
 /** how long a displaced InfoBox takes to slide into its new slot */
 constexpr auto SHUFFLE_DURATION = std::chrono::milliseconds(250);
 
+/** how long an InfoBox has to be held before the picker opens */
+constexpr auto PICKER_DELAY = std::chrono::milliseconds(600);
+
 /**
  * How much the card grows when it is picked up, relative to the slot
  * it came from.
@@ -282,7 +285,8 @@ InfoBoxArrangeWindow::PaintCards(Canvas &canvas) noexcept
     const PixelPoint offset = GetShuffleOffset(i);
     rc.Offset(offset.x, offset.y);
     rc.Grow(-(int)look.preview_padding);
-    DrawCard(canvas, ToLocal(rc), i, card_number[i], false);
+    DrawCard(canvas, ToLocal(rc), i, card_number[i],
+             (int)i == described_slot);
   }
 
   if (drag && drag->following)
@@ -316,6 +320,47 @@ InfoBoxArrangeWindow::PaintPanelName(Canvas &canvas) noexcept
 }
 
 void
+InfoBoxArrangeWindow::PaintDescription(Canvas &canvas) noexcept
+{
+  if (described_slot < 0)
+    return;
+
+  const auto type = panel->contents[described_slot];
+  const char *name = gettext(InfoBoxFactory::GetName(type));
+  const char *description = InfoBoxFactory::GetDescription(type);
+
+  PixelRect rc = ToLocal(content);
+  rc.Grow(-Layout::Scale(8));
+
+  /* keep clear of the panel name and the buttons; on a small screen
+     the description is cut off instead of covering them */
+  rc.bottom = std::min(rc.bottom, GetPanelNameRect().top - Layout::Scale(8));
+  if (rc.bottom <= rc.top)
+    return;
+
+  canvas.SetBackgroundTransparent();
+  canvas.SetTextColor(look.background_color);
+
+  canvas.Select(dialog_look.bold_font);
+  name_renderer.Draw(canvas, rc, name);
+  rc.top += name_renderer.GetHeight(canvas, rc.GetWidth(), name)
+    + Layout::Scale(4);
+
+  if (description != nullptr && rc.top < rc.bottom) {
+    const char *text = gettext(description);
+
+    /* the small font is only used when the description does not fit
+       into what is left */
+    canvas.Select(dialog_look.text_font);
+    if (description_renderer.GetHeight(canvas, rc.GetWidth(), text) >
+        (unsigned)rc.GetHeight())
+      canvas.Select(dialog_look.small_font);
+
+    description_renderer.Draw(canvas, rc, text);
+  }
+}
+
+void
 InfoBoxArrangeWindow::OnPaint(Canvas &canvas) noexcept
 {
 #ifdef ENABLE_OPENGL
@@ -331,6 +376,7 @@ InfoBoxArrangeWindow::OnPaint(Canvas &canvas) noexcept
                              look.preview_backdrop_color);
 #endif
 
+  PaintDescription(canvas);
   PaintPanelName(canvas);
   PaintButtons(canvas);
 
@@ -400,6 +446,20 @@ InfoBoxArrangeWindow::OnShuffleTimer() noexcept
 }
 
 void
+InfoBoxArrangeWindow::OnPickerTimer() noexcept
+{
+  if (!drag || drag->following)
+    return;
+
+  const unsigned slot = drag->slot;
+  drag.reset();
+  ReleaseCapture();
+  Invalidate();
+
+  ShowPicker(slot);
+}
+
+void
 InfoBoxArrangeWindow::ShowPicker(unsigned slot) noexcept
 {
   OnArrangeSuspend();
@@ -417,7 +477,9 @@ InfoBoxArrangeWindow::ShowHelp() noexcept
   /* the timeout must not end the mode behind the dialog */
   OnArrangeSuspend();
   HelpDialog(_("Arrange InfoBoxes"),
-             _("Drag an InfoBox onto another one to exchange the two."));
+             _("Drag an InfoBox onto another one to exchange the two.  "
+               "Long press an InfoBox to choose a different InfoBox for "
+               "that position."));
   OnArrangeActivity();
   SetFocus();
 }
@@ -475,6 +537,12 @@ InfoBoxArrangeWindow::BeginDrag(unsigned slot, PixelPoint pointer,
   drag_snapshot = *panel;
   ResetCardNumbers();
 
+  described_slot = slot;
+
+  if (!follow)
+    /* holding the InfoBox still opens the picker */
+    picker_timer.Schedule(PICKER_DELAY);
+
   SetCapture();
   OnArrangeActivity();
   Invalidate();
@@ -494,6 +562,7 @@ InfoBoxArrangeWindow::Drag(PixelPoint p) noexcept
       return;
 
     drag->following = true;
+    picker_timer.Cancel();
   }
 
   /* exchange with the slot the finger has moved into, so that a drag
@@ -509,7 +578,7 @@ InfoBoxArrangeWindow::Drag(PixelPoint p) noexcept
        because it follows the finger */
     StartShuffle(drag->slot, layout->positions[slot]);
 
-    drag->slot = slot;
+    drag->slot = described_slot = slot;
   }
 
   Invalidate();
@@ -521,6 +590,7 @@ InfoBoxArrangeWindow::Drop() noexcept
   if (!drag)
     return;
 
+  picker_timer.Cancel();
   drag.reset();
   ResetCardNumbers();
   ReleaseCapture();
@@ -534,9 +604,11 @@ InfoBoxArrangeWindow::CancelDrag() noexcept
   if (!drag)
     return;
 
+  picker_timer.Cancel();
   drag.reset();
   *panel = drag_snapshot;
   ResetCardNumbers();
+  described_slot = -1;
 
   for (auto &i : shuffle)
     i.start = {};
@@ -594,14 +666,7 @@ InfoBoxArrangeWindow::OnMouseUp([[maybe_unused]] PixelPoint p) noexcept
   if (!drag)
     return true;
 
-  const unsigned slot = drag->slot;
-  const bool tap = !drag->following;
   Drop();
-
-  if (tap)
-    /* a tap: let the user choose the contents of this InfoBox */
-    ShowPicker(slot);
-
   return true;
 }
 
