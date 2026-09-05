@@ -57,7 +57,7 @@ CancelTimeout() noexcept
 class OverlayWindow final : public InfoBoxArrangeWindow {
 public:
   explicit OverlayWindow(const InfoBoxLook &_look) noexcept
-    :InfoBoxArrangeWindow(_look, UIGlobals::GetDialogLook()) {
+    :InfoBoxArrangeWindow(_look, UIGlobals::GetDialogLook(), Style::MAP) {
     AddButton(_("Help"), [this]{ ShowHelp(); });
     AddButton(_("Close"), []{ InfoBoxArrange::Save(); });
   }

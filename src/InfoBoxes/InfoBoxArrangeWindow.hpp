@@ -31,9 +31,36 @@ namespace InfoBoxLayout { struct Layout; }
  */
 class InfoBoxArrangeWindow : public PaintWindow {
 public:
+  /** Where is this window used? */
+  enum class Style {
+    /**
+     * On top of the map: the background is translucent, the name of
+     * the panel is painted above the buttons, and the cursor keys stop
+     * at the edge of the layout.
+     */
+    MAP,
+
+    /**
+     * Inside a dialog: the background is opaque, the panel is named by
+     * the dialog, and the cursor leaves the window at the edge of the
+     * layout so that the other controls remain reachable.
+     */
+    DIALOG,
+  };
+
   using Callback = std::function<void()>;
 
-  static constexpr unsigned MAX_BUTTONS = 2;
+  /**
+   * Does a card follow the finger right now?  While it does, the
+   * window behind this one has to clear itself, because the card is
+   * not clipped to this window.
+   */
+  [[gnu::pure]]
+  static bool IsCardFloating() noexcept {
+    return card_floating;
+  }
+
+  static constexpr unsigned MAX_BUTTONS = 5;
 
 private:
   /** How is the InfoBox the user is working with drawn? */
@@ -67,6 +94,11 @@ private:
   struct ButtonItem {
     const char *caption;
     Callback callback;
+
+    /** 0 is the bottom row, 1 the one above it */
+    unsigned row;
+
+    bool enabled;
   };
 
   /** The InfoBox which is being dragged. */
@@ -108,18 +140,27 @@ private:
     /** the row or column on the screen */
     int group;
 
-    /** the place inside that group */
+    /** the button row inside that group, top to bottom */
+    int button_row;
+
+    /** the place inside that button row */
     int position;
 
     constexpr bool operator<(const TabKey &other) const noexcept {
-      return group != other.group
-        ? group < other.group
-        : position < other.position;
+      if (group != other.group)
+        return group < other.group;
+
+      if (button_row != other.button_row)
+        return button_row < other.button_row;
+
+      return position < other.position;
     }
   };
 
   const InfoBoxLook &look;
   const DialogLook &dialog_look;
+
+  const Style style;
 
   InfoBoxSettings::Panel *panel = nullptr;
   const InfoBoxLayout::Layout *layout = nullptr;
@@ -135,6 +176,12 @@ private:
   /** draws all buttons, one after the other */
   TextButtonRenderer button_renderer;
 
+  /** another paragraph for the help text, or nullptr */
+  const char *extra_help = nullptr;
+
+  /** @see IsCardFloating() */
+  static bool card_floating;
+
   std::optional<DragState> drag;
 
   /** the InfoBox configuration as it was when the drag started */
@@ -147,11 +194,12 @@ private:
   int focused_button = -1;
 
   /**
-   * The place across the axis the cursor came from when it entered
-   * the button row, so that crossing the row does not drop it in the
-   * middle of the layout.
+   * Where the cursor sits across the axis it moves on, as a fraction
+   * of the row or column it is in.  Crossing the button block keeps
+   * this fraction, so that the cursor returns to the place it came
+   * from.
    */
-  int button_row_cross = 0;
+  double cross_fraction = 0.5;
 
   /** is the finger still on #held_button? */
   bool button_down = false;
@@ -183,13 +231,32 @@ private:
 
 public:
   InfoBoxArrangeWindow(const InfoBoxLook &_look,
-                       const DialogLook &_dialog_look) noexcept;
+                       const DialogLook &_dialog_look,
+                       Style _style) noexcept;
 
   /**
-   * Add a button below the cards, to the right of the previous one.
-   * Only before Create().
+   * Add a button below the cards, to the right of the previous one of
+   * its row.  Row 0 is the bottom row, row 1 the one above it; the
+   * rows are filled from the bottom up, so none of them may stay
+   * empty.  Only before Create().
+   *
+   * @return the index for SetButtonEnabled()
    */
-  void AddButton(const char *caption, Callback callback) noexcept;
+  unsigned AddButton(unsigned row, const char *caption,
+                     Callback callback) noexcept;
+
+  /** Add a button to the bottom row. */
+  unsigned AddButton(const char *caption, Callback callback) noexcept {
+    return AddButton(0, caption, std::move(callback));
+  }
+
+  /** A disabled button is drawn greyed out and cannot be selected. */
+  void SetButtonEnabled(unsigned i, bool enabled) noexcept;
+
+  /** Another paragraph for the help text, shown after the general one. */
+  void SetExtraHelp(const char *text) noexcept {
+    extra_help = text;
+  }
 
   void Create(ContainerWindow &parent, const PixelRect &rc) noexcept;
 
@@ -232,6 +299,9 @@ protected:
    */
   virtual void OnArrangeSuspend() noexcept {}
 
+  /** The panel has been modified. */
+  virtual void OnArrangeModified() noexcept {}
+
   /**
    * The Escape key was pressed.
    *
@@ -265,17 +335,89 @@ private:
   [[gnu::pure]]
   static int GetButtonGap() noexcept;
 
-  /** How wide is a button?  They all have the same width. */
+  /** How many rows do the buttons occupy? */
   [[gnu::pure]]
-  int GetButtonWidth() const noexcept;
+  unsigned GetButtonRowCount() const noexcept;
 
-  /** The row which holds the buttons. */
+  /** How many buttons are in @p row? */
   [[gnu::pure]]
-  PixelRect GetButtonRowRect() const noexcept;
+  unsigned GetRowButtonCount(unsigned row) const noexcept;
+
+  /** Which place does the button @p i take inside its row? */
+  [[gnu::pure]]
+  unsigned GetIndexInRow(unsigned i) const noexcept;
+
+  /**
+   * How wide is a button of @p row?  The buttons of a row share the
+   * width which is available to them, so that every row is as wide as
+   * the description above it.
+   */
+  [[gnu::pure]]
+  int GetButtonWidth(unsigned row) const noexcept;
+
+  /** How high is a button?  Enough rows make them flatter. */
+  [[gnu::pure]]
+  int GetButtonHeight() const noexcept;
+
+  /** One of the rows which hold the buttons. */
+  [[gnu::pure]]
+  PixelRect GetButtonRowRect(unsigned row) const noexcept;
+
+  /** All button rows together. */
+  [[gnu::pure]]
+  PixelRect GetButtonBlockRect() const noexcept;
 
   /** One of the buttons in #GetButtonRowRect(). */
   [[gnu::pure]]
   PixelRect GetButtonRect(int i) const noexcept;
+
+  /**
+   * Where does the InfoBox in @p slot sit across the axis, from 0
+   * (the first place of its row or column) to 1 (the last one)?  Rows
+   * of different length are compared by this fraction, so that the
+   * second of five InfoBoxes lands on the first of three buttons and
+   * not on the second.
+   */
+  [[gnu::pure]]
+  double GetSlotFraction(unsigned slot) const noexcept;
+
+  /** Where does the button @p i sit inside its row? */
+  [[gnu::pure]]
+  double GetButtonFraction(unsigned i) const noexcept;
+
+  /** Where does the button @p i sit across the axis? */
+  [[gnu::pure]]
+  double GetButtonCrossFraction(unsigned i) const noexcept;
+
+  /**
+   * The next InfoBox row or column beyond
+   * @p along in the direction @p direction.
+   *
+   * @return std::nullopt if there is none
+   */
+  [[gnu::pure]]
+  std::optional<int> FindSlotGroup(int along, int direction) const noexcept;
+
+  /** Which InfoBox of @p group sits closest to @p fraction? */
+  [[gnu::pure]]
+  int FindSlotAt(int group, double fraction) const noexcept;
+
+  /**
+   * Which button of @p row sits closest to @p fraction?
+   *
+   * @return the button, or -1 if the row has none to select
+   */
+  [[gnu::pure]]
+  int FindButtonAt(unsigned row, double fraction) const noexcept;
+
+  /**
+   * The next button the user may select inside the row of @p i.
+   *
+   * @param dx -1 for the left, 1 for the right neighbour
+   * @return the button, or -1 if the row ends there
+   */
+  [[gnu::pure]]
+  int FindNextInRow(int i, int dx) const noexcept;
 
   /** Which button covers the given position in parent coordinates? */
   [[gnu::pure]]
@@ -323,13 +465,6 @@ private:
   void ShowPicker(unsigned slot) noexcept;
 
   /**
-   * Where the cursor leaves the button row: on the row itself, but at
-   * the place across the axis it came from.
-   */
-  [[gnu::pure]]
-  PixelPoint GetButtonRowOrigin() const noexcept;
-
-  /**
    * Which slot lies next to @p origin in the direction (@p dx, @p dy)?
    *
    * @return the slot, or -1 if there is none in that direction
@@ -345,8 +480,19 @@ private:
   bool IsButtonRowCloser(PixelPoint origin, int slot,
                          bool forward) const noexcept;
 
-  /** Focus the button which is closest to @p origin. */
-  void FocusButtonNear(PixelPoint origin) noexcept;
+  /** Is there any button the user may select? */
+  [[gnu::pure]]
+  bool HasEnabledButton() const noexcept;
+
+  /**
+   * Move the cursor from the InfoBoxes into the buttons.
+   *
+   * @return false if there is no button to select
+   */
+  bool FocusButtonFrom(int dx, int dy) noexcept;
+
+  /** Remember where the cursor sits across the axis. */
+  void RememberCross() noexcept;
 
   /** Move the cursor away from the button row. */
   bool MoveFromButton(int dx, int dy, bool along) noexcept;
@@ -361,6 +507,10 @@ private:
    * the ends.
    */
   bool MoveTab(bool forward) noexcept;
+
+  /** Would MoveSelection() move the cursor? */
+  [[gnu::pure]]
+  bool CanMoveSelection(int dx, int dy) const noexcept;
 
   /** Move the selection with the cursor keys or a remote stick. */
   bool MoveSelection(int dx, int dy) noexcept;
