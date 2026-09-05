@@ -12,9 +12,11 @@
 #include "Look/DialogLook.hpp"
 #include "Look/InfoBoxLook.hpp"
 #include "Screen/Layout.hpp"
+#include "UIGlobals.hpp"
 #include "ui/canvas/Brush.hpp"
 #include "ui/canvas/Canvas.hpp"
 #include "ui/event/KeyCode.hpp"
+#include "ui/window/SingleWindow.hpp"
 #include "util/StaticString.hxx"
 #include "util/StringCompare.hxx"
 
@@ -116,22 +118,34 @@ IsShiftKeyPressed() noexcept
 
 } // namespace
 
+bool InfoBoxArrangeWindow::card_floating;
+
 InfoBoxArrangeWindow::InfoBoxArrangeWindow(const InfoBoxLook &_look,
-                                           const DialogLook &_dialog_look)
-  noexcept
-  :look(_look), dialog_look(_dialog_look),
+                                           const DialogLook &_dialog_look,
+                                           Style _style) noexcept
+  :look(_look), dialog_look(_dialog_look), style(_style),
    button_renderer(_dialog_look.button)
 {
   ResetCardNumbers();
 }
 
-void
-InfoBoxArrangeWindow::AddButton(const char *caption,
+unsigned
+InfoBoxArrangeWindow::AddButton(unsigned row, const char *caption,
                                 Callback callback) noexcept
 {
   auto &button = buttons.append();
   button.caption = caption;
   button.callback = std::move(callback);
+  button.row = row;
+  button.enabled = true;
+  return buttons.size() - 1;
+}
+
+void
+InfoBoxArrangeWindow::SetButtonEnabled(unsigned i, bool enabled) noexcept
+{
+  buttons[i].enabled = enabled;
+  Invalidate();
 }
 
 void
@@ -144,9 +158,10 @@ InfoBoxArrangeWindow::Create(ContainerWindow &parent,
   PaintWindow::Create(parent, rc, window_style);
 
 #ifndef USE_WINUSER
-  /* the map below must still be painted (and invalidated), even
-     though this window covers the whole screen */
-  SetTransparent();
+  if (style == Style::MAP)
+    /* the map below must still be painted (and invalidated), even
+       though this window covers the whole screen */
+    SetTransparent();
 #endif
 }
 
@@ -217,35 +232,80 @@ InfoBoxArrangeWindow::GetButtonGap() noexcept
   return Layout::Scale(8);
 }
 
-int
-InfoBoxArrangeWindow::GetButtonWidth() const noexcept
+unsigned
+InfoBoxArrangeWindow::GetButtonRowCount() const noexcept
 {
-  const int count = buttons.size();
-  const int gap = GetButtonGap();
-
-  /* wide enough for the longest caption, so that no button has to
-     wrap its text */
-  int width = Layout::Scale(80);
+  unsigned count = 1;
   for (const auto &i : buttons)
-    width = std::max(width,
-                     (int)TextButtonRenderer::
-                     GetMinimumButtonWidth(dialog_look.button, i.caption));
+    count = std::max(count, i.row + 1);
 
-  /* but never wider than the row itself */
-  return std::min(width,
-                  ((int)content.GetWidth() - (count + 1) * gap) / count);
+  return count;
+}
+
+unsigned
+InfoBoxArrangeWindow::GetRowButtonCount(unsigned row) const noexcept
+{
+  unsigned count = 0;
+  for (const auto &i : buttons)
+    if (i.row == row)
+      ++count;
+
+  return count;
+}
+
+unsigned
+InfoBoxArrangeWindow::GetIndexInRow(unsigned i) const noexcept
+{
+  unsigned index = 0;
+  for (unsigned j = 0; j < i; ++j)
+    if (buttons[j].row == buttons[i].row)
+      ++index;
+
+  return index;
+}
+
+int
+InfoBoxArrangeWindow::GetButtonWidth(unsigned row) const noexcept
+{
+  const int count = GetRowButtonCount(row);
+  const int gap = GetButtonGap();
+  const int width = ((int)content.GetWidth() - (count + 1) * gap) / count;
+
+  return style == Style::MAP
+    /* on the map the buttons stay compact; they are not what the mode
+       is about */
+    ? std::min(width, Layout::Scale(80))
+    /* in a dialog they fill the width, like the description above
+       them */
+    : width;
+}
+
+int
+InfoBoxArrangeWindow::GetButtonHeight() const noexcept
+{
+  const int gap = GetButtonGap();
+  const int rows = GetButtonRowCount();
+
+  /* the rows share the lower half of the area between the cards, and
+     only get flatter than a dialog control when even that is too
+     little */
+  const int available = ((int)content.GetHeight() / 2 - gap) / rows - gap;
+
+  return std::clamp(available,
+                    (int)Layout::GetMinimumControlHeight(),
+                    (int)Layout::GetMaximumControlHeight());
 }
 
 PixelRect
-InfoBoxArrangeWindow::GetButtonRowRect() const noexcept
+InfoBoxArrangeWindow::GetButtonRowRect(unsigned row) const noexcept
 {
-  const int count = buttons.size();
-  const int height = (int)Layout::GetMaximumControlHeight();
+  const int count = GetRowButtonCount(row);
+  const int height = GetButtonHeight();
   const int gap = GetButtonGap();
-  const int total = count * GetButtonWidth() + (count - 1) * gap;
+  const int total = count * GetButtonWidth(row) + (count - 1) * gap;
 
   PixelRect r;
-  r.bottom = content.bottom - gap;
+  r.bottom = content.bottom - gap - (int)row * (height + gap);
   r.top = r.bottom - height;
   r.left = (content.left + content.right - total) / 2;
   r.right = r.left + total;
@@ -253,14 +313,141 @@ InfoBoxArrangeWindow::GetButtonRowRect() const noexcept
 }
 
 PixelRect
+InfoBoxArrangeWindow::GetButtonBlockRect() const noexcept
+{
+  PixelRect r = GetButtonRowRect(0);
+
+  for (unsigned row = 1; row < GetButtonRowCount(); ++row) {
+    const PixelRect above = GetButtonRowRect(row);
+    r.top = above.top;
+    r.left = std::min(r.left, above.left);
+    r.right = std::max(r.right, above.right);
+  }
+
+  return r;
+}
+
+PixelRect
 InfoBoxArrangeWindow::GetButtonRect(int i) const noexcept
 {
-  const int width = GetButtonWidth();
+  const unsigned row = buttons[i].row;
+  const int width = GetButtonWidth(row);
 
-  PixelRect r = GetButtonRowRect();
-  r.left += i * (width + GetButtonGap());
+  PixelRect r = GetButtonRowRect(row);
+  r.left += (int)GetIndexInRow(i) * (width + GetButtonGap());
   r.right = r.left + width;
   return r;
+}
+
+double
+InfoBoxArrangeWindow::GetSlotFraction(unsigned slot) const noexcept
+{
+  const PixelPoint center = SlotCenter(slot);
+
+  unsigned count = 0, index = 0;
+
+  for (unsigned i = 0; i < layout->count; ++i) {
+    const PixelPoint p = SlotCenter(i);
+    if (Along(p) != Along(center))
+      /* another row or column */
+      continue;
+
+    if (Across(p) < Across(center))
+      ++index;
+
+    ++count;
+  }
+
+  return (index + 0.5) / count;
+}
+
+double
+InfoBoxArrangeWindow::GetButtonFraction(unsigned i) const noexcept
+{
+  return (GetIndexInRow(i) + 0.5) / GetRowButtonCount(buttons[i].row);
+}
+
+double
+InfoBoxArrangeWindow::GetButtonCrossFraction(unsigned i) const noexcept
+{
+  if (!columns)
+    return GetButtonFraction(i);
+
+  /* the rows of the block are stacked across the axis, and row 0 is
+     the bottom one */
+  const unsigned rows = GetButtonRowCount();
+  return (rows - 1 - buttons[i].row + 0.5) / rows;
+}
+
+std::optional<int>
+InfoBoxArrangeWindow::FindSlotGroup(int along, int direction) const noexcept
+{
+  std::optional<int> group;
+
+  for (unsigned i = 0; i < layout->count; ++i) {
+    const int g = Along(SlotCenter(i));
+    if ((g - along) * direction <= 0)
+      continue;
+
+    if (!group || (g - *group) * direction < 0)
+      group = g;
+  }
+
+  return group;
+}
+
+int
+InfoBoxArrangeWindow::FindSlotAt(int group, double fraction) const noexcept
+{
+  int best = -1;
+  double best_distance = 0;
+
+  for (unsigned i = 0; i < layout->count; ++i) {
+    if (Along(SlotCenter(i)) != group)
+      continue;
+
+    const double distance = std::abs(GetSlotFraction(i) - fraction);
+
+    if (best < 0 || distance < best_distance) {
+      best = i;
+      best_distance = distance;
+    }
+  }
+
+  return best;
+}
+
+int
+InfoBoxArrangeWindow::FindButtonAt(unsigned row,
+                                   double fraction) const noexcept
+{
+  int best = -1;
+  double best_distance = 0;
+
+  for (unsigned i = 0; i < buttons.size(); ++i) {
+    if (buttons[i].row != row || !buttons[i].enabled)
+      continue;
+
+    const double distance = std::abs(GetButtonFraction(i) - fraction);
+
+    if (best < 0 || distance < best_distance) {
+      best = i;
+      best_distance = distance;
+    }
+  }
+
+  return best;
+}
+
+int
+InfoBoxArrangeWindow::FindNextInRow(int i, int dx) const noexcept
+{
+  /* the buttons of a row are added from left to right */
+  for (int j = i + dx; j >= 0 && j < (int)buttons.size(); j += dx)
+    if (buttons[j].row == buttons[i].row && buttons[j].enabled)
+      return j;
+
+  return -1;
 }
 
 int
@@ -276,9 +463,11 @@ InfoBoxArrangeWindow::FindButton(PixelPoint p) const noexcept
 PixelRect
 InfoBoxArrangeWindow::GetPanelNameRect() const noexcept
 {
-  PixelRect rc = ToLocal(GetButtonRowRect());
+  PixelRect rc = ToLocal(GetButtonBlockRect());
   rc.bottom = rc.top - Layout::Scale(12);
-  rc.top = rc.bottom - (int)look.title_font_bold.GetHeight();
+  rc.top = rc.bottom - (style == Style::MAP
+                        ? (int)look.title_font_bold.GetHeight()
+                        : 0);
   return rc;
 }
 
@@ -402,6 +591,10 @@ InfoBoxArrangeWindow::PaintButtons(Canvas &canvas) noexcept
 void
 InfoBoxArrangeWindow::PaintPanelName(Canvas &canvas) noexcept
 {
+  if (style != Style::MAP)
+    /* the dialog names the panel itself */
+    return;
+
   const char *name = gettext(panel->name);
   if (StringIsEmpty(name))
     return;
@@ -435,7 +628,9 @@ InfoBoxArrangeWindow::PaintDescription(Canvas &canvas) noexcept
     return;
 
   canvas.SetBackgroundTransparent();
-  canvas.SetTextColor(look.background_color);
+  canvas.SetTextColor(style == Style::MAP
+                      ? look.background_color
+                      : dialog_look.text_color);
 
   canvas.Select(dialog_look.bold_font);
   name_renderer.Draw(canvas, rc, name);
@@ -459,18 +654,19 @@ InfoBoxArrangeWindow::PaintDescription(Canvas &canvas) noexcept
 void
 InfoBoxArrangeWindow::OnPaint(Canvas &canvas) noexcept
 {
+  if (style == Style::MAP) {
 #ifdef ENABLE_OPENGL
-  {
     const ScopeAlphaBlend alpha_blend;
     canvas.DrawFilledRectangle(canvas.GetRect(),
                                look.preview_backdrop_color
                                .WithAlpha(OVERLAY_ALPHA));
-  }
 #else
-  /* without alpha blending, hide the map instead of fading it */
-  canvas.DrawFilledRectangle(canvas.GetRect(),
-                             look.preview_backdrop_color);
+    /* without alpha blending, hide the map instead of fading it */
+    canvas.DrawFilledRectangle(canvas.GetRect(),
+                               look.preview_backdrop_color);
 #endif
+  } else
+    canvas.Clear(dialog_look.background_color);
 
   PaintDescription(canvas);
   PaintPanelName(canvas);
@@ -490,6 +686,7 @@ InfoBoxArrangeWindow::Exchange(unsigned a, unsigned b) noexcept
 {
   std::swap(panel->contents[a], panel->contents[b]);
   std::swap(card_number[a], card_number[b]);
+  OnArrangeModified();
 }
 
 void
@@ -567,8 +764,10 @@ InfoBoxArrangeWindow::ShowPicker(unsigned slot) noexcept
 {
   OnArrangeSuspend();
 
-  if (InfoBoxManager::ShowInfoBoxPicker(*panel, slot))
+  if (InfoBoxManager::ShowInfoBoxPicker(*panel, slot)) {
     Invalidate();
+    OnArrangeModified();
+  }
 
   OnArrangeActivity();
   SetFocus();
@@ -595,6 +794,11 @@ InfoBoxArrangeWindow::ShowHelp() noexcept
                   "a different InfoBox for that position."));
   }
 
+  if (extra_help != nullptr) {
+    text.append("\n\n");
+    text.append(extra_help);
+  }
+
   /* the timeout must not end the mode behind the dialog */
   OnArrangeSuspend();
   HelpDialog(_("Arrange InfoBoxes"), text);
@@ -605,16 +809,6 @@ InfoBoxArrangeWindow::ShowHelp() noexcept
 /*
  * the cursor keys
  */
-
-PixelPoint
-InfoBoxArrangeWindow::GetButtonRowOrigin() const noexcept
-{
-  const PixelPoint center = GetButtonRowRect().GetCenter();
-
-  return columns
-    ? PixelPoint{center.x, button_row_cross}
-    : PixelPoint{button_row_cross, center.y};
-}
 
 int
 InfoBoxArrangeWindow::FindNeighbour(PixelPoint origin,
@@ -644,11 +838,24 @@ InfoBoxArrangeWindow::FindNeighbour(PixelPoint origin,
 }
 
 bool
+InfoBoxArrangeWindow::HasEnabledButton() const noexcept
+{
+  for (const auto &i : buttons)
+    if (i.enabled)
+      return true;
+
+  return false;
+}
+
+bool
 InfoBoxArrangeWindow::IsButtonRowCloser(PixelPoint origin, int slot,
                                         bool forward) const noexcept
 {
+  if (!HasEnabledButton())
+    return false;
+
   const int buttons_along =
-    Along(GetButtonRowRect().GetCenter()) - Along(origin);
+    Along(GetButtonBlockRect().GetCenter()) - Along(origin);
   if (forward ? buttons_along <= 0 : buttons_along >= 0)
     return false;
 
@@ -659,44 +866,67 @@ InfoBoxArrangeWindow::IsButtonRowCloser(PixelPoint origin, int slot,
     std::abs(Along(SlotCenter(slot)) - Along(origin));
 }
 
-void
-InfoBoxArrangeWindow::FocusButtonNear(PixelPoint origin) noexcept
+bool
+InfoBoxArrangeWindow::FocusButtonFrom(int dx, int dy) noexcept
 {
-  button_row_cross = Across(origin);
+  const int button = columns
+    /* the cursor arrives from the side and takes the button at that
+       end of the bottom row */
+    ? FindButtonAt(0, dx > 0 ? 0. : 1.)
+    /* it arrives from above or from below and keeps the place it
+       remembers */
+    : FindButtonAt(dy > 0 ? GetButtonRowCount() - 1 : 0, cross_fraction);
 
-  int best = -1, best_distance = 0;
+  if (button < 0)
+    return false;
 
-  for (unsigned i = 0; i < buttons.size(); ++i) {
-    const int distance =
-      std::abs(GetButtonRect(i).GetCenter().x - origin.x);
+  focused_button = button;
+  return true;
+}
 
-    if (best < 0 || distance < best_distance) {
-      best = i;
-      best_distance = distance;
-    }
-  }
-
-  if (best >= 0)
-    focused_button = best;
+void
+InfoBoxArrangeWindow::RememberCross() noexcept
+{
+  if (focused_button >= 0)
+    cross_fraction = GetButtonCrossFraction(focused_button);
+  else if (described_slot >= 0)
+    cross_fraction = GetSlotFraction(described_slot);
 }
 
 bool
 InfoBoxArrangeWindow::MoveFromButton(int dx, int dy, bool along) noexcept
 {
-  /* the buttons stand side by side, so left and right switch between
-     them */
-  const int button = dx != 0 ? focused_button + dx : -1;
+  /* left and right switch between the buttons of a row, up and down
+     between the rows, where the button keeps its place in the row */
+  const unsigned row = buttons[focused_button].row;
+  int button = -1;
 
-  if (button >= 0 && button < (int)buttons.size())
+  if (dx != 0)
+    button = FindNextInRow(focused_button, dx);
+  else if (dy < 0 ? row + 1 < GetButtonRowCount() : row > 0)
+    /* when the button rows follow the axis, the cursor keeps the
+       place it remembers; when they lie across it, it keeps its
+       place in the row */
+    button = FindButtonAt(dy < 0 ? row + 1 : row - 1,
+                          columns
+                          ? GetButtonFraction(focused_button)
+                          : cross_fraction);
+
+  if (button >= 0) {
     focused_button = button;
-  else if (!along)
+
+    if (!along)
+      RememberCross();
+  } else if (!along)
     return true;
   else {
-    const int slot = FindNeighbour(GetButtonRowOrigin(), dx, dy);
-    if (slot < 0)
+    /* the cursor returns to the InfoBoxes at the place it remembers */
+    const auto group =
+      FindSlotGroup(Along(GetButtonBlockRect().GetCenter()), dx + dy);
+    if (!group)
       return true;
 
-    described_slot = slot;
+    described_slot = FindSlotAt(*group, cross_fraction);
     focused_button = -1;
   }
 
@@ -710,11 +940,23 @@ InfoBoxArrangeWindow::GetTabKey(unsigned i) const noexcept
 {
   const unsigned count = layout->count;
 
-  const PixelPoint p = i < count
-    ? layout->positions[i].GetCenter()
-    : GetButtonRect(i - count).GetCenter();
+  if (i < count) {
+    const PixelPoint p = layout->positions[i].GetCenter();
+    return {Along(p), 0, Across(p)};
+  }
 
-  return {Along(p), Across(p)};
+  const unsigned button = i - count;
+  const PixelPoint p = GetButtonRect(button).GetCenter();
+
+  /* when the InfoBoxes stand in rows, every button row is a group of
+     its own, between the InfoBoxes above and below it; when they
+     stand in columns, the whole button block is one group between
+     them, and inside it the rows are read from top to bottom, each
+     from left to right */
+  return columns
+    ? TabKey{Along(GetButtonBlockRect().GetCenter()),
+             int(GetButtonRowCount() - 1 - buttons[button].row), p.x}
+    : TabKey{Along(p), 0, Across(p)};
 }
 
 void
@@ -727,8 +969,9 @@ InfoBoxArrangeWindow::FocusItem(unsigned i) noexcept
     focused_button = -1;
   } else {
     focused_button = i - count;
-    button_row_cross = Across(GetButtonRect(focused_button).GetCenter());
   }
+
+  RememberCross();
 
   selection = Selection::FOCUSED;
   Invalidate();
@@ -756,6 +999,10 @@ InfoBoxArrangeWindow::MoveTab(bool forward) noexcept
     if (i == current)
       continue;
 
+    if (i >= slot_count && !buttons[i - slot_count].enabled)
+      /* a disabled button is skipped */
+      continue;
+
     const TabKey k = GetTabKey(i);
 
     if (forward ? key < k : k < key) {
@@ -777,12 +1024,41 @@ InfoBoxArrangeWindow::MoveTab(bool forward) noexcept
 }
 
 bool
+InfoBoxArrangeWindow::CanMoveSelection(int dx, int dy) const noexcept
+{
+  if (style == Style::MAP)
+    /* nothing else on the map can have the focus, so the edge of the
+       layout is a wall */
+    return true;
+
+  if (selection == Selection::MOVING)
+    /* the InfoBox the user carries must not be left behind */
+    return true;
+
+  if (described_slot < 0 && focused_button < 0)
+    /* the first key press selects the first InfoBox */
+    return true;
+
+  const bool along = columns ? dx != 0 : dy != 0;
+
+  if (focused_button >= 0)
+    /* the cursor moves inside the button block or leaves it */
+    return true;
+
+  const PixelPoint origin = SlotCenter(described_slot);
+  const int slot = FindNeighbour(origin, dx, dy);
+
+  return slot >= 0 || (along && IsButtonRowCloser(origin, slot, dx + dy > 0));
+}
+
+bool
 InfoBoxArrangeWindow::MoveSelection(int dx, int dy) noexcept
 {
   OnArrangeActivity();
 
   if (described_slot < 0 && focused_button < 0) {
     described_slot = 0;
+    RememberCross();
     selection = Selection::FOCUSED;
     Invalidate();
     return true;
@@ -819,11 +1095,21 @@ InfoBoxArrangeWindow::MoveSelection(int dx, int dy) noexcept
   const PixelPoint origin = SlotCenter(described_slot);
   const int slot = FindNeighbour(origin, dx, dy);
 
-  if (along && IsButtonRowCloser(origin, slot, dx + dy > 0))
-    FocusButtonNear(origin);
-  else if (slot >= 0)
+  if (along && IsButtonRowCloser(origin, slot, dx + dy > 0)) {
+    if (!FocusButtonFrom(dx, dy))
+      return true;
+  } else if (along) {
+    /* the cursor keeps its place inside the row (portrait) or column
+       it moves to */
+    const auto group = FindSlotGroup(Along(origin), dx + dy);
+    if (!group)
+      return true;
+
+    described_slot = FindSlotAt(*group, cross_fraction);
+  } else if (slot >= 0) {
     described_slot = slot;
-  else
+    RememberCross();
+  } else
     return true;
 
   selection = Selection::FOCUSED;
@@ -870,6 +1156,9 @@ InfoBoxArrangeWindow::Activate() noexcept
 ButtonState
 InfoBoxArrangeWindow::GetButtonState(int i) const noexcept
 {
+  if (!buttons[i].enabled)
+    return ButtonState::DISABLED;
+
   if (held_button == i && button_down)
     return ButtonState::PRESSED;
 
@@ -882,7 +1171,8 @@ InfoBoxArrangeWindow::GetButtonState(int i) const noexcept
 void
 InfoBoxArrangeWindow::OnButton(int i) noexcept
 {
-  buttons[i].callback();
+  if (buttons[i].enabled)
+    buttons[i].callback();
 }
 
 void
@@ -916,6 +1206,7 @@ InfoBoxArrangeWindow::FocusSlot(unsigned slot) noexcept
 {
   described_slot = slot;
   focused_button = -1;
+  RememberCross();
   selection = Selection::FOCUSED;
   Invalidate();
 }
@@ -934,6 +1225,8 @@ InfoBoxArrangeWindow::BeginDrag(unsigned slot, PixelPoint pointer,
   described_slot = slot;
   selection = Selection::TOUCH;
   focused_button = -1;
+
+  card_floating = follow;
 
   if (!follow)
     /* holding the InfoBox still opens the picker */
@@ -958,6 +1251,7 @@ InfoBoxArrangeWindow::Drag(PixelPoint p) noexcept
       return;
 
     drag->following = true;
+    card_floating = true;
     picker_timer.Cancel();
   }
 
@@ -977,6 +1271,11 @@ InfoBoxArrangeWindow::Drag(PixelPoint p) noexcept
   }
 
   Invalidate();
+
+  if (style == Style::DIALOG)
+    /* the card is not clipped to this window, so the main window has
+       to clear what it leaves outside the dialog */
+    UIGlobals::GetMainWindow().Invalidate();
 }
 
 void
@@ -987,7 +1286,9 @@ InfoBoxArrangeWindow::Drop() noexcept
 
   picker_timer.Cancel();
   drag.reset();
+  card_floating = false;
   ResetCardNumbers();
+  RememberCross();
   ReleaseCapture();
   OnArrangeActivity();
   Invalidate();
@@ -1001,6 +1302,7 @@ InfoBoxArrangeWindow::CancelDrag() noexcept
 
   picker_timer.Cancel();
   drag.reset();
+  card_floating = false;
   *panel = drag_snapshot;
   ResetCardNumbers();
   described_slot = -1;
@@ -1008,6 +1310,7 @@ InfoBoxArrangeWindow::CancelDrag() noexcept
   for (auto &i : shuffle)
     i.start = {};
 
+  OnArrangeModified();
   Invalidate();
 }
 
@@ -1090,7 +1393,11 @@ InfoBoxArrangeWindow::OnKeyCheck(unsigned key_code) const noexcept
 {
   switch (key_code) {
   case KEY_UP:
+    return CanMoveSelection(0, -1);
+
   case KEY_DOWN:
+    return CanMoveSelection(0, 1);
+
   case KEY_LEFT:
   case KEY_RIGHT:
   case KEY_RETURN:
