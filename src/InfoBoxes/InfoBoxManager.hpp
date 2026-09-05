@@ -3,6 +3,8 @@
 
 #pragma once
 
+#include "InfoBoxSettings.hpp"
+
 struct InfoBoxLook;
 class ContainerWindow;
 class InfoBoxWindow;
@@ -55,6 +57,14 @@ void
 Hide() noexcept;
 
 /**
+ * Opens a dialog to select the content of one InfoBox of @p panel.
+ *
+ * @return true if the user has chosen a different InfoBox
+ */
+bool
+ShowInfoBoxPicker(InfoBoxSettings::Panel &panel, unsigned i) noexcept;
+
+/**
  * Opens a dialog to select the InfoBox contents for
  * the InfoBox indicated by id, or the focused InfoBox.
  * @param id The id of the InfoBox to configure.  If negative,
@@ -62,6 +72,26 @@ Hide() noexcept;
  */
 void
 ShowInfoBoxPicker(const int id = -1) noexcept;
+
+/**
+ * The InfoBox configuration of the page which is currently shown.
+ */
+[[gnu::pure]]
+InfoBoxSettings::Panel &
+GetCurrentPanel() noexcept;
+
+/**
+ * Update the InfoBox windows after #GetCurrentPanel() was modified.
+ */
+void
+Refresh() noexcept;
+
+/**
+ * Save the configuration of the page which is currently shown to the
+ * profile.
+ */
+void
+SaveCurrentPanel() noexcept;
 
 /**
  * Clear focus from all InfoBoxes except the one with the specified ID.
