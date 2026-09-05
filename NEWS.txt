@@ -34,6 +34,22 @@ Version 7.46 - not yet released
   - fix choosing SkySight as a page overlay with no layers available
     silently switching back to None
 * map
+  - restructure the waypoint label settings: the label style now
+    applies to every waypoint instead of the reachable landables
+    only, and a new "Highlight" setting says how the reachable
+    landables, the task waypoints and the watched waypoints stand out
+  - split the old "Arrival height" setting into the value, its
+    calculation, its position and the waypoints which get it; the
+    value can be the arrival height, the arrival altitude, the
+    required glide ratio or any combination of them, next to the
+    waypoint name or on a badge below it
+  - show the required glide ratio as a whole number
+  - separate the value from the waypoint name with a thin rule inside
+    the label instead of a colon
+  - add a preview to the waypoint display settings, showing a handful
+    of waypoints on a schematic map with the current settings
+  - fix the landable symbol style needing a restart before the icons
+    followed the setting
   - fix the ragged white halo behind map labels on high-DPI screens
     #2879
   - fix the map scale arrows: draw them at the height of the scale box
