@@ -14,11 +14,16 @@
 #include "Screen/Layout.hpp"
 #include "ui/canvas/Brush.hpp"
 #include "ui/canvas/Canvas.hpp"
+#include "ui/event/KeyCode.hpp"
 #include "util/StaticString.hxx"
 #include "util/StringCompare.hxx"
 
 #ifdef ENABLE_OPENGL
 #include "ui/canvas/opengl/Scope.hpp"
+#endif
+
+#ifdef ENABLE_SDL
+#include <SDL_keyboard.h>
 #endif
 
 #include <algorithm>
@@ -58,6 +63,55 @@ int
 GetDeadZone() noexcept
 {
   return Layout::Scale(8);
+}
+
+/**
+ * Are the InfoBoxes arranged in columns?  This does not follow the
+ * screen orientation: several geometries put the InfoBoxes into
+ * columns on a portrait screen, and into rows on a landscape one.
+ */
+[[gnu::pure]]
+bool
+HasColumns(const InfoBoxLayout::Layout &layout) noexcept
+{
+  unsigned rows = 0, columns = 0;
+
+  for (unsigned i = 0; i < layout.count; ++i) {
+    const PixelPoint p = layout.positions[i].GetCenter();
+    bool new_row = true, new_column = true;
+
+    for (unsigned j = 0; j < i; ++j) {
+      const PixelPoint q = layout.positions[j].GetCenter();
+      new_row &= q.y != p.y;
+      new_column &= q.x != p.x;
+    }
+
+    rows += new_row;
+    columns += new_column;
+  }
+
+  /* more rows than columns means the InfoBoxes stand side by side */
+  return rows > columns;
+}
+
+/**
+ * Is a shift key held down?  The window layer passes only the key
+ * code, so Shift+Tab has to be recognised here; this follows
+ * IsCtrlKeyPressed() in GlueMapWindowEvents.
+ */
+[[gnu::pure]]
+bool
+IsShiftKeyPressed() noexcept
+{
+#ifdef ENABLE_SDL
+  return SDL_GetModState() & (KMOD_LSHIFT | KMOD_RSHIFT);
+#elif defined(USE_WINUSER)
+  return GetKeyState(VK_SHIFT) & 0x8000;
+#else
+  /* X11 sends XK_ISO_Left_Tab instead; elsewhere Tab only moves
+     forwards */
+  return false;
+#endif
 }
 
 } // namespace
@@ -109,11 +163,30 @@ InfoBoxArrangeWindow::SetLayout(const InfoBoxLayout::Layout &_layout,
 {
   layout = &_layout;
   content = _content;
+  columns = HasColumns(_layout);
 }
 
 /*
  * geometry
  */
+
+PixelPoint
+InfoBoxArrangeWindow::SlotCenter(unsigned slot) const noexcept
+{
+  return layout->positions[slot].GetCenter();
+}
+
+int
+InfoBoxArrangeWindow::Along(PixelPoint p) const noexcept
+{
+  return columns ? p.x : p.y;
+}
+
+int
+InfoBoxArrangeWindow::Across(PixelPoint p) const noexcept
+{
+  return columns ? p.y : p.x;
+}
 
 int
 InfoBoxArrangeWindow::FindSlot(PixelPoint p) const noexcept
@@ -224,15 +297,27 @@ InfoBoxArrangeWindow::ToLocal(PixelRect rc) const noexcept
 void
 InfoBoxArrangeWindow::DrawCard(Canvas &canvas, const PixelRect &rc,
                                unsigned slot, unsigned number,
-                               bool active) noexcept
+                               CardState state) noexcept
 {
   const int radius = look.preview_radius;
+  const bool active = state == CardState::ACTIVE;
 
   canvas.SelectNullPen();
-  canvas.Select(Brush{active
-                      ? look.preview_active_color
-                      : look.background_color});
+  canvas.Select(Brush{state == CardState::NORMAL
+                      ? look.background_color
+                      : look.preview_active_color});
   canvas.DrawRoundRectangle(rc, {radius * 2, radius * 2});
+
+  if (state == CardState::FOCUSED) {
+    /* leave only a ring of the highlight colour */
+    const int width = look.preview_focus_width;
+    PixelRect inner = rc;
+    inner.Grow(-width);
+
+    canvas.Select(Brush{look.background_color});
+    canvas.DrawRoundRectangle(inner, {(radius - width) * 2,
+                                      (radius - width) * 2});
+  }
 
   /* the caption comes from the configuration and not from the InfoBox
      itself, because content providers overwrite the title at runtime
@@ -273,6 +358,17 @@ InfoBoxArrangeWindow::DrawCard(Canvas &canvas, const PixelRect &rc,
                          rc, caption);
 }
 
+InfoBoxArrangeWindow::CardState
+InfoBoxArrangeWindow::GetCardState(unsigned slot) const noexcept
+{
+  if ((int)slot != described_slot || focused_button >= 0)
+    return CardState::NORMAL;
+
+  return selection == Selection::FOCUSED
+    ? CardState::FOCUSED
+    : CardState::ACTIVE;
+}
+
 void
 InfoBoxArrangeWindow::PaintCards(Canvas &canvas) noexcept
 {
@@ -285,13 +381,12 @@ InfoBoxArrangeWindow::PaintCards(Canvas &canvas) noexcept
     const PixelPoint offset = GetShuffleOffset(i);
     rc.Offset(offset.x, offset.y);
     rc.Grow(-(int)look.preview_padding);
-    DrawCard(canvas, ToLocal(rc), i, card_number[i],
-             (int)i == described_slot);
+    DrawCard(canvas, ToLocal(rc), i, card_number[i], GetCardState(i));
   }
 
   if (drag && drag->following)
     DrawCard(canvas, ToLocal(GetFloatingRect()), drag->slot,
-             card_number[drag->slot], true);
+             card_number[drag->slot], CardState::ACTIVE);
 }
 
 void
@@ -322,7 +417,8 @@ InfoBoxArrangeWindow::PaintPanelName(Canvas &canvas) noexcept
 void
 InfoBoxArrangeWindow::PaintDescription(Canvas &canvas) noexcept
 {
-  if (described_slot < 0)
+  if (described_slot < 0 || focused_button >= 0)
+    /* nothing describes a button */
     return;
 
   const auto type = panel->contents[described_slot];
@@ -388,6 +484,13 @@ InfoBoxArrangeWindow::OnPaint(Canvas &canvas) noexcept
 /*
  * the InfoBoxes
  */
+
+void
+InfoBoxArrangeWindow::Exchange(unsigned a, unsigned b) noexcept
+{
+  std::swap(panel->contents[a], panel->contents[b]);
+  std::swap(card_number[a], card_number[b]);
+}
 
 void
 InfoBoxArrangeWindow::ResetCardNumbers() noexcept
@@ -474,14 +577,295 @@ InfoBoxArrangeWindow::ShowPicker(unsigned slot) noexcept
 void
 InfoBoxArrangeWindow::ShowHelp() noexcept
 {
+  StaticString<768> text;
+  text.clear();
+
+  if (HasPointer())
+    text = _("Drag an InfoBox onto another one to exchange the two.  "
+             "Long press an InfoBox to choose a different InfoBox for "
+             "that position.");
+
+  if (HasCursorKeys()) {
+    if (!text.empty())
+      text.append("\n\n");
+
+    text.append(_("Press Enter to take the selected InfoBox, move it with "
+                  "the cursor keys and press Enter again to put it down.  "
+                  "Pressing Enter twice without moving an InfoBox chooses "
+                  "a different InfoBox for that position."));
+  }
+
   /* the timeout must not end the mode behind the dialog */
   OnArrangeSuspend();
-  HelpDialog(_("Arrange InfoBoxes"),
-             _("Drag an InfoBox onto another one to exchange the two.  "
-               "Long press an InfoBox to choose a different InfoBox for "
-               "that position."));
+  HelpDialog(_("Arrange InfoBoxes"), text);
   OnArrangeActivity();
   SetFocus();
+}
+
+/*
+ * the cursor keys
+ */
+
+PixelPoint
+InfoBoxArrangeWindow::GetButtonRowOrigin() const noexcept
+{
+  const PixelPoint center = GetButtonRowRect().GetCenter();
+
+  return columns
+    ? PixelPoint{center.x, button_row_cross}
+    : PixelPoint{button_row_cross, center.y};
+}
+
+int
+InfoBoxArrangeWindow::FindNeighbour(PixelPoint origin,
+                                    int dx, int dy) const noexcept
+{
+  int best = -1, best_distance = 0;
+
+  for (unsigned i = 0; i < layout->count; ++i) {
+    const PixelPoint p = layout->positions[i].GetCenter();
+    const int along = (p.x - origin.x) * dx + (p.y - origin.y) * dy;
+    if (along <= 0)
+      continue;
+
+    /* the closest slot in that direction wins, and among those the
+       one which is least off to the side */
+    const int across = std::abs((p.x - origin.x) * dy
+                                - (p.y - origin.y) * dx);
+    const int distance = along + 4 * across;
+
+    if (best < 0 || distance < best_distance) {
+      best = i;
+      best_distance = distance;
+    }
+  }
+
+  return best;
+}
+
+bool
+InfoBoxArrangeWindow::IsButtonRowCloser(PixelPoint origin, int slot,
+                                        bool forward) const noexcept
+{
+  const int buttons_along =
+    Along(GetButtonRowRect().GetCenter()) - Along(origin);
+  if (forward ? buttons_along <= 0 : buttons_along >= 0)
+    return false;
+
+  if (slot < 0)
+    return true;
+
+  return std::abs(buttons_along) <
+    std::abs(Along(SlotCenter(slot)) - Along(origin));
+}
+
+void
+InfoBoxArrangeWindow::FocusButtonNear(PixelPoint origin) noexcept
+{
+  button_row_cross = Across(origin);
+
+  int best = -1, best_distance = 0;
+
+  for (unsigned i = 0; i < buttons.size(); ++i) {
+    const int distance =
+      std::abs(GetButtonRect(i).GetCenter().x - origin.x);
+
+    if (best < 0 || distance < best_distance) {
+      best = i;
+      best_distance = distance;
+    }
+  }
+
+  if (best >= 0)
+    focused_button = best;
+}
+
+bool
+InfoBoxArrangeWindow::MoveFromButton(int dx, int dy, bool along) noexcept
+{
+  /* the buttons stand side by side, so left and right switch between
+     them */
+  const int button = dx != 0 ? focused_button + dx : -1;
+
+  if (button >= 0 && button < (int)buttons.size())
+    focused_button = button;
+  else if (!along)
+    return true;
+  else {
+    const int slot = FindNeighbour(GetButtonRowOrigin(), dx, dy);
+    if (slot < 0)
+      return true;
+
+    described_slot = slot;
+    focused_button = -1;
+  }
+
+  selection = Selection::FOCUSED;
+  Invalidate();
+  return true;
+}
+
+InfoBoxArrangeWindow::TabKey
+InfoBoxArrangeWindow::GetTabKey(unsigned i) const noexcept
+{
+  const unsigned count = layout->count;
+
+  const PixelPoint p = i < count
+    ? layout->positions[i].GetCenter()
+    : GetButtonRect(i - count).GetCenter();
+
+  return {Along(p), Across(p)};
+}
+
+void
+InfoBoxArrangeWindow::FocusItem(unsigned i) noexcept
+{
+  const unsigned count = layout->count;
+
+  if (i < count) {
+    described_slot = i;
+    focused_button = -1;
+  } else {
+    focused_button = i - count;
+    button_row_cross = Across(GetButtonRect(focused_button).GetCenter());
+  }
+
+  selection = Selection::FOCUSED;
+  Invalidate();
+}
+
+bool
+InfoBoxArrangeWindow::MoveTab(bool forward) noexcept
+{
+  OnArrangeActivity();
+
+  if (selection == Selection::MOVING)
+    /* a taken InfoBox is moved with the cursor keys */
+    return true;
+
+  const unsigned slot_count = layout->count;
+  const unsigned current = focused_button >= 0
+    ? slot_count + focused_button
+    : (described_slot >= 0 ? unsigned(described_slot) : 0);
+  const TabKey key = GetTabKey(current);
+
+  int next = -1, wrap = -1;
+  TabKey next_key{}, wrap_key{};
+
+  for (unsigned i = 0; i < slot_count + buttons.size(); ++i) {
+    if (i == current)
+      continue;
+
+    const TabKey k = GetTabKey(i);
+
+    if (forward ? key < k : k < key) {
+      if (next < 0 || (forward ? k < next_key : next_key < k)) {
+        next = i;
+        next_key = k;
+      }
+    } else if (wrap < 0 || (forward ? k < wrap_key : wrap_key < k)) {
+      wrap = i;
+      wrap_key = k;
+    }
+  }
+
+  const int item = next >= 0 ? next : wrap;
+  if (item >= 0)
+    FocusItem(item);
+
+  return true;
+}
+
+bool
+InfoBoxArrangeWindow::MoveSelection(int dx, int dy) noexcept
+{
+  OnArrangeActivity();
+
+  if (described_slot < 0 && focused_button < 0) {
+    described_slot = 0;
+    selection = Selection::FOCUSED;
+    Invalidate();
+    return true;
+  }
+
+  if (selection == Selection::MOVING) {
+    /* a taken InfoBox stays among the slots; it must not land on a
+       button */
+    const int slot = FindNeighbour(SlotCenter(described_slot), dx, dy);
+    if (slot < 0)
+      return true;
+
+    /* carry the InfoBox along, exchanging it with the neighbour; both
+       slide into their new slot */
+    Exchange(described_slot, slot);
+    StartShuffle(described_slot, layout->positions[slot]);
+    StartShuffle(slot, layout->positions[described_slot]);
+
+    described_slot = slot;
+    Invalidate();
+    return true;
+  }
+
+  /* the cursor moves along the axis the InfoBoxes are stacked on:
+     down when they stand in rows, to the side when they stand in
+     columns.  The button row takes its place in that order by where
+     it sits on the screen, between the InfoBoxes before and after
+     it */
+  const bool along = columns ? dx != 0 : dy != 0;
+
+  if (focused_button >= 0)
+    return MoveFromButton(dx, dy, along);
+
+  const PixelPoint origin = SlotCenter(described_slot);
+  const int slot = FindNeighbour(origin, dx, dy);
+
+  if (along && IsButtonRowCloser(origin, slot, dx + dy > 0))
+    FocusButtonNear(origin);
+  else if (slot >= 0)
+    described_slot = slot;
+  else
+    return true;
+
+  selection = Selection::FOCUSED;
+  Invalidate();
+  return true;
+}
+
+bool
+InfoBoxArrangeWindow::Activate() noexcept
+{
+  OnArrangeActivity();
+
+  if (focused_button >= 0) {
+    OnButton(focused_button);
+    return true;
+  }
+
+  if (described_slot < 0)
+    return true;
+
+  if (selection != Selection::MOVING) {
+    grab_slot = described_slot;
+    selection = Selection::MOVING;
+    Invalidate();
+    return true;
+  }
+
+  const bool unmoved = (unsigned)described_slot == grab_slot;
+  selection = Selection::FOCUSED;
+
+  /* the numbers travelled with the InfoBoxes while one was carried;
+     now they belong to their slots again */
+  ResetCardNumbers();
+
+  Invalidate();
+
+  if (unmoved)
+    /* taking and putting down without moving means the user wants to
+       change the InfoBox instead */
+    ShowPicker(described_slot);
+
+  return true;
 }
 
 /*
@@ -491,9 +875,13 @@ InfoBoxArrangeWindow::ShowHelp() noexcept
 ButtonState
 InfoBoxArrangeWindow::GetButtonState(int i) const noexcept
 {
-  return held_button == i && button_down
-    ? ButtonState::PRESSED
-    : ButtonState::ENABLED;
+  if (held_button == i && button_down)
+    return ButtonState::PRESSED;
+
+  if (focused_button == i)
+    return ButtonState::FOCUSED;
+
+  return ButtonState::ENABLED;
 }
 
 void
@@ -529,6 +917,15 @@ InfoBoxArrangeWindow::ReleaseButton() noexcept
  */
 
 void
+InfoBoxArrangeWindow::FocusSlot(unsigned slot) noexcept
+{
+  described_slot = slot;
+  focused_button = -1;
+  selection = Selection::FOCUSED;
+  Invalidate();
+}
+
+void
 InfoBoxArrangeWindow::BeginDrag(unsigned slot, PixelPoint pointer,
                                 bool follow) noexcept
 {
@@ -537,7 +934,11 @@ InfoBoxArrangeWindow::BeginDrag(unsigned slot, PixelPoint pointer,
   drag_snapshot = *panel;
   ResetCardNumbers();
 
+  /* the card the user has grabbed is the one being described; that
+     way only ever one card is highlighted */
   described_slot = slot;
+  selection = Selection::TOUCH;
+  focused_button = -1;
 
   if (!follow)
     /* holding the InfoBox still opens the picker */
@@ -570,8 +971,7 @@ InfoBoxArrangeWindow::Drag(PixelPoint p) noexcept
      with the slot it started from */
   const int slot = FindSlot(p);
   if (slot >= 0 && unsigned(slot) != drag->slot) {
-    std::swap(panel->contents[drag->slot], panel->contents[slot]);
-    std::swap(card_number[drag->slot], card_number[slot]);
+    Exchange(drag->slot, slot);
 
     /* the InfoBox which was in the way slides over to the slot the
        dragged one has just left; the dragged one needs no animation
@@ -689,6 +1089,62 @@ InfoBoxArrangeWindow::OnMultiTouchDown() noexcept
 }
 
 #endif
+
+bool
+InfoBoxArrangeWindow::OnKeyCheck(unsigned key_code) const noexcept
+{
+  switch (key_code) {
+  case KEY_UP:
+  case KEY_DOWN:
+  case KEY_LEFT:
+  case KEY_RIGHT:
+  case KEY_RETURN:
+  case KEY_ESCAPE:
+  case KEY_TAB:
+#ifdef USE_X11
+  case XK_ISO_Left_Tab:
+#endif
+    return true;
+
+  default:
+    return false;
+  }
+}
+
+bool
+InfoBoxArrangeWindow::OnKeyDown(unsigned key_code) noexcept
+{
+  switch (key_code) {
+  case KEY_LEFT:
+    return MoveSelection(-1, 0);
+
+  case KEY_RIGHT:
+    return MoveSelection(1, 0);
+
+  case KEY_UP:
+    return MoveSelection(0, -1);
+
+  case KEY_DOWN:
+    return MoveSelection(0, 1);
+
+  case KEY_TAB:
+    return MoveTab(!IsShiftKeyPressed());
+
+#ifdef USE_X11
+  case XK_ISO_Left_Tab:
+    /* X11 has its own key symbol for Shift+Tab */
+    return MoveTab(false);
+#endif
+
+  case KEY_RETURN:
+    return Activate();
+
+  case KEY_ESCAPE:
+    return OnArrangeCancel();
+  }
+
+  return PaintWindow::OnKeyDown(key_code);
+}
 
 void
 InfoBoxArrangeWindow::OnCancelMode() noexcept

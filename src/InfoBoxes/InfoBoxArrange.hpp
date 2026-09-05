@@ -30,6 +30,14 @@ void
 Begin(unsigned id, PixelPoint pointer) noexcept;
 
 /**
+ * Enter the arrange mode without a press, for example from the menu.
+ * The first InfoBox is selected; the cursor keys take over from
+ * there.
+ */
+void
+Begin() noexcept;
+
+/**
  * Give the keyboard focus back to the arrange overlay, so that the
  * cursor keys reach it instead of the map.
  *
