@@ -5,6 +5,7 @@
 #include "PopupMessage.hpp"
 #include "InfoBoxes/InfoBoxManager.hpp"
 #include "InfoBoxes/InfoBoxArrange.hpp"
+#include "InfoBoxes/InfoBoxArrangeWindow.hpp"
 #include "InfoBoxes/InfoBoxLayout.hpp"
 #include "UIActions.hpp"
 #include "PageActions.hpp"
@@ -1361,7 +1362,7 @@ MainWindow::OnPaint(Canvas &canvas) noexcept
      whole window while a trail exists, and for as many extra frames
      as the swap chain has buffers after it is gone. */
   const bool arranging = look != nullptr && InfoBoxArrange::IsActive();
-  const bool trail = arranging ||
+  const bool trail = arranging || InfoBoxArrangeWindow::IsCardFloating() ||
     (map != nullptr && map->HasGestureTrail());
   if (trail)
     clear_trail_frames = GetPresentationBufferCount();
