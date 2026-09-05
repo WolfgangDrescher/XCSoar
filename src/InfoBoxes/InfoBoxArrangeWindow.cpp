@@ -5,7 +5,9 @@
 #include "InfoBoxLayout.hpp"
 #include "InfoBoxManager.hpp"
 #include "Content/Factory.hpp"
+#include "Asset.hpp"
 #include "Dialogs/HelpDialog.hpp"
+#include "Hardware/CPU.hpp"
 #include "Language/Language.hpp"
 #include "Look/DialogLook.hpp"
 #include "Look/InfoBoxLook.hpp"
@@ -29,6 +31,9 @@ namespace {
  * is left, so that the text on the backdrop stays legible.
  */
 constexpr uint8_t OVERLAY_ALPHA = 0xe6;
+
+/** how long a displaced InfoBox takes to slide into its new slot */
+constexpr auto SHUFFLE_DURATION = std::chrono::milliseconds(250);
 
 /**
  * How much the card grows when it is picked up, relative to the slot
@@ -274,6 +279,8 @@ InfoBoxArrangeWindow::PaintCards(Canvas &canvas) noexcept
       continue;
 
     PixelRect rc = layout->positions[i];
+    const PixelPoint offset = GetShuffleOffset(i);
+    rc.Offset(offset.x, offset.y);
     rc.Grow(-(int)look.preview_padding);
     DrawCard(canvas, ToLocal(rc), i, card_number[i], false);
   }
@@ -344,6 +351,55 @@ InfoBoxArrangeWindow::ResetCardNumbers() noexcept
 }
 
 void
+InfoBoxArrangeWindow::StartShuffle(unsigned slot,
+                                   const PixelRect &from) noexcept
+{
+  if (HasEPaper() || IsSlowCPU())
+    /* e-paper and slow CPUs snap instead of animating, the same gate
+       the list and the map pan animations use */
+    return;
+
+  const PixelRect &to = layout->positions[slot];
+  shuffle[slot].offset = {from.left - to.left, from.top - to.top};
+  shuffle[slot].start = std::chrono::steady_clock::now();
+
+  shuffle_timer.Schedule(std::chrono::milliseconds(16));
+}
+
+PixelPoint
+InfoBoxArrangeWindow::GetShuffleOffset(unsigned slot) const noexcept
+{
+  const auto elapsed = std::chrono::steady_clock::now() - shuffle[slot].start;
+  if (elapsed >= SHUFFLE_DURATION)
+    return {0, 0};
+
+  const double t = std::chrono::duration<double>(elapsed)
+    / std::chrono::duration<double>(SHUFFLE_DURATION);
+
+  /* ease in out cubic, the curve UIKit animates with by default */
+  const double e = t < 0.5
+    ? 4 * t * t * t
+    : 1 - 4 * (1 - t) * (1 - t) * (1 - t);
+
+  return {int(shuffle[slot].offset.x * (1 - e)),
+          int(shuffle[slot].offset.y * (1 - e))};
+}
+
+void
+InfoBoxArrangeWindow::OnShuffleTimer() noexcept
+{
+  Invalidate();
+
+  for (unsigned i = 0; i < layout->count; ++i) {
+    const auto offset = GetShuffleOffset(i);
+    if (offset.x != 0 || offset.y != 0)
+      return;
+  }
+
+  shuffle_timer.Cancel();
+}
+
+void
 InfoBoxArrangeWindow::ShowPicker(unsigned slot) noexcept
 {
   OnArrangeSuspend();
@@ -363,6 +419,7 @@ InfoBoxArrangeWindow::ShowHelp() noexcept
   HelpDialog(_("Arrange InfoBoxes"),
              _("Drag an InfoBox onto another one to exchange the two."));
   OnArrangeActivity();
+  SetFocus();
 }
 
 /*
@@ -446,6 +503,12 @@ InfoBoxArrangeWindow::Drag(PixelPoint p) noexcept
   if (slot >= 0 && unsigned(slot) != drag->slot) {
     std::swap(panel->contents[drag->slot], panel->contents[slot]);
     std::swap(card_number[drag->slot], card_number[slot]);
+
+    /* the InfoBox which was in the way slides over to the slot the
+       dragged one has just left; the dragged one needs no animation
+       because it follows the finger */
+    StartShuffle(drag->slot, layout->positions[slot]);
+
     drag->slot = slot;
   }
 
@@ -474,6 +537,10 @@ InfoBoxArrangeWindow::CancelDrag() noexcept
   drag.reset();
   *panel = drag_snapshot;
   ResetCardNumbers();
+
+  for (auto &i : shuffle)
+    i.start = {};
+
   Invalidate();
 }
 

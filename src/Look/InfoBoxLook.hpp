@@ -25,7 +25,7 @@ struct InfoBoxLook {
    * follows the finger.
    */
   Color preview_backdrop_color, preview_active_color;
-  unsigned preview_padding, preview_radius;
+  unsigned preview_padding, preview_radius, preview_focus_width;
 
   /**
    * Used only by #InfoBoxSettings::BorderStyle::SHADED.
