@@ -967,6 +967,10 @@ MainWindow::ResumeThreads() noexcept
 void
 MainWindow::SetDefaultFocus() noexcept
 {
+  if (InfoBoxArrange::SetFocus())
+    /* the InfoBox arrange overlay is modal; it must keep the keys */
+    return;
+
   if (map != nullptr && widget == nullptr)
     map->SetFocus();
   else if (widget == nullptr || !widget->SetFocus())
@@ -1058,7 +1062,10 @@ MainWindow::OnSetFocus() noexcept
 {
   SingleWindow::OnSetFocus();
 
-  if (!HasDialog()) {
+  if (HasDialog())
+    /* recover the dialog focus if it got lost */
+    GetTopDialog().FocusFirstControl();
+  else if (!InfoBoxArrange::SetFocus()) {
     /* the main window should never have the keyboard focus; if we
        happen to get the focus despite of that, forward it to the map
        window to make keyboard shortcuts work */
@@ -1066,9 +1073,7 @@ MainWindow::OnSetFocus() noexcept
       map->SetFocus();
     else if (widget != nullptr)
       widget->SetFocus();
-  } else
-    /* recover the dialog focus if it got lost */
-    GetTopDialog().FocusFirstControl();
+  }
 }
 
 void

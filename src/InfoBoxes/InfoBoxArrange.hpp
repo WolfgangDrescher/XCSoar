@@ -30,6 +30,15 @@ void
 Begin(unsigned id, PixelPoint pointer) noexcept;
 
 /**
+ * Give the keyboard focus back to the arrange overlay, so that the
+ * cursor keys reach it instead of the map.
+ *
+ * @return false if the arrange mode is not active
+ */
+bool
+SetFocus() noexcept;
+
+/**
  * Leave the arrange mode and save the new order to the profile.
  */
 void

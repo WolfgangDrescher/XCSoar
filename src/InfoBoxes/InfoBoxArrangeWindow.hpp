@@ -5,9 +5,11 @@
 
 #include "InfoBoxSettings.hpp"
 #include "Renderer/TextButtonRenderer.hpp"
+#include "ui/event/PeriodicTimer.hpp"
 #include "ui/window/PaintWindow.hpp"
 #include "util/StaticArray.hxx"
 
+#include <chrono>
 #include <functional>
 #include <optional>
 
@@ -56,6 +58,17 @@ private:
     bool following;
   };
 
+  /**
+   * An InfoBox which was displaced by the dragged one slides into its
+   * new slot instead of jumping there.
+   */
+  struct Shuffle {
+    /** where the card starts, relative to its slot */
+    PixelPoint offset{0, 0};
+
+    std::chrono::steady_clock::time_point start{};
+  };
+
   const InfoBoxLook &look;
   const DialogLook &dialog_look;
 
@@ -81,12 +94,16 @@ private:
   /** is the finger still on #held_button? */
   bool button_down = false;
 
+  Shuffle shuffle[InfoBoxSettings::Panel::MAX_CONTENTS];
+
   /**
    * The number each slot shows.  While dragging, the numbers travel
    * with the InfoBoxes instead of staying on the slots, so that they
    * only change once the finger is lifted.
    */
   unsigned card_number[InfoBoxSettings::Panel::MAX_CONTENTS];
+
+  UI::PeriodicTimer shuffle_timer{[this]{ OnShuffleTimer(); }};
 
 public:
   InfoBoxArrangeWindow(const InfoBoxLook &_look,
@@ -183,6 +200,15 @@ private:
   void PaintPanelName(Canvas &canvas) noexcept;
 
   void ResetCardNumbers() noexcept;
+
+  /** Let the InfoBox in @p slot slide in from @p from. */
+  void StartShuffle(unsigned slot, const PixelRect &from) noexcept;
+
+  /** How far is the InfoBox in @p slot still away from its slot? */
+  [[gnu::pure]]
+  PixelPoint GetShuffleOffset(unsigned slot) const noexcept;
+
+  void OnShuffleTimer() noexcept;
 
   /** Let the user choose a different InfoBox for @p slot. */
   void ShowPicker(unsigned slot) noexcept;

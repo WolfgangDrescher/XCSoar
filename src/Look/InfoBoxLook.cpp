@@ -64,6 +64,7 @@ InfoBoxLook::ReinitialiseLayout(unsigned width, unsigned scale_title_font)
 
   preview_padding = Layout::Scale(4);
   preview_radius = Layout::Scale(6);
+  preview_focus_width = Layout::ScaleFinePenWidth(3);
 
   unit_fraction_pen.Create(Layout::ScaleFinePenWidth(1), value.fg_color);
 
