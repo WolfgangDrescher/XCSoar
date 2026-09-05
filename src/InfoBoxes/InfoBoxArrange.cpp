@@ -104,6 +104,10 @@ ShowControls() noexcept
   for (unsigned i = 0; i < InfoBoxManager::layout.count; ++i)
     if (auto *window = InfoBoxManager::GetWindow(i))
       window->FastHide();
+
+  /* after hiding the InfoBoxes, so that a hidden one cannot keep the
+     keyboard focus */
+  overlay->SetFocus();
 }
 
 /** Common part of InfoBoxArrange::Save() and InfoBoxArrange::Cancel(). */
@@ -115,6 +119,7 @@ Leave() noexcept
   if (overlay != nullptr) {
     /* the finger may still rest on a card */
     overlay->Drop();
+    overlay->FocusParent();
     overlay->Hide();
   }
 
@@ -151,6 +156,16 @@ InfoBoxArrange::Begin(unsigned id, PixelPoint pointer) noexcept
   /* the long press has already picked the InfoBox up, so it follows
      the finger right away */
   overlay->BeginDrag(id, pointer, true);
+}
+
+bool
+InfoBoxArrange::SetFocus() noexcept
+{
+  if (!active || overlay == nullptr)
+    return false;
+
+  overlay->SetFocus();
+  return true;
 }
 
 void
