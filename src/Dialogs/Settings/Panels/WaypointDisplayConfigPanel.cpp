@@ -17,6 +17,7 @@
 #include "Renderer/TextInBox.hpp"
 #include "Renderer/WaypointIconRenderer.hpp"
 #include "Renderer/WaypointLabelFormat.hpp"
+#include "Math/Angle.hpp"
 #include "Screen/Layout.hpp"
 #include "Units/Units.hpp"
 #include "Widget/RowFormWidget.hpp"
@@ -41,13 +42,16 @@ class WaypointPreviewWindow final : public PaintWindow {
   struct Sample {
     Waypoint waypoint;
 
-    /** relative position in the preview */
-    double x, y;
+    /** bearing from the aircraft, degrees */
+    double bearing;
+
+    /** distance from the aircraft, 0 to 1 */
+    double distance;
 
     /** made up values; the preview shows the layout, not a solution */
     WaypointArrivalValues values;
 
-    bool reachable;
+    bool reachable, in_task;
   };
 
   WaypointRendererSettings settings;
@@ -60,6 +64,9 @@ class WaypointPreviewWindow final : public PaintWindow {
 
   std::vector<Sample> samples;
 
+  /** keeps the labels from overlapping, just like on the map */
+  LabelBlock label_block;
+
 public:
   explicit WaypointPreviewWindow(const WaypointRendererSettings &_settings)
     noexcept
@@ -70,56 +77,49 @@ public:
 
     samples.reserve(8);
 
-    Runway runway = Runway::Null();
-    runway.SetDirectionDegrees(160);
-    runway.SetLength(1000);
-
-    /* Freiburg in the middle, the others roughly where they are from
-       there */
+    /* the aircraft is in the middle; the waypoints are arranged
+       around it, the reachable one closest */
     auto &freiburg = Add("Freiburg", "EDTF", Waypoint::Type::AIRFIELD,
-                         0.42, 0.46, true);
-    freiburg.waypoint.runway = runway;
+                         315, 0.30, true);
+    SetRunway(freiburg, 160, 1000);
     freiburg.values.height_straight = (int)Units::ToUserAltitude(450);
     freiburg.values.height_terrain = (int)Units::ToUserAltitude(380);
     freiburg.values.considerable_delta = true;
-    freiburg.values.glide_ratio = 24;
+    freiburg.values.altitude = (int)Units::ToUserAltitude(1000);
+    freiburg.values.glide_ratio = 12;
 
-    /* north west, the Kaiserstuhl */
-    auto &kaiserstuhl = Add("Totenkopf", nullptr,
-                            Waypoint::Type::MOUNTAIN_TOP, 0.12, 0.16, false);
-    kaiserstuhl.values.height_straight = (int)Units::ToUserAltitude(210);
-    kaiserstuhl.values.glide_ratio = 18;
-
-    /* east south east, a glider site */
     auto &kirchzarten = Add("Kirchzarten", nullptr,
-                            Waypoint::Type::AIRFIELD, 0.60, 0.52, false);
-    Runway kirchzarten_runway = Runway::Null();
-    kirchzarten_runway.SetDirectionDegrees(70);
-    kirchzarten_runway.SetLength(600);
-    kirchzarten.waypoint.runway = kirchzarten_runway;
+                            Waypoint::Type::AIRFIELD, 95, 0.55, false);
+    SetRunway(kirchzarten, 70, 600);
+    kirchzarten.in_task = true;
     kirchzarten.values.height_straight = (int)Units::ToUserAltitude(120);
+    kirchzarten.values.altitude = (int)Units::ToUserAltitude(750);
     kirchzarten.values.glide_ratio = 27;
 
-    /* south south east, the Feldberg */
-    auto &feldberg = Add("Feldberg", nullptr,
-                         Waypoint::Type::MOUNTAIN_TOP, 0.46, 0.74, false);
-    feldberg.values.height_straight = (int)Units::ToUserAltitude(-180);
-    feldberg.values.glide_ratio = 62;
+    auto &totenkopf = Add("Totenkopf", nullptr,
+                          Waypoint::Type::MOUNTAIN_TOP, 20, 0.80, false);
+    totenkopf.values.height_straight = (int)Units::ToUserAltitude(-40);
+    totenkopf.values.altitude = (int)Units::ToUserAltitude(560);
+    totenkopf.values.glide_ratio = 31;
 
-    /* east south east, an outlanding field */
     auto &loeffingen = Add("Löffingen", nullptr,
-                           Waypoint::Type::OUTLANDING, 0.72, 0.70, false);
-    loeffingen.values.height_straight = (int)Units::ToUserAltitude(-40);
+                           Waypoint::Type::OUTLANDING, 150, 0.85, false);
+    SetRunway(loeffingen, 30, 400);
+    loeffingen.values.height_straight = (int)Units::ToUserAltitude(-90);
+    loeffingen.values.altitude = (int)Units::ToUserAltitude(880);
     loeffingen.values.glide_ratio = 38;
 
-    /* south, in the Hotzenwald */
+    auto &feldberg = Add("Feldberg", nullptr,
+                         Waypoint::Type::MOUNTAIN_TOP, 215, 0.60, false);
+    feldberg.values.height_straight = (int)Units::ToUserAltitude(-180);
+    feldberg.values.altitude = (int)Units::ToUserAltitude(1310);
+    feldberg.values.glide_ratio = 62;
+
     auto &huetten = Add("Hütten Hotzenwald", "EDXX",
-                        Waypoint::Type::AIRFIELD, 0.30, 0.86, false);
-    Runway huetten_runway = Runway::Null();
-    huetten_runway.SetDirectionDegrees(120);
-    huetten_runway.SetLength(700);
-    huetten.waypoint.runway = huetten_runway;
-    huetten.values.height_straight = (int)Units::ToUserAltitude(-90);
+                        Waypoint::Type::AIRFIELD, 265, 0.90, false);
+    SetRunway(huetten, 120, 700);
+    huetten.values.height_straight = (int)Units::ToUserAltitude(-60);
+    huetten.values.altitude = (int)Units::ToUserAltitude(920);
     huetten.values.glide_ratio = 41;
   }
 
@@ -133,10 +133,11 @@ public:
 
 protected:
   Sample &Add(const char *name, const char *shortname,
-              Waypoint::Type type, double x, double y,
+              Waypoint::Type type, double bearing, double distance,
               bool reachable) noexcept {
     auto &sample = samples.emplace_back(Sample{Waypoint{GeoPoint::Zero()},
-                                              x, y, {}, reachable});
+                                              bearing, distance, {},
+                                              reachable, false});
     sample.waypoint.name = name;
     if (shortname != nullptr)
       sample.waypoint.shortname = shortname;
@@ -146,8 +147,41 @@ protected:
     return sample;
   }
 
-  /** keeps the labels from overlapping, just like on the map */
-  LabelBlock label_block;
+  static void SetRunway(Sample &sample, unsigned direction,
+                        unsigned length) noexcept {
+    Runway runway = Runway::Null();
+    runway.SetDirectionDegrees(direction);
+    runway.SetLength(length);
+    sample.waypoint.runway = runway;
+  }
+
+  /**
+   * Does this waypoint get a label, according to the label
+   * visibility?  The preview always has a task.
+   */
+  [[gnu::pure]]
+  bool HasLabel(const Sample &sample) const noexcept {
+    switch (settings.label_selection) {
+    case WaypointRendererSettings::LabelSelection::NONE:
+      return false;
+
+    case WaypointRendererSettings::LabelSelection::TASK:
+      return sample.in_task;
+
+    case WaypointRendererSettings::LabelSelection::TASK_AND_AIRFIELD:
+      return sample.in_task || sample.waypoint.IsAirport();
+
+    case WaypointRendererSettings::LabelSelection::TASK_AND_LANDABLE:
+      return sample.in_task || sample.waypoint.IsLandable();
+
+    case WaypointRendererSettings::LabelSelection::ALL:
+      break;
+    }
+
+    return true;
+  }
+
+  void DrawAircraft(Canvas &canvas, PixelPoint centre) noexcept;
 
   void DrawSample(Canvas &canvas, const PixelRect &rc,
                   const Sample &sample) noexcept;
@@ -263,47 +297,109 @@ SplitSegments(char *text, std::span<const char *> segments) noexcept
   return n;
 }
 
+/**
+ * The aircraft in the middle, built from rectangles so that it stays
+ * crisp at any size.
+ */
+static void
+DrawAircraftSymbol(Canvas &canvas, PixelPoint centre, int size,
+                   Color color) noexcept
+{
+  const int thin = std::max(1, size / 5);
+
+  canvas.DrawFilledRectangle({centre.x - thin / 2, centre.y - size / 2,
+                              centre.x - thin / 2 + thin,
+                              centre.y + size / 2}, color);
+  canvas.DrawFilledRectangle({centre.x - size, centre.y - thin / 2,
+                              centre.x + size,
+                              centre.y - thin / 2 + thin}, color);
+  canvas.DrawFilledRectangle({centre.x - size / 3,
+                              centre.y + size / 2 - thin,
+                              centre.x + size / 3,
+                              centre.y + size / 2}, color);
+}
+
+void
+WaypointPreviewWindow::DrawAircraft(Canvas &canvas,
+                                    PixelPoint centre) noexcept
+{
+  const int size = Layout::Scale(7);
+  const int halo = std::max(1, size / 5);
+
+  /* a white halo, like the aircraft has on the real map */
+  DrawAircraftSymbol(canvas, centre.At(-halo, 0), size, COLOR_WHITE);
+  DrawAircraftSymbol(canvas, centre.At(halo, 0), size, COLOR_WHITE);
+  DrawAircraftSymbol(canvas, centre.At(0, -halo), size, COLOR_WHITE);
+  DrawAircraftSymbol(canvas, centre.At(0, halo), size, COLOR_WHITE);
+
+  DrawAircraftSymbol(canvas, centre, size, COLOR_BLACK);
+}
+
 void
 WaypointPreviewWindow::DrawSample(Canvas &canvas, const PixelRect &rc,
                                   const Sample &sample) noexcept
 {
   const Waypoint &way_point = sample.waypoint;
 
-  const PixelPoint p(rc.left + (int)(rc.GetWidth() * sample.x),
-                     rc.top + (int)(rc.GetHeight() * sample.y));
+  const auto sc = Angle::Degrees(sample.bearing).SinCos();
+  const int margin = Layout::Scale(14);
+  const PixelPoint centre = rc.GetCenter();
+  const int rx = std::max(1, (int)rc.GetWidth() / 2 - margin);
+  const int ry = std::max(1, (int)rc.GetHeight() / 2 - margin);
+
+  const PixelPoint p(centre.x + (int)(sc.first * sample.distance * rx),
+                     centre.y - (int)(sc.second * sample.distance * ry));
 
   const auto reachability = sample.reachable
     ? WaypointReachability::TERRAIN
     : WaypointReachability::UNREACHABLE;
 
   WaypointIconRenderer icon_renderer(settings, look, canvas);
-  icon_renderer.Draw(way_point, p, reachability);
+  icon_renderer.Draw(way_point, p, reachability, sample.in_task);
+
+  if (!HasLabel(sample))
+    return;
 
   /* a reachable landable is what the highlight style is for */
   const auto appearance = GetWaypointLabelAppearance(settings,
-                                                     sample.reachable);
+                                                     sample.reachable ||
+                                                     sample.in_task);
 
   char buffer[64];
   FormatWaypointLabelTitle(buffer, ARRAY_SIZE(buffer) - 20, settings,
                            way_point);
 
-  char info[16];
+  char info[24];
   info[0] = '\0';
 
-  /* without a glide solution, an unreachable waypoint gets its value
-     only in the "all labelled waypoints" mode, just like on the map */
-  if (sample.reachable ||
-      settings.arrival_info_visibility ==
-      WaypointRendererSettings::ArrivalInfoVisibility::ALL)
+  /* the same rule as on the map, where a waypoint which is not
+     landable has no glide solution */
+  bool has_values = false;
+  switch (settings.arrival_info_visibility) {
+  case WaypointRendererSettings::ArrivalInfoVisibility::REACHABLE:
+    has_values = sample.reachable;
+    break;
+
+  case WaypointRendererSettings::ArrivalInfoVisibility::LANDABLE:
+    has_values = way_point.IsLandable();
+    break;
+
+  case WaypointRendererSettings::ArrivalInfoVisibility::ALL:
+    has_values = true;
+    break;
+  }
+
+  if (has_values)
     FormatWaypointArrivalInfo(info, ARRAY_SIZE(info), settings,
                               sample.values, Units::GetAltitudeName());
+
+  TextInBoxMode mode;
+  mode.shape = appearance.shape;
+  mode.move_in_view = true;
 
   const bool info_below = info[0] != '\0' &&
     settings.arrival_info_position ==
     WaypointRendererSettings::ArrivalInfoPosition::BADGE_BELOW;
-
-  TextInBoxMode mode;
-  mode.shape = appearance.shape;
 
   if (info[0] != '\0' && !info_below) {
     size_t length = strlen(buffer);
@@ -320,7 +416,7 @@ WaypointPreviewWindow::DrawSample(Canvas &canvas, const PixelRect &rc,
 
   canvas.Select(appearance.bold ? *look.bold_font : *look.font);
 
-  const char *segments[3];
+  const char *segments[4];
   std::size_t n = SplitSegments(buffer, segments);
   TextInBox(canvas, std::span{segments}.first(n), label_pos, mode, size,
             &label_block);
@@ -328,15 +424,17 @@ WaypointPreviewWindow::DrawSample(Canvas &canvas, const PixelRect &rc,
   if (info_below) {
     TextInBoxMode info_mode;
     info_mode.shape = LabelShape::ROUNDED_WHITE;
+    info_mode.move_in_view = true;
     info_mode.compact = true;
 
     canvas.Select(*look.font);
 
+    const int offset = (int)(look.bold_font->GetHeight() +
+                             2 * Layout::GetTextPadding() + 2);
+
     n = SplitSegments(info, segments);
     TextInBox(canvas, std::span{segments}.first(n),
-              label_pos.At(0, canvas.GetFontHeight() +
-                           Layout::GetTextPadding()),
-              info_mode, size, &label_block);
+              label_pos.At(0, offset), info_mode, size, &label_block);
   }
 }
 
@@ -365,6 +463,8 @@ WaypointPreviewWindow::OnPaint(Canvas &canvas) noexcept
   }
 
   label_block.reset();
+
+  DrawAircraft(canvas, rc.GetCenter());
 
   for (const auto &sample : samples)
     DrawSample(canvas, rc, sample);
