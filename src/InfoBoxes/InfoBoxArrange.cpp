@@ -71,6 +71,11 @@ protected:
   void OnArrangeSuspend() noexcept override {
     CancelTimeout();
   }
+
+  bool OnArrangeCancel() noexcept override {
+    InfoBoxArrange::Cancel();
+    return true;
+  }
 };
 
 /**
@@ -156,6 +161,20 @@ InfoBoxArrange::Begin(unsigned id, PixelPoint pointer) noexcept
   /* the long press has already picked the InfoBox up, so it follows
      the finger right away */
   overlay->BeginDrag(id, pointer, true);
+}
+
+void
+InfoBoxArrange::Begin() noexcept
+{
+  if (active || InfoBoxManager::GetWindow(0) == nullptr)
+    return;
+
+  active = true;
+  saved_panel = InfoBoxManager::GetCurrentPanel();
+  ShowControls();
+
+  overlay->FocusSlot(0);
+  RestartTimeout();
 }
 
 bool
