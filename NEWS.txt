@@ -101,6 +101,9 @@ Version 7.46 - not yet released
   - fix a settings panel going dead after a swipe: the control the
     swipe had started on kept the mouse capture, so every later press
     was delivered to it instead of to the control that was pressed
+  - fix Dark mode Auto on macOS and iOS always staying light: follow
+    the system appearance, including a scheduled switch while XCSoar
+    is running
 * documentation
   - describe the T Next Leg InfoBox and how to use it at a turn
 * development
