@@ -66,6 +66,7 @@ Version 7.46 - not yet released
   - fix LXNAV polar sync writes that could zero the vario polar when
     crew or empty mass were sent before the device polar was known;
     preserve max weight and glider name when sending a polar #2397
+  - Port monitor: also show data written to the device
 * dialogs
   - put the Close button on the right of the Status and Weather
     tab strips
