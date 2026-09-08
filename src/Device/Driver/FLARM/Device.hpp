@@ -37,6 +37,14 @@ class FlarmDevice: public AbstractDevice
   uint16_t sequence_number = 0;
 
   /**
+   * The announced payload size of the frame whose payload stopped
+   * arriving in the middle, or 0 if the last WaitForACKOrNACK() call
+   * did not lose a frame that way.  A restarted flight download uses
+   * it to skip a frame which it has already saved.
+   */
+  uint16_t lost_frame_length = 0;
+
+  /**
    * Settings that were received in PDVSC sentences.
    */
   DeviceSettingsMap<std::string> settings;
