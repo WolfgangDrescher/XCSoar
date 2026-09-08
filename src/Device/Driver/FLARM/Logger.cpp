@@ -7,6 +7,7 @@
 #include "io/FileOutputStream.hxx"
 #include "io/BufferedOutputStream.hxx"
 #include "system/Path.hpp"
+#include "LogFile.hpp"
 #include "Operation/Operation.hpp"
 
 #include <cstdlib>
@@ -218,12 +219,14 @@ FlarmDevice::ReadFlightInfo(RecordedFlightInfo &flight,
   // Send request
   SendFrame(header, {}, env, std::chrono::seconds(1));
 
-  // Wait for an answer and save the payload for further processing
+  /* wait for an answer and save the payload for further processing;
+     the record info frame is ~100 bytes, which can take several
+     seconds on a slow link (e.g. a Bluetooth LE bridge) */
   AllocatedArray<std::byte> data;
   uint16_t length;
   const auto ack_result =
     WaitForACKOrNACK(header.sequence_number, data, length,
-                     env, std::chrono::seconds(5));
+                     env, std::chrono::seconds(10));
 
   // If neither ACK nor NACK was received
   if (ack_result != FLARM::MessageType::ACK || length <= 2)
@@ -236,17 +239,44 @@ FlarmDevice::ReadFlightInfo(RecordedFlightInfo &flight,
 FLARM::MessageType
 FlarmDevice::SelectFlight(uint8_t record_number, OperationEnvironment &env)
 {
-  // Create header for selecting a log record
+  static constexpr unsigned max_attempts = 3;
+
   std::byte data[] = { static_cast<std::byte>(record_number) };
-  FLARM::FrameHeader header = PrepareFrameHeader(FLARM::MessageType::SELECTRECORD,
-                                                 std::span{data});
 
-  // Send request
-  SendFrame(header, std::span{data}, env, std::chrono::seconds(1));
+  /* retry with a fresh frame on timeout; over high-latency links
+     such as Bluetooth LE bridges, a single short timeout is not
+     always enough, and a lost frame would otherwise silently drop a
+     flight from the list */
+  for (unsigned attempt = 1;; ++attempt) {
+    // Create header for selecting a log record
+    FLARM::FrameHeader header =
+      PrepareFrameHeader(FLARM::MessageType::SELECTRECORD, std::span{data});
 
-  // Wait for an answer
-  return WaitForACKOrNACK(header.sequence_number,
-                          env, std::chrono::seconds(1));
+    // Send request
+    SendFrame(header, std::span{data}, env, std::chrono::seconds(1));
+
+    // Wait for an answer
+    try {
+      const auto result = WaitForACKOrNACK(header.sequence_number,
+                                           env, std::chrono::seconds(2));
+      if (result != FLARM::MessageType::ERROR || attempt >= max_attempts)
+        return result;
+
+#ifndef NDEBUG
+      LogFormat("FLARM: no answer to SELECTRECORD %u (attempt %u of %u)",
+                record_number, attempt, max_attempts);
+#endif
+    } catch (const DeviceTimeout &) {
+      if (attempt >= max_attempts)
+        throw;
+
+#ifndef NDEBUG
+      LogFormat("FLARM: timeout waiting for SELECTRECORD %u answer"
+                " (attempt %u of %u)",
+                record_number, attempt, max_attempts);
+#endif
+    }
+  }
 }
 
 bool
