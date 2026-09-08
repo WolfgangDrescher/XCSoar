@@ -78,16 +78,27 @@ FlarmDevice::BinaryMode(OperationEnvironment &env)
   // of time (around 1.5 sec). Due to that it is recommended to issue new pings
   // for a certain time until the ping is ACKed properly or a timeout occurs.
   for (unsigned i = 0; i < 10; ++i) {
-    if (BinaryPing(env, std::chrono::milliseconds(500))) {
+    /* give slow links (small ATT MTU, long connection interval) some
+       more time after the first attempts */
+    const auto timeout = std::chrono::milliseconds(i < 5 ? 500 : 1000);
+
+    if (BinaryPing(env, timeout)) {
       // We are now in binary mode and have verified that with a binary ping
 
       // Remember that we should now be in binary mode (for further assert() calls)
       was_binary = true;
       mode = Mode::BINARY;
+
+#ifndef NDEBUG
+      if (i > 0)
+        LogFormat("FLARM: binary mode established after %u pings", i + 1);
+#endif
+
       return true;
     }
   }
 
   // Apparently the switch to binary mode didn't work
+  LogFormat("FLARM: no answer to binary ping, cannot enter binary mode");
   return false;
 }
