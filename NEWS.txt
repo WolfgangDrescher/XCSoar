@@ -84,6 +84,9 @@ Version 7.46 - not yet released
   - replace light green on Alternate MANUAL final glide with blue,
     matching Next waypoint
 * ui
+  - Support manual UTC offsets up to +14:00 in 15-minute increments
+  - Keep automatic UTC offsets synchronized with the operating-system
+    time zone, including daylight-saving and travel changes
   - keep pan-mode menu buttons about 20 mm tall on tall phones,
     large enough for a gloved tap
   - fix blurry icons on high-DPI screens, most visible on the large
@@ -102,6 +105,7 @@ Version 7.46 - not yet released
     swipe had started on kept the mouse capture, so every later press
     was delivered to it instead of to the control that was pressed
 * documentation
+  - document 15-minute UTC offset selection
   - describe the T Next Leg InfoBox and how to use it at a turn
 * development
   - build system: use Android SDK 36 and Build-Tools 36.0.0
