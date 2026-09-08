@@ -9,9 +9,12 @@
 #include "system/Path.hpp"
 #include "LogFile.hpp"
 #include "Operation/Operation.hpp"
+#include "Operation/Cancelled.hpp"
 
+#include <algorithm> // for std::min(), std::max()
 #include <cstdlib>
 #include <cstring>
+#include <span>
 
 static bool
 ParseDate(const char *str, BrokenDate &date)
@@ -312,64 +315,90 @@ FlarmDevice::ReadFlightList(RecordedFlightList &flight_list,
 }
 
 bool
-FlarmDevice::DownloadFlight(Path path, OperationEnvironment &env)
+FlarmDevice::DownloadFlight(BufferedOutputStream &os, std::size_t &offset,
+                            unsigned &max_progress,
+                            OperationEnvironment &env)
 {
-  static constexpr unsigned get_igcdata_retries = 3;
+  /* the FLARM binary protocol cannot seek inside a flight record;
+     after a restarted transfer, the part which was already saved is
+     discarded instead of being written twice */
+  std::size_t skip = offset;
 
-  FileOutputStream fos(path);
-  BufferedOutputStream os(fos);
-
-  env.SetProgressRange(100);
   while (true) {
     // Create header for getting IGC file data
     FLARM::FrameHeader header = PrepareFrameHeader(FLARM::MessageType::GETIGCDATA);
 
     AllocatedArray<std::byte> data;
     uint16_t length = 0;
-    bool ack = false;
 
-    for (unsigned retry = 0; retry < get_igcdata_retries; ++retry) {
-      // Send request
-      SendFrame(header, {}, env, std::chrono::seconds(1));
+    // Send request
+    SendFrame(header, {}, env, std::chrono::seconds(1));
 
-      // Wait for an answer and save the payload for further processing
-      try {
-        ack = WaitForACKOrNACK(header.sequence_number, data,
-                               length, env,
-                               std::chrono::seconds(10)) ==
-          FLARM::MessageType::ACK;
-      } catch (const DeviceTimeout &) {
-        ack = false;
-      }
-
-      if (ack)
-        break;
+    /* wait for an answer and save the payload for further processing;
+       an IGC data frame is several hundred bytes, which can take a
+       while on a slow link (e.g. a Bluetooth LE bridge) */
+    auto result = FLARM::MessageType::ERROR;
+    try {
+      result = WaitForACKOrNACK(header.sequence_number, data,
+                                length, env, std::chrono::seconds(30));
+    } catch (const DeviceTimeout &) {
     }
 
-    // If no ACK was received
-    if (!ack || length <= 3)
+    if (result != FLARM::MessageType::ACK || length <= 3) {
+      /* a lost frame must not be requested again: the FLARM does not
+         repeat it, it answers the next GETIGCDATA with the *following*
+         chunk, and the missing one would leave a hole in the IGC file.
+         Fail this session instead; the caller restarts the transfer
+         from the beginning and skips the part which was already
+         written */
+      LogFormat("FLARM: %s to GETIGCDATA after %lu bytes",
+                result == FLARM::MessageType::NACK
+                ? "NACK"
+                : (result == FLARM::MessageType::ACK
+                   ? "short answer" : "no answer"),
+                (unsigned long)offset);
       return false;
+    }
 
     length -= 3;
 
     // Read progress (in percent)
-    const auto progress = static_cast<unsigned>(data[2]);
-    env.SetProgressPosition(std::min(progress, 100u));
+    const auto progress = std::min(static_cast<unsigned>(data[2]), 100u);
 
-    const char last_char = (char)data.back();
-    bool is_last_packet = (last_char == 0x1A);
-    if (is_last_packet)
-      length--;
+    /* a restarted transfer sends the flight from the beginning, so
+       the FLARM counts from zero again although the file is already
+       written up to #offset; keep the progress bar monotonic */
+    max_progress = std::max(max_progress, progress);
+    env.SetProgressPosition(max_progress);
+
+#ifndef NDEBUG
+    LogFormat("FLARM: received IGC data frame (%u bytes, %u%%)",
+              unsigned(length), progress);
+#endif
 
     // Read IGC data
-    os.Write({data.data() + 3, length});
+    std::span<const std::byte> payload{data.data() + 3, length};
+
+    // The last packet ends with 0x1A
+    const bool is_last_packet = !payload.empty() &&
+      payload.back() == std::byte{0x1A};
+    if (is_last_packet)
+      payload = payload.first(payload.size() - 1);
+
+    if (skip > 0) {
+      const std::size_t n = std::min(skip, payload.size());
+      payload = payload.subspan(n);
+      skip -= n;
+    }
+
+    if (!payload.empty()) {
+      os.Write(payload);
+      offset += payload.size();
+    }
 
     if (is_last_packet)
       break;
   }
-
-  os.Flush();
-  fos.Commit();
 
   return true;
 }
@@ -379,22 +408,64 @@ bool
 FlarmDevice::DownloadFlight(const RecordedFlightInfo &flight,
                             Path path, OperationEnvironment &env)
 {
-  if (!BinaryMode(env))
-    return false;
+  /* how often to restart the transfer after a mid-transfer failure;
+     the equivalent of the resumable LX Nano downloads.  The FLARM
+     binary protocol cannot resume at an offset, so the transfer is
+     restarted and the already saved part is skipped.
+     Every attempt which gets past the previous one makes progress, so
+     a link which loses a frame now and then still finishes; the price
+     is that each restart reads the flight from the beginning again */
+  static constexpr unsigned session_attempts = 20;
 
-  FLARM::MessageType ack_result = SelectFlight(flight.internal.flarm, env);
+  FileOutputStream fos(path);
+  BufferedOutputStream os(fos);
 
-  // If no ACK was received -> cancel
-  if (ack_result != FLARM::MessageType::ACK)
-    return false;
+  env.SetProgressRange(100);
 
-  try {
-    if (DownloadFlight(path, env))
-      return true;
-  } catch (...) {
+  std::size_t offset = 0;
+  unsigned max_progress = 0;
+
+  for (unsigned attempt = 1;; ++attempt) {
+    try {
+      if (!BinaryMode(env))
+        return false;
+
+      // If no ACK was received -> cancel
+      if (SelectFlight(flight.internal.flarm, env) != FLARM::MessageType::ACK)
+        return false;
+
+      if (DownloadFlight(os, offset, max_progress, env)) {
+        os.Flush();
+        fos.Commit();
+        return true;
+      }
+    } catch (OperationCancelled &) {
+      mode = Mode::UNKNOWN;
+      throw;
+    } catch (...) {
+      mode = Mode::UNKNOWN;
+
+      if (attempt >= session_attempts)
+        throw;
+
+      LogError(std::current_exception(), "FLARM: flight download error");
+    }
+
+    if (attempt >= session_attempts)
+      break;
+
+    LogFormat("FLARM: flight download attempt %u of %u failed"
+              " after %lu bytes, restarting the transfer",
+              attempt, session_attempts, (unsigned long)offset);
+
+    /* force BinaryMode() to re-establish the (possibly dead) binary
+       session before the next attempt */
     mode = Mode::UNKNOWN;
-    throw;
   }
+
+  LogFormat("FLARM: flight download failed after %u attempts"
+            " (%lu bytes received)",
+            session_attempts, (unsigned long)offset);
 
   mode = Mode::UNKNOWN;
 

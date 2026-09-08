@@ -18,6 +18,7 @@ class OperationEnvironment;
 class RecordedFlightList;
 struct RecordedFlightInfo;
 class NMEAInputLine;
+class BufferedOutputStream;
 
 class FlarmDevice: public AbstractDevice
 {
@@ -275,12 +276,21 @@ private:
   bool ReadFlightInfo(RecordedFlightInfo &flight, OperationEnvironment &env);
 
   /**
-   * Sends GetIGCData messages to the Flarm and downloads the currently
-   * selected flight
-   * @param path Path to the IGC file to write into
+   * Sends GetIGCData messages to the Flarm and downloads the
+   * currently selected flight
+   *
+   * @param os the output stream to append the IGC data to
+   * @param offset the number of bytes which have already been
+   * written to the stream by a previous, failed transfer of the same
+   * flight; that part of the restarted stream is skipped instead of
+   * being written again.  Updated as data is written.
+   * @param max_progress the highest percentage reported so far; a
+   * restarted transfer makes the FLARM count from zero again, and the
+   * progress bar must not jump backwards.  Updated as data arrives.
    * @return True if received and written successfully, otherwise False
    */
-  bool DownloadFlight(Path path, OperationEnvironment &env);
+  bool DownloadFlight(BufferedOutputStream &os, std::size_t &offset,
+                      unsigned &max_progress, OperationEnvironment &env);
 
 public:
   /**
