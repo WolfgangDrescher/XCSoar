@@ -216,8 +216,7 @@ FlarmDevice::ReadFlightInfo(RecordedFlightInfo &flight,
   FLARM::FrameHeader header = PrepareFrameHeader(FLARM::MessageType::GETRECORDINFO);
 
   // Send request
-  SendStartByte();
-  SendFrameHeader(header, env, std::chrono::seconds(1));
+  SendFrame(header, {}, env, std::chrono::seconds(1));
 
   // Wait for an answer and save the payload for further processing
   AllocatedArray<std::byte> data;
@@ -243,9 +242,7 @@ FlarmDevice::SelectFlight(uint8_t record_number, OperationEnvironment &env)
                                                  std::span{data});
 
   // Send request
-  SendStartByte();
-  SendFrameHeader(header, env, std::chrono::seconds(1));
-  SendEscaped(std::span{data}, env, std::chrono::seconds(1));
+  SendFrame(header, std::span{data}, env, std::chrono::seconds(1));
 
   // Wait for an answer
   return WaitForACKOrNACK(header.sequence_number,
@@ -303,8 +300,7 @@ FlarmDevice::DownloadFlight(Path path, OperationEnvironment &env)
 
     for (unsigned retry = 0; retry < get_igcdata_retries; ++retry) {
       // Send request
-      SendStartByte();
-      SendFrameHeader(header, env, std::chrono::seconds(1));
+      SendFrame(header, {}, env, std::chrono::seconds(1));
 
       // Wait for an answer and save the payload for further processing
       try {

@@ -9,6 +9,7 @@
 #include "util/SpanCast.hxx"
 
 #include <algorithm> // for std::find_if()
+#include <vector>
 
 static constexpr auto
 FindSpecial(std::span<const std::byte>::iterator begin,
@@ -73,6 +74,38 @@ FLARM::SendEscaped(Port &port, std::span<const std::byte> src,
 
     p++;
   }
+}
+
+static void
+AppendEscaped(std::vector<std::byte> &dest,
+              std::span<const std::byte> src) noexcept
+{
+  for (const std::byte b : src) {
+    if (b == FLARM::START_FRAME) {
+      dest.push_back(FLARM::ESCAPE);
+      dest.push_back(FLARM::ESCAPE_START);
+    } else if (b == FLARM::ESCAPE) {
+      dest.push_back(FLARM::ESCAPE);
+      dest.push_back(FLARM::ESCAPE_ESCAPE);
+    } else
+      dest.push_back(b);
+  }
+}
+
+void
+FLARM::SendFrame(Port &port, const FrameHeader &header,
+                 std::span<const std::byte> payload,
+                 OperationEnvironment &env,
+                 std::chrono::steady_clock::duration timeout)
+{
+  std::vector<std::byte> frame;
+  frame.reserve(1 + 2 * (sizeof(header) + payload.size()));
+
+  frame.push_back(START_FRAME);
+  AppendEscaped(frame, ReferenceAsBytes(header));
+  AppendEscaped(frame, payload);
+
+  port.FullWrite(frame, env, timeout);
 }
 
 static std::byte *
@@ -140,12 +173,6 @@ FLARM::ReceiveEscaped(Port &port, std::span<std::byte> dest,
   return true;
 }
 
-void
-FlarmDevice::SendStartByte()
-{
-  port.Write(FLARM::START_FRAME);
-}
-
 inline void
 FlarmDevice::WaitForStartByte(OperationEnvironment &env,
                               std::chrono::steady_clock::duration timeout)
@@ -172,14 +199,6 @@ FlarmDevice::PrepareFrameHeader(FLARM::MessageType message_type,
 {
   return FLARM::PrepareFrameHeader(sequence_number++, message_type,
                                    payload);
-}
-
-void
-FlarmDevice::SendFrameHeader(const FLARM::FrameHeader &header,
-                             OperationEnvironment &env,
-                             std::chrono::steady_clock::duration timeout)
-{
-  SendEscaped(ReferenceAsBytes(header), env, timeout);
 }
 
 bool
@@ -274,8 +293,7 @@ try {
 
   // Send request and wait for positive answer
 
-  SendStartByte();
-  SendFrameHeader(header, env, timeout.GetRemainingOrZero());
+  SendFrame(header, {}, env, timeout.GetRemainingOrZero());
   return WaitForACK(header.sequence_number, env, timeout.GetRemainingOrZero());
 } catch (const DeviceTimeout &) {
   return false;
@@ -291,6 +309,5 @@ FlarmDevice::BinaryReset(OperationEnvironment &env,
   FLARM::FrameHeader header = PrepareFrameHeader(FLARM::MessageType::EXIT);
 
   // Send request and wait for positive answer
-  SendStartByte();
-  SendFrameHeader(header, env, timeout.GetRemainingOrZero());
+  SendFrame(header, {}, env, timeout.GetRemainingOrZero());
 }

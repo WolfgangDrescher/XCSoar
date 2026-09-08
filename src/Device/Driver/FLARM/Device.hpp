@@ -163,22 +163,11 @@ private:
   bool DeclareInternal(const Declaration &declaration,
                        OperationEnvironment &env);
 
-  void SendEscaped(std::span<const std::byte> src,
-                   OperationEnvironment &env,
-                   std::chrono::steady_clock::duration timeout) {
-    FLARM::SendEscaped(port, src, env, timeout);
-  }
-
   bool ReceiveEscaped(std::span<std::byte> dest,
                       OperationEnvironment &env,
                       std::chrono::steady_clock::duration timeout) {
     return FLARM::ReceiveEscaped(port, dest, env, timeout);
   }
-
-  /**
-   * Send the byte that is used to signal that start of a new frame
-   */
-  void SendStartByte();
 
   /**
    * Waits for a certain amount of time until the next frame start signal byte
@@ -191,7 +180,7 @@ private:
 
   /**
    * Convenience function. Returns a pre-populated FrameHeader instance that is
-   * ready to be sent by the SendFrameHeader() function.
+   * ready to be sent by the SendFrame() function.
    * @param message_type Message type of the FrameHeader
    * @param data Optional pointer to the first byte of the payload. Used for
    * CRC calculations.
@@ -202,13 +191,14 @@ private:
                                         std::span<const std::byte> payload={}) noexcept;
 
   /**
-   * Sends a FrameHeader to the port. Remember that a StartByte should be
-   * sent first!
-   * @param header FrameHeader that should be sent.
+   * Send a complete frame in one write; see FLARM::SendFrame().
    */
-  void SendFrameHeader(const FLARM::FrameHeader &header,
-                       OperationEnvironment &env,
-                       std::chrono::steady_clock::duration timeout);
+  void SendFrame(const FLARM::FrameHeader &header,
+                 std::span<const std::byte> payload,
+                 OperationEnvironment &env,
+                 std::chrono::steady_clock::duration timeout) {
+    FLARM::SendFrame(port, header, payload, env, timeout);
+  }
 
   /**
    * Reads a FrameHeader from the port. This should only be done directly
