@@ -106,6 +106,7 @@
             <string>audio</string>
             <string>location</string>
             <string>fetch</string>
+            <string>bluetooth-central</string>
         </array>
         <key>BGTaskSchedulerPermittedIdentifiers</key>
         <array>
