@@ -3,6 +3,7 @@
 
 #include "Device.hpp"
 #include "Device/Port/Port.hpp"
+#include "LogFile.hpp"
 #include "Operation/Operation.hpp"
 
 bool
@@ -53,6 +54,16 @@ FlarmDevice::BinaryMode(OperationEnvironment &env)
 {
   if (mode == Mode::BINARY)
     return true;
+
+  /* especially on Bluetooth LE ports, the connection may not be
+     established yet (e.g. iOS is still connecting to the
+     peripheral, which has no timeout); wait for it (cancellable)
+     instead of wasting the ping attempts below on a dead link, like
+     the LX Nano driver does */
+  if (!port.WaitConnected(env)) {
+    LogFormat("FLARM: port not connected, cannot enter binary mode");
+    return false;
+  }
 
   port.StopRxThread();
 
