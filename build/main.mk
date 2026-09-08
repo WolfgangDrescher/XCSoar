@@ -665,7 +665,9 @@ endif
 ifeq ($(TARGET_IS_IOS),y)
 XCSOAR_SOURCES += \
 	$(SRC)/Apple/BluetoothHelper.cpp \
-	$(SRC)/Apple/PortBridge.cpp
+	$(SRC)/Apple/PortBridge.cpp \
+	$(SRC)/Device/Port/ApplePort.cpp \
+	$(SRC)/Device/Port/AppleBluetoothPort.cpp
 endif
 
 ifeq ($(TARGET_IS_OSX),y)
