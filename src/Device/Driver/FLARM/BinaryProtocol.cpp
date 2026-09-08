@@ -5,6 +5,7 @@
 #include "CRC16.hpp"
 #include "Device/Error.hpp"
 #include "Device/Port/Port.hpp"
+#include "LogFile.hpp"
 #include "time/TimeoutClock.hpp"
 #include "util/SpanCast.hxx"
 
@@ -152,6 +153,18 @@ ReceiveSomeUnescape(Port &port, std::span<std::byte> dest,
   return p;
 }
 
+/**
+ * Give up on a frame after this much silence, even if the caller
+ * allows more time for the whole frame.  A bridge which drops the
+ * rest of a frame (e.g. a Bluetooth LE adapter with a short transmit
+ * queue) is detected in seconds instead of blocking until the frame
+ * timeout has expired, and the caller can retry that much earlier.
+ * Any link which is still delivering data keeps the frame alive,
+ * because each chunk restarts this timeout.
+ */
+static constexpr std::chrono::steady_clock::duration
+FRAME_IDLE_TIMEOUT = std::chrono::seconds{3};
+
 bool
 FLARM::ReceiveEscaped(Port &port, std::span<std::byte> dest,
                       OperationEnvironment &env,
@@ -163,11 +176,26 @@ FLARM::ReceiveEscaped(Port &port, std::span<std::byte> dest,
 
   // Receive data byte-by-byte including escaping until buffer is full
   std::byte *p = dest.data(), *end = p + dest.size();
-  while (p < end) {
-    p = ReceiveSomeUnescape(port, {p, std::size_t(end - p)},
-                            env, timeout);
-    if (p == nullptr)
-      return false;
+  try {
+    while (p < end) {
+      const TimeoutClock idle_timeout{std::min(timeout.GetRemainingOrZero(),
+                                               FRAME_IDLE_TIMEOUT)};
+
+      p = ReceiveSomeUnescape(port, {p, std::size_t(end - p)},
+                              env, idle_timeout);
+      if (p == nullptr)
+        return false;
+    }
+  } catch (const DeviceTimeout &) {
+#ifndef NDEBUG
+    if (p > dest.data())
+      /* the frame stopped arriving in the middle; over a Bluetooth
+         LE bridge, this typically means its buffer overflowed and
+         the rest of the frame was dropped */
+      LogFormat("FLARM: timeout after receiving %u of %u frame bytes",
+                unsigned(p - dest.data()), unsigned(dest.size()));
+#endif
+    throw;
   }
 
   return true;
