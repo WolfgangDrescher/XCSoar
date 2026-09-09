@@ -7,6 +7,7 @@
 #include "Form/DataField/Listener.hpp"
 #include "Form/DataField/Time.hpp"
 #include "Formatter/LocalTimeFormatter.hpp"
+#include "Formatter/TimeFormatter.hpp"
 #include "Profile/ComputerProfile.hpp"
 #include "Profile/Current.hpp"
 #include "Profile/Profile.hpp"
@@ -18,6 +19,9 @@
 #include "time/BrokenDateTime.hpp"
 #include "time/SystemTimeZone.hpp"
 #include "time/TimeZones.hpp"
+#include "util/StaticString.hxx"
+
+#include <cstdlib>
 
 using namespace std::chrono;
 
@@ -152,7 +156,17 @@ TimeConfigPanel::SetLocalTime(RoughTimeDelta utc_offset)
     ? basic.time
     : TimeStamp{BrokenDateTime::NowUTC().DurationSinceMidnight()};
 
-  SetText(LOCAL_TIME, FormatLocalTimeHHMM(time, utc_offset));
+  /* the offset which is actually in effect goes with the local time:
+     the field above shows the value of the source it belongs to, which
+     is not the one in use unless that source is selected */
+  const int seconds = utc_offset.AsSeconds();
+  StaticString<32> buffer;
+  buffer.Format("%s (UTC%c%s)",
+                FormatLocalTimeHHMM(time, utc_offset).c_str(),
+                seconds < 0 ? '-' : '+',
+                FormatSignedTimeHHMM(std::chrono::seconds{std::abs(seconds)}).c_str());
+
+  SetText(LOCAL_TIME, buffer);
 }
 
 void
