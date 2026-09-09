@@ -195,6 +195,9 @@ void
 InfoBoxWindow::SetContentProvider(std::unique_ptr<InfoBoxContent> _content)
 {
   content = std::move(_content);
+  if (content)
+    content->SetSlot(id);
+
   ++content_serial;
 
   data.SetInvalid();

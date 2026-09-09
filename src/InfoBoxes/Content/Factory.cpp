@@ -1243,6 +1243,14 @@ static constexpr MetaData meta_data[] = {
     UpdateInfoBoxInvisible,
   },
 
+  // e_CustomText
+  {
+    NC_("InfoBox", "Custom text"),
+    NC_("Abbreviation", "Text"),
+    N_("Title, value and comment of this InfoBox can be set by you instead of being computed from flight data. To edit them, tap this InfoBox on the map and choose Setup. Useful as a label for an InfoBox page or as a visual separator between groups of InfoBoxes."),
+    IBFHelper<InfoBoxContentCustomText>::Create,
+  },
+
 };
 
 static_assert(ARRAY_SIZE(meta_data) == NUM_TYPES,
