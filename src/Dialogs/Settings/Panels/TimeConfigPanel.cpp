@@ -175,9 +175,12 @@ TimeConfigPanel::UpdateLocalTimeSource(LocalTimeSource source)
   SetRowEnabled(TIME_ZONE, source == LocalTimeSource::TIME_ZONE);
   SetRowEnabled(UTC_OFFSET, source == LocalTimeSource::MANUAL_UTC_OFFSET);
 
-  const auto utc_offset = GetUTCOffset(source);
-  LoadValueDuration(UTC_OFFSET, utc_offset.ToDuration());
-  SetLocalTime(utc_offset);
+  /* the field keeps what the user entered, whichever source is
+     selected; the offset which is in effect is shown with the local
+     time below */
+  LoadValueDuration(UTC_OFFSET, manual_utc_offset.ToDuration());
+
+  SetLocalTime(GetUTCOffset(source));
 }
 
 void
@@ -280,13 +283,14 @@ TimeConfigPanel::Prepare(ContainerWindow &parent, const PixelRect &rc) noexcept
   }
 
   AddDuration(_("Manual UTC offset"),
-          _("The UTC offset field allows the UTC local time offset to be specified. The local "
-            "time is displayed below in order to make it easier to verify the correct offset "
-            "has been entered."),
+          _("The UTC offset field allows the UTC local time offset to be specified. It keeps "
+            "the value you entered even while another local time source is selected. The "
+            "local time is displayed below, along with the UTC offset which is currently in "
+            "effect."),
               Profile::MIN_UTC_OFFSET,
               Profile::MAX_UTC_OFFSET,
               UTC_OFFSET_STEP,
-              settings_computer.utc_offset.ToDuration(),
+              manual_utc_offset.ToDuration(),
               2, this);
 
   Add(_("Local time"), 0, true);
