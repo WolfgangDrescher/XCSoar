@@ -10,7 +10,6 @@
 #include "Blackboard/DeviceBlackboard.hpp"
 #include "time/PeriodClock.hpp"
 #include "time/RoughTime.hpp"
-#include "time/SystemTimeZone.hpp"
 #include "MainWindow.hpp"
 #include "PopupMessage.hpp"
 #include "Simulator.hpp"
@@ -167,25 +166,25 @@ ProcessAutoBugs() noexcept
 }
 
 /**
- * Follow the operating system's time zone, unless the user has
- * configured the UTC offset manually.  This picks up daylight saving
- * time transitions and time zone changes while travelling.
+ * Keep the UTC offset up to date, unless the user has configured it
+ * manually.  This picks up daylight saving time transitions, and time
+ * zone changes while travelling.
  */
 static void
 UTCOffsetProcessTimer() noexcept
 {
-  if (!CommonInterface::GetComputerSettings().auto_utc_offset)
+  const auto &settings = CommonInterface::GetComputerSettings();
+  if (settings.local_time_source == LocalTimeSource::MANUAL_UTC_OFFSET)
     return;
 
-  /* querying the time zone is cheap, but there is no point in doing it
-     on every timer tick */
+  /* calculating the UTC offset is cheap, but there is no point in
+     doing it on every timer tick */
   static PeriodClock clock;
   if (!clock.CheckUpdate(std::chrono::seconds(30)))
     return;
 
-  const auto utc_offset =
-    RoughTimeDelta::FromSeconds(GetCurrentTimeZoneOffset());
-  if (utc_offset != CommonInterface::GetComputerSettings().utc_offset)
+  if (const auto utc_offset = settings.GetCurrentUTCOffset();
+      utc_offset != settings.utc_offset)
     CommonInterface::SetComputerSettings().utc_offset = utc_offset;
 }
 
