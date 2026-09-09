@@ -87,6 +87,10 @@ Version 7.46 - not yet released
   - Support manual UTC offsets up to +14:00 in 15-minute increments
   - Keep automatic UTC offsets synchronized with the operating-system
     time zone, including daylight-saving and travel changes
+  - allow selecting a time zone such as Europe/Berlin as the source for
+    local time; XCSoar then knows the daylight-saving rules and switches
+    on its own, which is the only way to get that on Kobo, where the
+    device has no time zone setting at all
   - keep pan-mode menu buttons about 20 mm tall on tall phones,
     large enough for a gloved tap
   - fix blurry icons on high-DPI screens, most visible on the large
