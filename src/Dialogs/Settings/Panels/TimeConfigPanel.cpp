@@ -16,6 +16,7 @@
 #include "Widget/RowFormWidget.hpp"
 #include "UIGlobals.hpp"
 #include "Dialogs/DialogSettings.hpp"
+#include "ui/event/PeriodicTimer.hpp"
 #include "time/BrokenDateTime.hpp"
 #include "time/SystemTimeZone.hpp"
 #include "time/TimeZones.hpp"
@@ -70,6 +71,8 @@ class TimeConfigPanel final
   /** is #manual_utc_offset_list part of the #LOCAL_TIME_SOURCE field? */
   bool manual_utc_offset_offered;
 
+  UI::PeriodicTimer local_time_timer{[this]{ UpdateLocalTime(); }};
+
 public:
   TimeConfigPanel()
     :RowFormWidget(UIGlobals::GetDialogLook()) {}
@@ -85,10 +88,20 @@ public:
 
   /* methods from Widget */
   void Prepare(ContainerWindow &parent, const PixelRect &rc) noexcept override;
+  void Show(const PixelRect &rc) noexcept override;
+  void Hide() noexcept override;
   void Move(const PixelRect &rc) noexcept override;
   bool Save(bool &changed) noexcept override;
 
 private:
+  /**
+   * Recalculate the local time for the source which is selected in the
+   * form.
+   */
+  void UpdateLocalTime() noexcept {
+    SetLocalTime(GetUTCOffset(GetLocalTimeSource()));
+  }
+
   /**
    * Add or remove the manual UTC offset, which is an expert setting.
    */
@@ -216,6 +229,26 @@ TimeConfigPanel::UpdateSourceChoices() noexcept
 
   df.SetValue(source);
   GetControl(LOCAL_TIME_SOURCE).RefreshDisplay();
+}
+
+void
+TimeConfigPanel::Show(const PixelRect &rc) noexcept
+{
+  RowFormWidget::Show(rc);
+
+  /* the local time is a clock, and the dialog may stay open for a
+     while: without this, it would keep showing the time the page was
+     opened */
+  UpdateLocalTime();
+  local_time_timer.Schedule(seconds{1});
+}
+
+void
+TimeConfigPanel::Hide() noexcept
+{
+  local_time_timer.Cancel();
+
+  RowFormWidget::Hide();
 }
 
 void
