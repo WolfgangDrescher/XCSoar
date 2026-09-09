@@ -14,6 +14,7 @@
 #include "Language/Language.hpp"
 #include "Widget/RowFormWidget.hpp"
 #include "UIGlobals.hpp"
+#include "Dialogs/DialogSettings.hpp"
 #include "time/BrokenDateTime.hpp"
 #include "time/SystemTimeZone.hpp"
 #include "time/TimeZones.hpp"
@@ -21,6 +22,33 @@
 using namespace std::chrono;
 
 static constexpr auto UTC_OFFSET_STEP = minutes{15};
+
+static constexpr StaticEnumChoice local_time_source_list[] = {
+#ifndef KOBO
+  /* the Kobo has no time zone configuration which we could follow */
+  { LocalTimeSource::AUTOMATIC, N_("Automatic"),
+    N_("Use the time zone which is configured in the operating system, and "
+       "keep following it across daylight saving time changes and when "
+       "travelling to another time zone.") },
+#endif
+  { LocalTimeSource::TIME_ZONE, N_("Time zone"),
+    N_("Use the time zone selected below.  XCSoar knows its daylight saving "
+       "time rules and applies the transitions on its own, which means the "
+       "setting does not need to be corrected twice a year.") },
+  nullptr
+};
+
+/**
+ * The manual offset is what the other two sources exist to avoid, so it is
+ * offered to experts only; a profile which uses it must of course still
+ * be able to show and keep it.
+ */
+static constexpr StaticEnumChoice manual_utc_offset_list[] = {
+  { LocalTimeSource::MANUAL_UTC_OFFSET, N_("Manual UTC offset"),
+    N_("Use the fixed UTC offset entered below.  It has to be corrected "
+       "manually whenever daylight saving time begins or ends.") },
+  nullptr
+};
 
 enum ControlIndex {
   LOCAL_TIME_SOURCE,
@@ -34,6 +62,9 @@ class TimeConfigPanel final
   : public RowFormWidget, DataFieldListener {
   RoughTimeDelta manual_utc_offset;
   bool manual_utc_offset_modified = false;
+
+  /** is #manual_utc_offset_list part of the #LOCAL_TIME_SOURCE field? */
+  bool manual_utc_offset_offered;
 
 public:
   TimeConfigPanel()
@@ -50,9 +81,15 @@ public:
 
   /* methods from Widget */
   void Prepare(ContainerWindow &parent, const PixelRect &rc) noexcept override;
+  void Move(const PixelRect &rc) noexcept override;
   bool Save(bool &changed) noexcept override;
 
 private:
+  /**
+   * Add or remove the manual UTC offset, which is an expert setting.
+   */
+  void UpdateSourceChoices() noexcept;
+
   /**
    * Returns the time zone which is selected in the form.
    */
@@ -143,6 +180,38 @@ TimeConfigPanel::OnModified(DataField &df) noexcept
 }
 
 void
+TimeConfigPanel::UpdateSourceChoices() noexcept
+{
+  auto &df = (DataFieldEnum &)GetDataField(LOCAL_TIME_SOURCE);
+  const auto source = (LocalTimeSource)df.GetValue();
+
+  const bool offer = UIGlobals::GetDialogSettings().expert ||
+    source == LocalTimeSource::MANUAL_UTC_OFFSET;
+  if (offer == manual_utc_offset_offered)
+    return;
+
+  manual_utc_offset_offered = offer;
+
+  df.ClearChoices();
+  df.AddChoices(local_time_source_list);
+  if (offer)
+    df.AddChoices(manual_utc_offset_list);
+
+  df.SetValue(source);
+  GetControl(LOCAL_TIME_SOURCE).RefreshDisplay();
+}
+
+void
+TimeConfigPanel::Move(const PixelRect &rc) noexcept
+{
+  RowFormWidget::Move(rc);
+
+  /* toggling "Expert" in the configuration dialog only forces a layout
+     update, so this is where the choice list has to follow */
+  UpdateSourceChoices();
+}
+
+void
 TimeConfigPanel::Prepare(ContainerWindow &parent, const PixelRect &rc) noexcept
 {
   RowFormWidget::Prepare(parent, rc);
@@ -153,24 +222,6 @@ TimeConfigPanel::Prepare(ContainerWindow &parent, const PixelRect &rc) noexcept
   manual_utc_offset = settings_computer.utc_offset;
   Profile::LoadUTCOffset(Profile::map, manual_utc_offset);
 
-  static constexpr StaticEnumChoice local_time_source_list[] = {
-#ifndef KOBO
-    /* the Kobo has no time zone configuration which we could follow */
-    { LocalTimeSource::AUTOMATIC, N_("Automatic"),
-      N_("Use the time zone which is configured in the operating system, "
-         "and keep following it across daylight saving time changes and "
-         "when travelling to another time zone.") },
-#endif
-    { LocalTimeSource::TIME_ZONE, N_("Time zone"),
-      N_("Use the time zone selected below.  XCSoar knows its daylight "
-         "saving time rules and applies the transitions on its own, which "
-         "means the setting does not need to be corrected twice a year.") },
-    { LocalTimeSource::MANUAL_UTC_OFFSET, N_("Manual UTC offset"),
-      N_("Use the fixed UTC offset entered below.  It has to be corrected "
-         "manually whenever daylight saving time begins or ends.") },
-    nullptr
-  };
-
   auto local_time_source = settings_computer.local_time_source;
 
 #ifdef KOBO
@@ -179,12 +230,25 @@ TimeConfigPanel::Prepare(ContainerWindow &parent, const PixelRect &rc) noexcept
     local_time_source = LocalTimeSource::TIME_ZONE;
 #endif
 
-  AddEnum(_("Local time source"),
-          _("Selects where XCSoar gets the offset between UTC and local "
-            "time from."),
-          local_time_source_list, (unsigned)local_time_source, this);
+  WndProperty *wp = AddEnum(_("Local time source"),
+                            _("Selects where XCSoar gets the offset between "
+                              "UTC and local time from."),
+                            this);
+  {
+    auto &df = *(DataFieldEnum *)wp->GetDataField();
+    df.EnableItemHelp(true);
+    df.AddChoices(local_time_source_list);
 
-  WndProperty *wp = AddEnum(_("Time zone"),
+    manual_utc_offset_offered = UIGlobals::GetDialogSettings().expert ||
+      local_time_source == LocalTimeSource::MANUAL_UTC_OFFSET;
+    if (manual_utc_offset_offered)
+      df.AddChoices(manual_utc_offset_list);
+
+    df.SetValue(local_time_source);
+    wp->RefreshDisplay();
+  }
+
+  wp = AddEnum(_("Time zone"),
                             _("The time zone of the airfield you are flying "
                               "at."),
                             this);
