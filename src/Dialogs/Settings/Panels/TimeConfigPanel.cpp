@@ -13,6 +13,7 @@
 #include "Language/Language.hpp"
 #include "Widget/RowFormWidget.hpp"
 #include "UIGlobals.hpp"
+#include "time/BrokenDateTime.hpp"
 #include "time/SystemTimeZone.hpp"
 
 using namespace std::chrono;
@@ -56,8 +57,15 @@ private:
 void
 TimeConfigPanel::SetLocalTime(RoughTimeDelta utc_offset)
 {
-  SetText(LOCAL_TIME,
-          FormatLocalTimeHHMM(CommonInterface::Basic().time, utc_offset));
+  const NMEAInfo &basic = CommonInterface::Basic();
+
+  /* without a GPS fix, the blackboard holds no time at all, and the
+     preview would show the UTC offset instead of a time of day */
+  const auto time = basic.time_available
+    ? basic.time
+    : TimeStamp{BrokenDateTime::NowUTC().DurationSinceMidnight()};
+
+  SetText(LOCAL_TIME, FormatLocalTimeHHMM(time, utc_offset));
 }
 
 void
