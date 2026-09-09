@@ -80,6 +80,7 @@ TEST_NAMES = \
 	TestInputTransformMode \
 	TestOverwritingRingBuffer \
 	TestDateTime TestISO8601 TestRoughTime TestRoughSpeed TestWrapClock \
+	TestPosixTimeZone \
 	TestPolylineDecoder \
 	TestTransponderCode \
 	TestMath \
@@ -396,6 +397,12 @@ TEST_ROUGH_TIME_SOURCES = \
 	$(TEST_SRC_DIR)/TestRoughTime.cpp
 TEST_ROUGH_TIME_DEPENDS = MATH TIME
 $(eval $(call link-program,TestRoughTime,TEST_ROUGH_TIME))
+
+TEST_POSIX_TIME_ZONE_SOURCES = \
+	$(TEST_SRC_DIR)/tap.c \
+	$(TEST_SRC_DIR)/TestPosixTimeZone.cpp
+TEST_POSIX_TIME_ZONE_DEPENDS = MATH TIME
+$(eval $(call link-program,TestPosixTimeZone,TEST_POSIX_TIME_ZONE))
 
 TEST_ROUGH_SPEED_SOURCES = \
 	$(TEST_SRC_DIR)/tap.c \
