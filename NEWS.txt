@@ -138,6 +138,8 @@ Version 7.46 - not yet released
   - build system: add DEBUG_ALL_MAP_OVERLAYS=y make option to force
     GlueMapWindow HUD overlays on with placeholder data for layout
     testing
+  - macOS/iOS: read DEBUG_ALL_MAP_OVERLAYS=y from darwin/.env, so Xcode
+    builds can force all map overlays
 
 Version 7.45 - 2026-08-15
 * highlights
