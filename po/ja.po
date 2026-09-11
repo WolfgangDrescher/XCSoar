@@ -1812,6 +1812,7 @@ msgstr ""
 msgid "Select Color"
 msgstr "色の選択"
 
+#, no-c-format
 msgid "Display"
 msgstr "表示"
 
@@ -2061,10 +2062,6 @@ msgstr "旋回点の種類"
 #, no-c-format
 msgid "Language, Input"
 msgstr "入力言語"
-
-#, no-c-format
-msgid "Screen Layout"
-msgstr "画面表示"
 
 #, no-c-format
 msgid "Audio"
@@ -3381,9 +3378,6 @@ msgstr "ファイナルグライド　モードを自動モードで使用する
 msgid "Text size"
 msgstr "文字サイズ"
 
-msgid "Display Resolution"
-msgstr "表示解像度"
-
 msgid "The display resolution is used to adapt line widths, font size, landable size and more."
 msgstr "画面表示解像度は、線の幅、フォントサイズ、表示ラベルなど。"
 
@@ -3457,90 +3451,6 @@ msgstr "縦型表示を選択"
 #, no-c-format
 msgid "Reverse Landscape"
 msgstr "横型表示を選択"
-
-#, no-c-format
-msgid "8 Split"
-msgstr "８　スプリット"
-
-#, no-c-format
-msgid "10 Split"
-msgstr "８　スプリット"
-
-#, no-c-format
-msgid "12 Split in 3 rows"
-msgstr "12分割3行"
-
-#, no-c-format
-msgid "15 Split in 3 rows"
-msgstr "15分割3行"
-
-#, no-c-format
-msgid "18 Split in 3 rows"
-msgstr "18分割を3行に"
-
-#, no-c-format
-msgid "8 Bottom or Right"
-msgstr "８　下　または　右"
-
-#, no-c-format
-msgid "8 Bottom + Vario (Portrait)"
-msgstr "8下　＋バリオ　（縦型）"
-
-#, no-c-format
-msgid "8 Top or Left"
-msgstr "８　上　または　左"
-
-#, no-c-format
-msgid "8 Top + Vario (Portrait)"
-msgstr "８上　＋　バリオ"
-
-#, no-c-format
-msgid "9 Right + Vario (Landscape)"
-msgstr "9右　＋　バリオ　（横型）"
-
-#, no-c-format
-msgid "9 Left + Right + Vario (Landscape)"
-msgstr "9左　+右　+バリオ　（横型）"
-
-#, no-c-format
-msgid "12 Left + 3 Right Vario (Landscape)"
-msgstr "12左　+3右　バリオ　（横型）"
-
-#, no-c-format
-msgid "5 Right (Square)"
-msgstr "５右　（四角型）"
-
-#, no-c-format
-msgid "10 Bottom or Right"
-msgstr "１２　下　または　右"
-
-#, no-c-format
-msgid "12 Bottom or Right"
-msgstr "１２　下　または　右"
-
-#, no-c-format
-msgid "10 Top or Left"
-msgstr "１２　上　または　左"
-
-#, no-c-format
-msgid "12 Top or Left"
-msgstr "１２　上　または　左"
-
-#, no-c-format
-msgid "16 Right (Landscape)"
-msgstr "１６　ライト"
-
-#, no-c-format
-msgid "24 Bottom or Right"
-msgstr "４　下　または　右"
-
-#, no-c-format
-msgid "4 Top or Left"
-msgstr "４　上　または　左"
-
-#, no-c-format
-msgid "4 Bottom or Right"
-msgstr "４　下　または　右"
 
 #, no-c-format
 msgid "Text"
@@ -7116,12 +7026,6 @@ msgid "T Next Leg"
 msgstr "TC　次レッグ"
 
 #, no-c-format
-msgid "Thermal climb rate on the next leg that is equivalent to a thermal climb rate equal to the MacCready setting on the current leg."
-msgstr ""
-"次のレッグのサーマルの平均上昇率設定\n"
-"現在のレッグのマクレディー設定値と同じ"
-
-#, no-c-format
 msgid "Wind, head component (simplified)"
 msgstr "向かい風成分"
 
@@ -8374,12 +8278,6 @@ msgstr "ウェイポイントアイコンサイズ"
 
 msgid "Size of waypoint symbols on the map as a percentage of the built-in artwork (list dialogs keep a fixed row icon size)."
 msgstr "地図上のウェイポイント記号サイズを内蔵アートワークに対する百分率で指定（一覧ダイアログは固定の行アイコンサイズ）。"
-
-msgid "Altn mode: MANUAL"
-msgstr "代替モード: 手動"
-
-msgid "Altn mode: AUTO"
-msgstr "代替モード: 自動"
 
 msgid ""
 "# Gesture Navigation\n"
@@ -9981,14 +9879,6 @@ msgid ""
 "throughout the whole Alps region. ICON-CH model."
 msgstr "ウィーンからペルピニャンまでのアルプス弧全体をカバーし、アルプス全域のウェーブを予報。ICON-CH モデル。"
 
-#, no-c-format
-msgid "UK"
-msgstr "UK"
-
-#, no-c-format
-msgid "United Kingdom. ICON-UK model."
-msgstr "英国。ICON-UK モデル。"
-
 msgid "XC Therm email"
 msgstr "XC Therm メール"
 
@@ -11090,4 +10980,111 @@ msgstr "自動"
 msgctxt "Setting"
 msgid "Manual"
 msgstr "手動"
+
+#, no-c-format
+msgid "Auto"
+msgstr ""
+
+#, no-c-format
+msgid "Layout"
+msgstr ""
+
+#, no-c-format
+msgid "Services"
+msgstr ""
+
+msgid "Back"
+msgstr ""
+
+msgid "Display resolution"
+msgstr ""
+
+msgid "Screen brightness"
+msgstr ""
+
+msgid "Adjust the screen brightness."
+msgstr ""
+
+msgid "Screen brightness is read-only because writing requires additional permissions."
+msgstr ""
+
+msgid "Automatic UTC offset"
+msgstr ""
+
+msgid "Use the time zone configured in the operating system, and keep following it across daylight saving time changes and when travelling to another time zone. Disable this to enter the UTC offset manually."
+msgstr ""
+
+#, no-c-format
+msgid "UKV Model"
+msgstr ""
+
+#, no-c-format
+msgid "United Kingdom. UKV model."
+msgstr ""
+
+#. Alternate Mode: Auto returns a MANUAL slot to the computed
+#. list. Pinning is Select as Alternate, which is always
+#. available and sets MANUAL.
+#, no-c-format
+msgctxt "Button"
+msgid "Alternate Mode: Auto"
+msgstr ""
+
+msgid "Paste"
+msgstr ""
+
+msgid "No supported services found"
+msgstr ""
+
+msgid "No selected systemd units are installed."
+msgstr ""
+
+msgid "Unavailable"
+msgstr ""
+
+msgid "Starting..."
+msgstr ""
+
+msgid "Stopping..."
+msgstr ""
+
+msgid "Reloading..."
+msgstr ""
+
+msgid "Failed"
+msgstr ""
+
+msgid "Turn on"
+msgstr ""
+
+msgid "Restart"
+msgstr ""
+
+msgid "Turn off"
+msgstr ""
+
+msgid "System service"
+msgstr ""
+
+msgid "SSH server"
+msgstr ""
+
+msgid "Remote terminal access"
+msgstr ""
+
+msgid "Sensors"
+msgstr ""
+
+msgid "OpenVario sensor daemon"
+msgstr ""
+
+msgid "Audio vario"
+msgstr ""
+
+msgid "OpenVario audio vario daemon"
+msgstr ""
+
+#, no-c-format
+msgid "Main value: thermal climb rate on the next leg that is equivalent to a thermal climb rate equal to the MacCready setting on the current leg. Secondary value: thermal climb rate on the current leg that is equivalent to a thermal climb rate equal to the MacCready setting on the next leg."
+msgstr ""
 
