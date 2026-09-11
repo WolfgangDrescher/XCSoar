@@ -135,6 +135,9 @@ build with ``DEBUG_ALL_MAP_OVERLAYS=y``::
 
   make -j$(nproc) TARGET=UNIX USE_CCACHE=y DEBUG_ALL_MAP_OVERLAYS=y
 
+For Xcode builds on iOS and macOS, set ``DEBUG_ALL_MAP_OVERLAYS=y`` in
+:file:`darwin/.env` instead; :file:`darwin/build.sh` passes it to make.
+
 The flag is defined in :file:`build/options.mk` (default ``n``) and
 adds ``-DDEBUG_ALL_MAP_OVERLAYS=1``. When enabled, it forces the
 thermal band, FLARM alarm-level icon (not the FLARM traffic gauge

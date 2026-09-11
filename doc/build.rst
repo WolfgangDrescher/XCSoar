@@ -402,7 +402,8 @@ That script reads optional settings from `darwin/.env` (see
 `darwin/.env.example`); for example ``TESTING=y`` builds the testing
 flavour with the red icon, which on iOS uses the separate bundle
 identifier ``XCSoar-testing`` and can therefore be installed next to the
-stable app.
+stable app. Likewise ``DEBUG_ALL_MAP_OVERLAYS=y`` forces all map overlays
+to be drawn (see :doc:`debugging`).
 For iOS debugging with Visual Studio Code, the `iOS Debug`
 extension (https://github.com/nisargjhaveri/vscode-ios-debug) can be used.
 Note that this also requires an Xcode installation.
