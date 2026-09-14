@@ -321,7 +321,34 @@ MainWindow::LayoutMapArea() noexcept
   if (HaveBottomWidget())
     bottom_widget->Move(bottom_rect);
 
-  map->Move(GetMapRectAbove(main_rect, bottom_rect));
+  /* The map window covers the info boxes as well, so the map shows
+     through as soon as they are hidden.  The info boxes are drawn on
+     top of it, which leaves the display unchanged while they are
+     visible.  Only the sides they occupy are extended; a top or
+     bottom widget keeps its own space. */
+  const PixelRect content_rect = GetMapRectAbove(main_rect, bottom_rect);
+  const PixelRect client_rect = GetClientRect();
+
+  /* the map covers the whole window, behind the info boxes and the
+     widgets; it is kept at the bottom of the z-order below, so it
+     shows through wherever nothing else is drawn */
+  const PixelRect map_display_rect = client_rect;
+
+  map->Move(map_display_rect);
+
+  /* Everything else - info boxes, top and bottom widgets, menu
+     buttons - is created after the map and would end up beneath it,
+     because new windows go to the bottom of the z-order.  Put the
+     map back down there, so it never covers them. */
+  map->BringToBottom();
+
+  /* keep the projection, the aircraft position and the HUD overlays
+     on the area that is not covered by info boxes, so nothing moves
+     when the map grows behind them; #GlueMapWindow works in its own
+     client coordinates, which start at (0,0) */
+  PixelRect map_content_rect = content_rect;
+  map_content_rect.Offset(-map_display_rect.left, -map_display_rect.top);
+  map->SetContentRect(map_content_rect);
 }
 
 void
@@ -523,6 +550,13 @@ MainWindow::InitialiseConfigured()
 
   popup = new PopupMessage(*this, look->dialog, ui_settings);
   popup->Create(map_rect);
+
+  /* The map window was created on the info box layout's remainder;
+     give it the layout that makes it cover the whole window.  Without
+     this, the first LayoutMapArea() happens only on the first resize
+     or page change, and until then OnPaint() paints the space of the
+     hidden info boxes instead of the map. */
+  LayoutMapArea();
 }
 
 void
