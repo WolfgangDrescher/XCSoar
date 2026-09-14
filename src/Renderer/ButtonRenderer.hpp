@@ -44,8 +44,20 @@ public:
     return look;
   }
 
+  /**
+   * The space a button leaves around its face on each side.  Two
+   * adjacent buttons are therefore two margins apart.
+   */
   [[gnu::const]]
   static unsigned GetMargin() noexcept;
+
+  /**
+   * The gap a strip of buttons needs towards the edges of the given
+   * rectangle so that it matches the gap between two neighbours.
+   * Zero if the rectangle is too small to spare it.
+   */
+  [[gnu::pure]]
+  static unsigned GetEdgeMargin(const PixelRect &rc) noexcept;
 
   void DrawButton(Canvas &canvas, PixelRect rc,
                   ButtonState state) const noexcept;
