@@ -124,6 +124,10 @@ public:
 
     arrange.SetPanel(InfoBoxManager::GetPanel(saved_panel_index));
     UpdateLayout();
+    /* Create() hides the cards, as the settings dialog does; that
+       dialog shows them from Widget::Show(), which this overlay
+       never has */
+    arrange.Show();
     Show();
     BringToTop();
 
