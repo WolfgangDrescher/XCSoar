@@ -316,11 +316,22 @@ InfoBoxArrangeWindow::DrawCard(Canvas &canvas, const PixelRect &rc,
     canvas.DrawRoundRectangle(outer, {outer_radius * 2, outer_radius * 2});
   }
 
-  canvas.Select(look.preview_border_pen);
-  canvas.Select(Brush{active
-                      ? look.preview_active_color
-                      : look.background_color});
+  /* filled hairline, not a thick stroke: iOS widens rounded outlines
+     and they look frayed (#2841) */
+  const int border = look.border_width > 0 ? (int)look.border_width : 1;
+  canvas.SelectNullPen();
+  canvas.Select(Brush{look.title.fg_color});
   canvas.DrawRoundRectangle(rc, {radius * 2, radius * 2});
+
+  PixelRect inner = rc;
+  inner.Grow(-border);
+  if (inner.GetWidth() > 0 && inner.GetHeight() > 0) {
+    const int inner_radius = std::max(0, radius - border);
+    canvas.Select(Brush{active
+                        ? look.preview_active_color
+                        : look.background_color});
+    canvas.DrawRoundRectangle(inner, {inner_radius * 2, inner_radius * 2});
+  }
 
   /* the caption comes from the configuration and not from the InfoBox
      itself, because content providers overwrite the title at runtime

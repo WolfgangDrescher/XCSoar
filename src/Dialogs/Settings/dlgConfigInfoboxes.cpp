@@ -212,7 +212,7 @@ dlgConfigInfoboxesShowModal(SingleWindow &parent,
   auto &widget = dialog.GetWidget();
   if (allow_name_change)
     dialog.AddButton(_("Rename"), [&widget]{ widget.OnRename(); });
-  dialog.AddButton(_("Copy"), [&widget]{ widget.OnCopy(); });
+  dialog.AddButton(_("Copy Set"), [&widget]{ widget.OnCopy(); });
   widget.SetPasteButton(dialog.AddButton(_("Paste Set"),
                                          [&widget]{ widget.OnPaste(); }));
   dialog.AddButton(_("Help"), [&widget]{ widget.ShowHelp(); });

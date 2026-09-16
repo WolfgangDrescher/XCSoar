@@ -122,8 +122,8 @@ Version 7.46 - not yet released
     a long press or the Quick Menu opens that mode, and the cursor
     keys and a remote stick do the same
   - compose the InfoBox sets in the configuration with the same view:
-    every InfoBox is a card which can be moved around; Copy, Paste and
-    Rename are the dialog buttons
+    every InfoBox is a card which can be moved around; Copy Set, Paste
+    Set and Rename are the dialog buttons
   - pack portrait InfoBoxes on tall screens so title, value, and
     comment sit closer together; InfoBox title size still grows the
     boxes toward square at 150%
