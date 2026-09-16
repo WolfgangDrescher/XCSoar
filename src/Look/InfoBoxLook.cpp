@@ -61,10 +61,12 @@ InfoBoxLook::ReinitialiseLayout(unsigned width, unsigned scale_title_font)
 
   Color border_color = COLOR_GRAY;
   border_pen.Create(border_width, border_color);
+  preview_border_pen.Create(border_width, title.fg_color);
+  /* halo outside the card hairline; filled, not a thick stroke */
+  preview_focus_width = Layout::ScalePenWidth(3);
 
   preview_padding = Layout::Scale(4);
   preview_radius = Layout::Scale(6);
-  preview_focus_width = Layout::ScaleFinePenWidth(3);
 
   unit_fraction_pen.Create(Layout::ScaleFinePenWidth(1), value.fg_color);
 

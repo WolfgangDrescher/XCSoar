@@ -6,136 +6,167 @@
 #include "InfoBoxLayout.hpp"
 #include "InfoBoxManager.hpp"
 #include "InfoBoxWindow.hpp"
+#include "Form/ButtonPanel.hpp"
 #include "Interface.hpp"
 #include "Language/Language.hpp"
+#include "Look/DialogLook.hpp"
 #include "Look/Look.hpp"
 #include "UIGlobals.hpp"
-#include "UISettings.hpp"
 #include "ui/event/Timer.hpp"
+#include "ui/window/ContainerWindow.hpp"
 #include "ui/window/SingleWindow.hpp"
 
 #include <memory>
-#include <optional>
+
+using namespace UI;
 
 namespace {
-
-/** is the arrange mode active? */
-bool active;
 
 /** the InfoBox configuration as it was when the mode was entered */
 InfoBoxSettings::Panel saved_panel;
 
-/** leaves the arrange mode after the menu timeout */
-std::optional<UI::Timer> timeout_timer;
-
 /**
- * Restart the inactivity timeout; the arrange mode closes itself
- * after the same time as the main menu.
+ * Full-screen overlay: cards plus a real Help/Close #ButtonPanel.
+ * Hidden (not destroyed) when the mode ends, because that happens
+ * from its own event handler.  The inactivity timeout is the same as
+ * the main menu.
  */
-void
-RestartTimeout() noexcept
-{
-  if (!timeout_timer)
-    timeout_timer.emplace([]{ InfoBoxArrange::Save(); });
+class OverlayWindow final : public ContainerWindow {
+  class ArrangeWindow final : public InfoBoxArrangeWindow {
+    OverlayWindow &overlay;
 
-  timeout_timer->Schedule(CommonInterface::GetUISettings().menu_timeout);
-}
+  public:
+    explicit ArrangeWindow(OverlayWindow &_overlay) noexcept
+      :InfoBoxArrangeWindow(UIGlobals::GetLook().info_box,
+                            UIGlobals::GetDialogLook(),
+                            Style::MAP),
+       overlay(_overlay) {}
 
-/** Stop the timeout while a dialog covers the arrange mode. */
-void
-CancelTimeout() noexcept
-{
-  if (timeout_timer)
-    timeout_timer->Cancel();
-}
+  protected:
+    void OnArrangeActivity() noexcept override {
+      overlay.RestartTimeout();
+    }
 
-/**
- * The arrange mode on the map: a window which covers the whole screen
- * while the InfoBox windows are hidden, so that dragging a card across
- * the map cannot pan or zoom it.
- */
-class OverlayWindow final : public InfoBoxArrangeWindow {
-public:
-  explicit OverlayWindow(const InfoBoxLook &_look) noexcept
-    :InfoBoxArrangeWindow(_look, UIGlobals::GetDialogLook(), Style::MAP) {
-    AddButton(_("Help"), [this]{ ShowHelp(); });
-    AddButton(_("Close"), []{ InfoBoxArrange::Save(); });
+    void OnArrangeSuspend() noexcept override {
+      overlay.timeout_timer.Cancel();
+    }
+
+    bool OnArrangeCancel() noexcept override {
+      InfoBoxArrange::Cancel();
+      return true;
+    }
+  };
+
+  ArrangeWindow arrange;
+  ButtonPanel buttons;
+  UI::Timer timeout_timer{[this]{ InfoBoxArrange::Save(); }};
+
+  void RestartTimeout() noexcept {
+    timeout_timer.Schedule(CommonInterface::GetUISettings().menu_timeout);
   }
 
-protected:
-  /* virtual methods from class InfoBoxArrangeWindow */
-  void OnArrangeActivity() noexcept override {
+  static void HideInfoBoxes() noexcept {
+    for (unsigned i = 0; i < InfoBoxManager::layout.count; ++i)
+      if (auto *window = InfoBoxManager::GetWindow(i))
+        window->FastHide();
+  }
+
+  static void ShowInfoBoxes() noexcept {
+    for (unsigned i = 0; i < InfoBoxManager::layout.count; ++i)
+      if (auto *window = InfoBoxManager::GetWindow(i))
+        window->Show();
+  }
+
+public:
+  OverlayWindow() noexcept
+    :arrange(*this),
+     buttons(*this, UIGlobals::GetDialogLook().button) {}
+
+  InfoBoxArrangeWindow &GetArrange() noexcept {
+    return arrange;
+  }
+
+  void Create(SingleWindow &parent) noexcept {
+    WindowStyle style;
+    style.Hide();
+    style.ControlParent();
+    ContainerWindow::Create(parent, parent.GetClientRect(), style);
+
+#ifndef USE_WINUSER
+    /* the map below must still be painted */
+    SetTransparent();
+#endif
+
+    arrange.Create(*this, GetClientRect());
+    buttons.Add(_("Help"), [this]{ arrange.ShowHelp(); });
+    buttons.Add(_("Close"), []{ InfoBoxArrange::Save(); });
+  }
+
+  void UpdateLayout() noexcept {
+    arrange.Move(GetClientRect());
+    arrange.SetLayout(InfoBoxManager::layout,
+                      buttons.BottomLayout(InfoBoxManager::layout.remaining));
+  }
+
+  void StartTimeout() noexcept {
     RestartTimeout();
   }
 
-  void OnArrangeSuspend() noexcept override {
-    CancelTimeout();
+  /** Show the overlay and hide the InfoBox windows behind it. */
+  void Enter() noexcept {
+    auto &parent = UIGlobals::GetMainWindow();
+    if (IsDefined())
+      Move(parent.GetClientRect());
+    else
+      Create(parent);
+
+    arrange.SetPanel(InfoBoxManager::GetCurrentPanel());
+    UpdateLayout();
+    Show();
+    BringToTop();
+
+    HideInfoBoxes();
+    /* after hiding the InfoBoxes, so that a hidden one cannot keep
+       the keyboard focus */
+    arrange.SetFocus();
   }
 
-  bool OnArrangeCancel() noexcept override {
-    InfoBoxArrange::Cancel();
-    return true;
+  void Leave() noexcept {
+    arrange.Drop();
+    FocusParent();
+    Hide();
+    timeout_timer.Cancel();
+
+    ShowInfoBoxes();
+    InfoBoxManager::Refresh();
+    InfoBoxManager::ScheduleRedraw();
+  }
+
+protected:
+  void OnResize(PixelSize new_size) noexcept override {
+    ContainerWindow::OnResize(new_size);
+
+    if (arrange.IsDefined())
+      UpdateLayout();
   }
 };
 
-/**
- * The overlay window.  It is only hidden (and not destroyed) when the
- * mode ends, because that happens from its own event handler.
- */
 std::unique_ptr<OverlayWindow> overlay;
 
-/** Show the overlay and hide the InfoBox windows behind it. */
-void
-ShowControls() noexcept
+[[gnu::pure]]
+bool
+IsShown() noexcept
 {
-  auto &parent = UIGlobals::GetMainWindow();
-
-  if (overlay == nullptr)
-    overlay = std::make_unique<OverlayWindow>(UIGlobals::GetLook().info_box);
-
-  overlay->SetPanel(InfoBoxManager::GetCurrentPanel());
-  overlay->SetLayout(InfoBoxManager::layout,
-                     InfoBoxManager::layout.remaining);
-
-  if (overlay->IsDefined())
-    overlay->Move(parent.GetClientRect());
-  else
-    overlay->Create(parent, parent.GetClientRect());
-
-  overlay->Show();
-  overlay->BringToTop();
-
-  /* the overlay paints the InfoBoxes itself */
-  for (unsigned i = 0; i < InfoBoxManager::layout.count; ++i)
-    if (auto *window = InfoBoxManager::GetWindow(i))
-      window->FastHide();
-
-  /* after hiding the InfoBoxes, so that a hidden one cannot keep the
-     keyboard focus */
-  overlay->SetFocus();
+  return overlay != nullptr && overlay->IsVisible();
 }
 
-/** Common part of InfoBoxArrange::Save() and InfoBoxArrange::Cancel(). */
 void
-Leave() noexcept
+Enter() noexcept
 {
-  active = false;
-
-  if (overlay != nullptr) {
-    /* the finger may still rest on a card */
-    overlay->Drop();
-    overlay->FocusParent();
-    overlay->Hide();
-  }
-
-  CancelTimeout();
-
-  for (unsigned i = 0; i < InfoBoxManager::layout.count; ++i)
-    if (auto *window = InfoBoxManager::GetWindow(i))
-      window->Show();
-
-  InfoBoxManager::Refresh();
-  InfoBoxManager::ScheduleRedraw();
+  saved_panel = InfoBoxManager::GetCurrentPanel();
+  if (overlay == nullptr)
+    overlay = std::make_unique<OverlayWindow>();
+  overlay->Enter();
 }
 
 } // namespace
@@ -143,7 +174,7 @@ Leave() noexcept
 bool
 InfoBoxArrange::IsActive() noexcept
 {
-  return active;
+  return IsShown();
 }
 
 void
@@ -152,65 +183,57 @@ InfoBoxArrange::Begin(unsigned id, PixelPoint pointer) noexcept
   if (InfoBoxManager::GetWindow(id) == nullptr)
     return;
 
-  if (!active) {
-    active = true;
-    saved_panel = InfoBoxManager::GetCurrentPanel();
-    ShowControls();
-  }
+  if (!IsShown())
+    Enter();
 
   /* the long press has already picked the InfoBox up, so it follows
      the finger right away */
-  overlay->BeginDrag(id, pointer, true);
+  overlay->GetArrange().BeginDrag(id, pointer, true);
 }
 
 void
 InfoBoxArrange::Begin() noexcept
 {
-  if (active || InfoBoxManager::GetWindow(0) == nullptr)
+  if (IsShown() || InfoBoxManager::GetWindow(0) == nullptr)
     return;
 
-  active = true;
-  saved_panel = InfoBoxManager::GetCurrentPanel();
-  ShowControls();
-
-  overlay->FocusSlot(0);
-  RestartTimeout();
+  Enter();
+  overlay->GetArrange().FocusSlot(0);
+  overlay->StartTimeout();
 }
 
 bool
 InfoBoxArrange::SetFocus() noexcept
 {
-  if (!active || overlay == nullptr)
+  if (!IsShown())
     return false;
 
-  overlay->SetFocus();
+  overlay->GetArrange().SetFocus();
   return true;
 }
 
 void
 InfoBoxArrange::Save() noexcept
 {
-  if (!active)
+  if (!IsShown())
     return;
 
-  Leave();
+  overlay->Leave();
   InfoBoxManager::SaveCurrentPanel();
 }
 
 void
 InfoBoxArrange::Cancel() noexcept
 {
-  if (!active)
+  if (!IsShown())
     return;
 
   InfoBoxManager::GetCurrentPanel() = saved_panel;
-  Leave();
+  overlay->Leave();
 }
 
 void
 InfoBoxArrange::Reset() noexcept
 {
-  active = false;
-  timeout_timer.reset();
   overlay.reset();
 }

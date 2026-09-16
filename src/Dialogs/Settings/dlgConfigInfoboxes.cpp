@@ -5,14 +5,15 @@
 #include "Dialogs/WidgetDialog.hpp"
 #include "Dialogs/Message.hpp"
 #include "Dialogs/TextEntry.hpp"
+#include "Form/Button.hpp"
 #include "Look/DialogLook.hpp"
 #include "Widget/Widget.hpp"
+#include "InfoBoxes/Content/Factory.hpp"
 #include "InfoBoxes/InfoBoxArrangeWindow.hpp"
 #include "InfoBoxes/InfoBoxLayout.hpp"
 #include "InfoBoxes/InfoBoxSettings.hpp"
 #include "Interface.hpp"
 #include "Language/Language.hpp"
-#include "util/StaticString.hxx"
 
 using namespace UI;
 
@@ -53,15 +54,11 @@ class InfoBoxesConfigWidget final : public NullWidget {
 
   const InfoBoxSettings::Geometry geometry;
 
-  /** the caption of the button which renames the set */
-  StaticString<64> name_caption;
-
   Layout layout;
 
   ArrangeWindow arrange;
 
-  /** the button which pastes the clipboard */
-  unsigned paste_button;
+  Button *paste_button = nullptr;
 
 public:
   InfoBoxesConfigWidget(WndForm &_dialog,
@@ -76,14 +73,23 @@ public:
      geometry(_geometry),
      arrange(*this, dialog_look, _look) {}
 
-private:
-  void RefreshPasteButton() noexcept {
-    arrange.SetButtonEnabled(paste_button, clipboard_size > 0);
+  void SetPasteButton(Button *_paste_button) noexcept {
+    paste_button = _paste_button;
+    RefreshPasteButton();
   }
 
   void OnRename() noexcept;
   void OnCopy() noexcept;
   void OnPaste() noexcept;
+  void ShowHelp() noexcept {
+    arrange.ShowHelp();
+  }
+
+private:
+  void RefreshPasteButton() noexcept {
+    if (paste_button != nullptr)
+      paste_button->SetEnabled(clipboard_size > 0);
+  }
 
   /** Recalculate the layout for @p rc and hand it to #arrange. */
   void UpdateLayout(const PixelRect &rc) noexcept {
@@ -131,32 +137,13 @@ InfoBoxesConfigWidget::Prepare(ContainerWindow &parent,
 {
   UpdateLayout(rc);
 
-  arrange.SetExtraHelp(allow_name_change
-                       ? _("The button with the name of the set renames it, "
-                           "Copy remembers all its InfoBoxes, and Paste "
-                           "replaces the InfoBoxes of another set with "
-                           "them.")
-                       : _("Copy remembers all InfoBoxes of this set, Paste "
-                           "replaces the InfoBoxes of another set with "
-                           "them."));
-
-  /* the upper row changes the set, the lower one acts on the dialogue */
-  name_caption = gettext(data.name);
-  const unsigned name_button =
-    arrange.AddButton(1, name_caption, [this]{ OnRename(); });
-  arrange.AddButton(1, _("Copy"), [this]{ OnCopy(); });
-  paste_button = arrange.AddButton(1, _("Paste"), [this]{ OnPaste(); });
-
-  arrange.AddButton(_("Help"), [this]{ arrange.ShowHelp(); });
-  arrange.AddButton(_("Close"), dialog.MakeModalResultCallback(mrOK));
+  arrange.SetExtraHelp(_("Copy remembers all InfoBoxes of this set, Paste "
+                         "replaces the InfoBoxes of another set with "
+                         "them."));
 
   arrange.SetPanel(data);
   arrange.Create(parent, rc);
   arrange.FocusSlot(0);
-
-  /* only the sets the user has made himself can be renamed */
-  arrange.SetButtonEnabled(name_button, allow_name_change);
-  RefreshPasteButton();
 }
 
 bool
@@ -172,9 +159,8 @@ InfoBoxesConfigWidget::OnRename() noexcept
   if (!TextEntryDialog(data.name, _("Name")))
     return;
 
-  name_caption = data.name;
+  dialog.SetCaption(data.name);
   changed = true;
-  arrange.Invalidate();
 }
 
 void
@@ -222,9 +208,19 @@ dlgConfigInfoboxesShowModal(SingleWindow &parent,
   const InfoBoxSettings::Panel saved = data_r;
 
   TWidgetDialog<InfoBoxesConfigWidget> dialog(WidgetDialog::Full{}, parent,
-                                              dialog_look, nullptr);
+                                              dialog_look,
+                                              gettext(data_r.name));
   dialog.SetWidget(dialog, dialog_look, _look,
                    data_r, allow_name_change, geometry);
+
+  auto &widget = dialog.GetWidget();
+  if (allow_name_change)
+    dialog.AddButton(_("Rename"), [&widget]{ widget.OnRename(); });
+  dialog.AddButton(_("Copy"), [&widget]{ widget.OnCopy(); });
+  widget.SetPasteButton(dialog.AddButton(_("Paste Set"),
+                                         [&widget]{ widget.OnPaste(); }));
+  dialog.AddButton(_("Help"), [&widget]{ widget.ShowHelp(); });
+  dialog.AddButton(_("Close"), mrOK);
 
   if (dialog.ShowModal() != mrOK) {
     data_r = saved;

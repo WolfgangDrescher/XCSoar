@@ -20,11 +20,15 @@ struct InfoBoxLook {
 
   /**
    * The simplified InfoBox cards shown while the InfoBoxes are being
-   * arrangeed (see #InfoBoxArrange).  #preview_backdrop_color covers
+   * arranged (see #InfoBoxArrange).  #preview_backdrop_color covers
    * the whole screen, #preview_active_color fills the card which
-   * follows the finger.
+   * follows the finger, #preview_border_pen outlines every card so
+   * they stay visible on a similar background, and
+   * #preview_focus_width is the filled selection halo outside that
+   * hairline, in #preview_active_color.
    */
   Color preview_backdrop_color, preview_active_color;
+  Pen preview_border_pen;
   unsigned preview_padding, preview_radius, preview_focus_width;
 
   /**
