@@ -2861,12 +2861,13 @@ GroupedListControl::SetCursor(int i) noexcept
 void
 GroupedListControl::SetCursorByIndex(unsigned i) noexcept
 {
-  const int j = FindItemByIndex(i);
+  const int j = IsDefined() ? FindItemByIndex(i) : -1;
   if (j >= 0)
     SetCursor(j);
   else {
-    /* there is no such item yet: the list is being filled, and the
-       next UpdateLayout() moves the cursor there */
+    /* there is no such item yet, or no window to show the cursor in:
+       the list is being filled, and the next UpdateLayout() moves the
+       cursor there */
     saved_cursor = i;
     cursor_removed = false;
   }
