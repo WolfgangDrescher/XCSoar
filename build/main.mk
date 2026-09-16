@@ -19,6 +19,8 @@ DIALOG_SOURCES = \
 	$(SRC)/Dialogs/CoDialog.cpp \
 	$(SRC)/Dialogs/JobDialog.cpp \
 	$(SRC)/Dialogs/WidgetDialog.cpp \
+	$(SRC)/Dialogs/GroupedListTestDialog.cpp \
+	$(SRC)/Dialogs/GroupedListMenuDialog.cpp \
 	$(SRC)/Dialogs/FileManager.cpp \
 	$(SRC)/Dialogs/DataManagement/DataManagement.cpp \
 	$(SRC)/Dialogs/DataManagement/ExportFlightsPanel.cpp \
@@ -124,6 +126,7 @@ DIALOG_SOURCES = \
 	$(SRC)/Dialogs/Settings/Panels/InterfaceConfigPanel.cpp \
 	$(SRC)/Dialogs/Settings/Panels/LayoutConfigPanel.cpp \
 	$(SRC)/Dialogs/Settings/Panels/LoggerConfigPanel.cpp \
+	$(SRC)/Dialogs/Settings/Panels/ConfigListPanel.cpp \
 	$(SRC)/Dialogs/Settings/Panels/MapDisplayConfigPanel.cpp \
 	$(SRC)/Dialogs/Settings/Panels/NetworkConfigPanel.cpp \
 	$(SRC)/Dialogs/Settings/Panels/PagesConfigPanel.cpp \
