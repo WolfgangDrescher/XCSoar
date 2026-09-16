@@ -34,7 +34,11 @@ InfoBoxLook::Initialise(bool _inverse, bool use_colors,
   /* the arrange backdrop is the opposite of the InfoBox background,
      so that the InfoBox cards stand out on it */
   preview_backdrop_color = inverse ? COLOR_WHITE : COLOR_BLACK;
-  preview_active_color = COLOR_XCSOAR;
+  preview_active_color = HasColors()
+    ? COLOR_XCSOAR
+    /* on e-paper the XCSoar fill becomes a mid-tone; use the
+       backdrop so the card text stays black-on-white or the reverse */
+    : preview_backdrop_color;
 
   if (inverse) {
     focused_background_color = DarkColor(focused_background_color);

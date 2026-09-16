@@ -49,7 +49,6 @@ class InfoBoxesConfigWidget final : public NullWidget {
   WndForm &dialog;
 
   InfoBoxSettings::Panel &data;
-  const bool allow_name_change;
   bool changed = false;
 
   const InfoBoxSettings::Geometry geometry;
@@ -65,11 +64,9 @@ public:
                         const DialogLook &dialog_look,
                         const InfoBoxLook &_look,
                         InfoBoxSettings::Panel &_data,
-                        bool _allow_name_change,
                         InfoBoxSettings::Geometry _geometry)
     :dialog(_dialog),
      data(_data),
-     allow_name_change(_allow_name_change),
      geometry(_geometry),
      arrange(*this, dialog_look, _look) {}
 
@@ -210,8 +207,7 @@ dlgConfigInfoboxesShowModal(SingleWindow &parent,
   TWidgetDialog<InfoBoxesConfigWidget> dialog(WidgetDialog::Full{}, parent,
                                               dialog_look,
                                               gettext(data_r.name));
-  dialog.SetWidget(dialog, dialog_look, _look,
-                   data_r, allow_name_change, geometry);
+  dialog.SetWidget(dialog, dialog_look, _look, data_r, geometry);
 
   auto &widget = dialog.GetWidget();
   if (allow_name_change)

@@ -14,6 +14,8 @@
 #include "Interface.hpp"
 #include "UIState.hpp"
 
+#include <cassert>
+
 namespace InfoBoxManager {
 
 InfoBoxLayout::Layout layout;
@@ -294,10 +296,18 @@ InfoBoxManager::ShowInfoBoxPicker(const int i) noexcept
 }
 
 InfoBoxSettings::Panel &
+InfoBoxManager::GetPanel(unsigned index) noexcept
+{
+  assert(index < InfoBoxSettings::MAX_PANELS);
+
+  InfoBoxSettings &settings = CommonInterface::SetUISettings().info_boxes;
+  return settings.panels[index];
+}
+
+InfoBoxSettings::Panel &
 InfoBoxManager::GetCurrentPanel() noexcept
 {
-  InfoBoxSettings &settings = CommonInterface::SetUISettings().info_boxes;
-  return settings.panels[CommonInterface::GetUIState().panel_index];
+  return GetPanel(CommonInterface::GetUIState().panel_index);
 }
 
 void
@@ -307,10 +317,15 @@ InfoBoxManager::Refresh() noexcept
 }
 
 void
+InfoBoxManager::SavePanel(unsigned index) noexcept
+{
+  Profile::Save(Profile::map, GetPanel(index), index);
+}
+
+void
 InfoBoxManager::SaveCurrentPanel() noexcept
 {
-  const unsigned panel_index = CommonInterface::GetUIState().panel_index;
-  Profile::Save(Profile::map, GetCurrentPanel(), panel_index);
+  SavePanel(CommonInterface::GetUIState().panel_index);
 }
 
 void

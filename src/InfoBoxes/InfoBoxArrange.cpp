@@ -12,6 +12,7 @@
 #include "Look/DialogLook.hpp"
 #include "Look/Look.hpp"
 #include "UIGlobals.hpp"
+#include "UIState.hpp"
 #include "ui/event/Timer.hpp"
 #include "ui/window/ContainerWindow.hpp"
 #include "ui/window/SingleWindow.hpp"
@@ -24,6 +25,7 @@ namespace {
 
 /** the InfoBox configuration as it was when the mode was entered */
 InfoBoxSettings::Panel saved_panel;
+unsigned saved_panel_index;
 
 /**
  * Full-screen overlay: cards plus a real Help/Close #ButtonPanel.
@@ -120,7 +122,7 @@ public:
     else
       Create(parent);
 
-    arrange.SetPanel(InfoBoxManager::GetCurrentPanel());
+    arrange.SetPanel(InfoBoxManager::GetPanel(saved_panel_index));
     UpdateLayout();
     Show();
     BringToTop();
@@ -163,7 +165,10 @@ IsShown() noexcept
 void
 Enter() noexcept
 {
-  saved_panel = InfoBoxManager::GetCurrentPanel();
+  /* display mode can switch the current panel while the overlay is
+     up; save and cancel must still talk to the panel we opened */
+  saved_panel_index = CommonInterface::GetUIState().panel_index;
+  saved_panel = InfoBoxManager::GetPanel(saved_panel_index);
   if (overlay == nullptr)
     overlay = std::make_unique<OverlayWindow>();
   overlay->Enter();
@@ -219,7 +224,7 @@ InfoBoxArrange::Save() noexcept
     return;
 
   overlay->Leave();
-  InfoBoxManager::SaveCurrentPanel();
+  InfoBoxManager::SavePanel(saved_panel_index);
 }
 
 void
@@ -228,7 +233,7 @@ InfoBoxArrange::Cancel() noexcept
   if (!IsShown())
     return;
 
-  InfoBoxManager::GetCurrentPanel() = saved_panel;
+  InfoBoxManager::GetPanel(saved_panel_index) = saved_panel;
   overlay->Leave();
 }
 

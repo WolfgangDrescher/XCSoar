@@ -333,7 +333,10 @@ InfoBoxArrangeWindow::DrawCard(Canvas &canvas, const PixelRect &rc,
   number_text.Format("#%u", number);
 
   canvas.SetBackgroundTransparent();
-  canvas.SetTextColor(active ? COLOR_WHITE : look.title.fg_color);
+  canvas.SetTextColor(active
+                      ? (HasColors() ? COLOR_WHITE
+                                     : look.background_color)
+                      : look.title.fg_color);
 
   canvas.Select(look.preview_number_font);
   const PixelSize number_size = canvas.CalcTextSize(number_text);

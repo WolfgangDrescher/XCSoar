@@ -81,6 +81,10 @@ ShowInfoBoxPicker(int id) noexcept;
 InfoBoxSettings::Panel &
 GetCurrentPanel() noexcept;
 
+[[gnu::pure]]
+InfoBoxSettings::Panel &
+GetPanel(unsigned index) noexcept;
+
 /**
  * Update the InfoBox windows after #GetCurrentPanel() was modified.
  */
@@ -93,6 +97,9 @@ Refresh() noexcept;
  */
 void
 SaveCurrentPanel() noexcept;
+
+void
+SavePanel(unsigned index) noexcept;
 
 /**
  * Clear focus from all InfoBoxes except the one with the specified ID.
