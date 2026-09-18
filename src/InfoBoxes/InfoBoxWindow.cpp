@@ -61,16 +61,22 @@ InfoBoxWindow::PaintTitle(Canvas &canvas)
   const Font &font = is_selected ? look.title_font_bold : look.title_font;
   canvas.Select(font);
 
-  PixelSize tsize = canvas.CalcTextSize(data.title);
+  const PixelSize tsize = canvas.CalcTextSize(data.title);
 
-  int halftextwidth = (title_rect.left + title_rect.right - (int)tsize.width) / 2;
-  int x = std::max(1, title_rect.left + halftextwidth);
-  int y = title_rect.top;
+  /* centre the title in the box; one that does not fit starts at the
+     left edge and is cut off at the right one */
+  const int x = std::max(title_rect.left,
+                         (title_rect.left + title_rect.right
+                          - int(tsize.width)) / 2);
+  const int y = title_rect.top;
 
-  canvas.TextAutoClipped({x, y}, data.title);
+  canvas.DrawClippedText({x, y}, title_rect, data.title);
+
+  /* the room beside the title, which the tab needs for its shoulders */
+  const int side_room = x - title_rect.left;
 
   if (settings.border_style == InfoBoxSettings::BorderStyle::TAB &&
-      halftextwidth > Layout::Scale(3)) {
+      side_room > Layout::Scale(3)) {
 
     const auto pad = Layout::Scale(2);
     const auto text_pad = Layout::GetTextPadding()*2;
@@ -90,8 +96,8 @@ InfoBoxWindow::PaintTitle(Canvas &canvas)
     tab[1].y = tab[6].y = ytopedge;
     tab[5].x = title_rect.right - pad;
     tab[6].x = tab[7].x = title_rect.right;
-    tab[3].x = title_rect.left + halftextwidth - text_pad;
-    tab[4].x = title_rect.right - halftextwidth + text_pad;
+    tab[3].x = x - text_pad;
+    tab[4].x = x + int(tsize.width) + text_pad;
 
     canvas.DrawPolyline(tab, 4);
     canvas.DrawPolyline(tab + 4, 4);
@@ -119,10 +125,10 @@ InfoBoxWindow::PaintValue(Canvas &canvas, [[maybe_unused]] Color background_colo
   const PixelSize value_unit_size = value_size + PixelSize{unit_width, 0u};
 
   auto value_p = value_rect.CenteredTopLeft(value_unit_size);
-  if (value_p.x < 0)
-    value_p.x = 0;
+  if (value_p.x < value_rect.left)
+    value_p.x = value_rect.left;
 
-  canvas.TextAutoClipped(value_p, data.value);
+  canvas.DrawClippedText(value_p, value_rect, data.value);
 
   if (unit_width != 0) {
     const int unit_height =
@@ -148,13 +154,15 @@ InfoBoxWindow::PaintComment(Canvas &canvas)
   const Font &font = look.title_font;
   canvas.Select(font);
 
-  PixelSize tsize = canvas.CalcTextSize(data.comment);
+  const PixelSize tsize = canvas.CalcTextSize(data.comment);
 
-  int x = std::max(1,
-                   (comment_rect.left + comment_rect.right - (int)tsize.width) / 2);
-  int y = comment_rect.top;
+  /* centred like the title, and cut off at the box like the title */
+  const int x = std::max(comment_rect.left,
+                         (comment_rect.left + comment_rect.right
+                          - int(tsize.width)) / 2);
+  const int y = comment_rect.top;
 
-  canvas.TextAutoClipped({x, y}, data.comment);
+  canvas.DrawClippedText({x, y}, comment_rect, data.comment);
 }
 
 void
