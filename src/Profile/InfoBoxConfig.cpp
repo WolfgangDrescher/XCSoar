@@ -124,6 +124,7 @@ Profile::Load(const ProfileMap &map, InfoBoxSettings &settings)
   map.GetEnum(ProfileKeys::AppInfoBoxTheme, settings.theme);
 
   map.GetEnum(ProfileKeys::AppInfoBoxBorder, settings.border_style);
+  map.GetEnum(ProfileKeys::AppInfoBoxBackground, settings.background);
 
   GetV60InfoBoxManagerConfig(map, settings);
   char profileKey[32];

@@ -7,6 +7,7 @@
 #include "util/Macros.hpp"
 
 #include <algorithm> // for std::clamp()
+#include <cstdlib> // for std::abs()
 
 static constexpr double CONTROLHEIGHTRATIO = 7.4;
 
@@ -957,4 +958,41 @@ InfoBoxLayout::GetBorder(InfoBoxSettings::Geometry geometry, bool landscape,
   }
 
   return border;
+}
+
+unsigned
+InfoBoxLayout::GetOuterEdges(const Layout &layout,
+                             const PixelRect &rc) noexcept
+{
+  unsigned edges = BORDERTOP | BORDERRIGHT | BORDERBOTTOM | BORDERLEFT;
+
+  const auto check = [&](const PixelRect &other) {
+    /* neighbouring boxes share an edge, give or take the rounding
+       of the layout; a box never touches itself */
+    const bool beside = other.top < rc.bottom && other.bottom > rc.top;
+    const bool above_or_below =
+      other.left < rc.right && other.right > rc.left;
+
+    if (above_or_below) {
+      if (std::abs(other.bottom - rc.top) <= 1)
+        edges &= ~unsigned(BORDERTOP);
+      if (std::abs(other.top - rc.bottom) <= 1)
+        edges &= ~unsigned(BORDERBOTTOM);
+    }
+
+    if (beside) {
+      if (std::abs(other.right - rc.left) <= 1)
+        edges &= ~unsigned(BORDERLEFT);
+      if (std::abs(other.left - rc.right) <= 1)
+        edges &= ~unsigned(BORDERRIGHT);
+    }
+  };
+
+  for (unsigned i = 0; i < layout.count; ++i)
+    check(layout.positions[i]);
+
+  if (layout.HasVario())
+    check(layout.vario);
+
+  return edges;
 }

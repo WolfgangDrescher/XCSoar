@@ -231,8 +231,9 @@ InfoBoxManager::Create(ContainerWindow &parent,
         Border |= BORDERRIGHT;
     }
 
-    infoboxes[i] = new InfoBoxWindow(parent, rc,
-                                     Border, settings, look,
+    infoboxes[i] = new InfoBoxWindow(parent, rc, Border,
+                                     InfoBoxLayout::GetOuterEdges(layout, rc),
+                                     settings, look,
                                      i, style);
   }
 

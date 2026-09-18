@@ -123,12 +123,91 @@ struct InfoBoxSettings {
     DARK,
   } theme;
 
+  /**
+   * The shape of the InfoBoxes.  Whether the map shows through them
+   * is a separate choice, see #translucent.
+   */
   enum class BorderStyle : uint8_t {
     BOX,
     TAB,
     SHADED,
     GLASS,
+
+    /**
+     * Rounded boxes with a small gap between them, floating over
+     * the map.
+     */
+    FLOATING,
+
+    /**
+     * Each block of adjacent InfoBoxes forms one panel with rounded
+     * corners, set back from the screen edge and from the map.
+     */
+    DOCK,
   } border_style;
+
+  /**
+   * What is behind the text of an InfoBox.  Only OpenGL can blend;
+   * the memory canvas keeps the boxes solid.
+   */
+  enum class Background : uint8_t {
+    SOLID,
+
+    /**
+     * The map shows through the boxes.
+     */
+    TRANSPARENT,
+
+    /**
+     * Translucent over a blurred copy of the map ("frosted glass"),
+     * which keeps the values readable over busy terrain.
+     */
+    FROSTED,
+  } background;
+
+  /**
+   * Does this style leave gaps between the InfoBoxes and the screen
+   * edge or their neighbours?  The map shows through them.
+   */
+  static constexpr bool HasGaps(BorderStyle style) noexcept {
+    return style == BorderStyle::FLOATING || style == BorderStyle::DOCK;
+  }
+
+  /**
+   * Does the map show through the boxes?
+   */
+  constexpr bool IsTranslucent() const noexcept {
+    return background != Background::SOLID;
+  }
+
+  constexpr bool IsFrosted() const noexcept {
+    return background == Background::FROSTED;
+  }
+
+  constexpr bool HasGaps() const noexcept {
+    return HasGaps(border_style);
+  }
+
+  constexpr bool IsDock() const noexcept {
+    return border_style == BorderStyle::DOCK;
+  }
+
+  /**
+   * Does this style draw the title on a caption bar?
+   */
+  constexpr bool HasCaptionBar() const noexcept {
+    return border_style == BorderStyle::SHADED;
+  }
+
+  /**
+   * Is the map visible through the InfoBox area, be it through
+   * translucent boxes or through the gaps around them?  The map then
+   * has to be drawn behind the InfoBoxes instead of ending at their
+   * edge.
+   */
+  constexpr bool ShowsMapBehind() const noexcept {
+    return IsTranslucent() || HasGaps();
+  }
 
   Panel panels[MAX_PANELS];
 

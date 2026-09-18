@@ -39,6 +39,12 @@ GlueGaugeVario::ReinitialiseLook() noexcept
 }
 
 void
+GlueGaugeVario::SetOuterEdges(unsigned edges) noexcept
+{
+  ((GaugeVario &)GetWindow()).SetOuterEdges(edges);
+}
+
+void
 GlueGaugeVario::OnGPSUpdate([[maybe_unused]] const MoreData &basic)
 {
   ((GaugeVario &)GetWindow()).Invalidate();

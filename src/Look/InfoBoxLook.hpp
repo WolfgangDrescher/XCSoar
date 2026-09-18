@@ -39,6 +39,12 @@ struct InfoBoxLook {
   Font title_font;
   Font title_font_bold;
 
+  /**
+   * A smaller title/comment font for the styles which leave a gap
+   * around the boxes to the map, see InfoBoxSettings::HasGaps().
+   */
+  Font small_title_font;
+
   Color colors[6];
 
   void Initialise(bool inverse, bool use_colors,

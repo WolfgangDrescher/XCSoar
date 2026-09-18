@@ -5,13 +5,21 @@
 #include "Gauge/VarioGeometry.hpp"
 #include "Computer/STF.hpp"
 #include "Look/VarioLook.hpp"
+#include "InfoBoxes/InfoBoxSettings.hpp"
 #include "ui/canvas/Canvas.hpp"
 #include "Screen/Layout.hpp"
+#include "Renderer/InfoBoxBackground.hpp"
+#include "ui/canvas/Pen.hpp"
 #include "Renderer/UnitSymbolRenderer.hpp"
 #include "Math/FastRotation.hpp"
 #include "Units/Units.hpp"
 #include "Units/Descriptor.hpp"
 #include "lib/fmt/ToBuffer.hxx"
+
+#ifdef ENABLE_OPENGL
+#include "ui/canvas/opengl/Scissor.hpp"
+#include <optional>
+#endif
 
 #include <algorithm> // for std::clamp()
 
@@ -39,13 +47,13 @@ GaugeVario::BallastGeometry::BallastGeometry(const VarioLook &look,
   PixelSize tSize;
 
   // position of ballast label
-  label_pos.x = 1;
+  label_pos.x = rc.left + 1;
   label_pos.y = rc.top + 2
     + look.label_font.GetCapitalHeight() * 2
     - look.label_font.GetAscentHeight();
 
   // position of ballast value
-  value_pos.x = 1;
+  value_pos.x = rc.left + 1;
   value_pos.y = rc.top + 1
     + look.label_font.GetCapitalHeight()
     - look.label_font.GetAscentHeight();
@@ -85,12 +93,12 @@ GaugeVario::BugsGeometry::BugsGeometry(const VarioLook &look,
 {
   PixelSize tSize;
 
-  label_pos.x = 1;
+  label_pos.x = rc.left + 1;
   label_pos.y = rc.bottom - 2
     - look.label_font.GetCapitalHeight()
     - look.label_font.GetAscentHeight();
 
-  value_pos.x = 1;
+  value_pos.x = rc.left + 1;
   value_pos.y = rc.bottom - 1
     - look.label_font.GetAscentHeight();
 
@@ -172,6 +180,31 @@ GaugeVario::GaugeVario(const FullBlackboard &_blackboard,
   Create(parent, rc, style);
 }
 
+InfoBoxBackgroundShape
+GaugeVario::GetShape() const noexcept
+{
+  return InfoBoxBackgroundShape::For(GetInfoBoxSettings().border_style,
+                                     outer_edges);
+}
+
+PixelRect
+GaugeVario::GetContentRect() const noexcept
+{
+  /* the box may be set back from the window edge; keep the dial
+     inside the box */
+  return GetShape().Inset(GetClientRect());
+}
+
+void
+GaugeVario::SetOuterEdges(unsigned edges) noexcept
+{
+  if (edges == outer_edges)
+    return;
+
+  outer_edges = edges;
+  ReinitialiseLook();
+}
+
 static constexpr int
 WidthToHeight(int width) noexcept
 {
@@ -187,7 +220,9 @@ TransformRotatedPoint(IntPoint2D pt, IntPoint2D offset) noexcept
 inline void
 GaugeVario::RenderBackground(Canvas &canvas, const PixelRect &rc) noexcept
 {
-  canvas.Clear(look.background_color);
+  if (!GetInfoBoxSettings().ShowsMapBehind())
+    /* otherwise, OnPaintBuffer() has drawn the box already */
+    canvas.Clear(look.background_color);
 
   canvas.Select(look.arc_pen);
 
@@ -265,7 +300,30 @@ GaugeVario::RenderBackground(Canvas &canvas, const PixelRect &rc) noexcept
 void
 GaugeVario::OnPaintBuffer(Canvas &canvas) noexcept
 {
-  const PixelRect rc = GetClientRect();
+  const InfoBoxSettings &ib_settings = GetInfoBoxSettings();
+  const bool translucent = ib_settings.IsTranslucent();
+  const PixelRect rc = GetContentRect();
+
+#ifdef ENABLE_OPENGL
+  std::optional<GLCanvasScissor> scissor;
+#endif
+
+  if (ib_settings.ShowsMapBehind()) {
+    /* draw the box like the InfoBoxes around it, then keep the dial
+       from spilling over its rounded corners */
+    DrawInfoBoxHalo(canvas, GetClientRect(), GetShape());
+
+    if (ib_settings.IsFrosted())
+      DrawInfoBoxFrostedGlass(canvas, GetClientRect(), GetShape());
+
+    const Color color = translucent
+      ? GetTranslucentInfoBoxColor(look.inverse, ib_settings.background)
+      : look.background_color;
+    DrawInfoBoxBackground(canvas, GetClientRect(), GetShape(), color);
+#ifdef ENABLE_OPENGL
+    scissor.emplace(rc);
+#endif
+  }
 
   if (!IsPersistent() || background_dirty) {
     RenderBackground(canvas, rc);
@@ -317,16 +375,20 @@ GaugeVario::OnPaintBuffer(Canvas &canvas) noexcept
       ival_av = ValueToNeedlePos(Calculated().average);
   }
 
-  // clear items first
+  /* clear items first: the previous needle positions are painted
+     over in the background colour.  A translucent box is redrawn
+     each frame anyway, so skip that there; the opaque strokes would
+     stay visible on it. */
+  const bool erase = !translucent;
 
   if (Settings().show_average_needle) {
-    if (!IsPersistent() || ival_av != ival_last)
+    if (erase && (!IsPersistent() || ival_av != ival_last))
       RenderNeedle(canvas, ival_last, true, true);
 
     ival_last = ival_av;
   }
 
-  if (vario_line_drawn &&
+  if (erase && vario_line_drawn &&
       (!vario_available || !IsPersistent() ||
        (sval != sval_last) || (ival != vval_last))) {
     RenderVarioLine(canvas, vval_last, sval_last, true);
@@ -335,12 +397,12 @@ GaugeVario::OnPaintBuffer(Canvas &canvas) noexcept
 
   sval_last = sval;
   if (Settings().show_thermal_average_needle) {
-    if (!IsPersistent() || ival_av_thermal != ival_av_last)
+    if (erase && (!IsPersistent() || ival_av_thermal != ival_av_last))
       RenderNeedle(canvas, ival_av_last, false, true);
 
     ival_av_last = ival_av_thermal;
   } else {
-    if (!IsPersistent() || ival != vval_last)
+    if (erase && (!IsPersistent() || ival != vval_last))
       RenderNeedle(canvas, vval_last, false, true);
 
     vval_last = ival;
@@ -368,6 +430,17 @@ GaugeVario::OnPaintBuffer(Canvas &canvas) noexcept
   }
 
   RenderZero(canvas);
+
+#ifdef ENABLE_OPENGL
+  /* the outline runs along the box edge, which the scissor would cut */
+  scissor.reset();
+#endif
+
+  /* the same pen as the neighbouring InfoBoxes use, so the outline
+     continues seamlessly */
+  DrawInfoBoxOutline(canvas, GetClientRect(), GetShape(),
+                     Pen(Layout::ScaleFinePenWidth(1),
+                         GetInfoBoxOutlineColor()));
 }
 
 void
@@ -405,7 +478,7 @@ GaugeVario::MakeAllPolygons() noexcept
 void
 GaugeVario::RenderClimb(Canvas &canvas) noexcept
 {
-  const PixelRect rc = GetClientRect();
+  const PixelRect rc = GetContentRect();
   int x = rc.right - int(look.Scale(Layout::Scale(14)));
   int y = rc.bottom - int(look.Scale(Layout::Scale(24)));
 
@@ -600,7 +673,7 @@ GaugeVario::RenderSpeedToFly(Canvas &canvas, int x, int y) noexcept
   const unsigned arrow_y_size = look.Scale(Layout::Scale(3));
   const unsigned arrow_x_size = look.Scale(Layout::Scale(7));
 
-  const PixelRect rc = GetClientRect();
+  const PixelRect rc = GetContentRect();
 
   int nary = NARROWS * arrow_y_size;
   const int y_offset = look.Scale(YOFFSET);
@@ -808,8 +881,7 @@ GaugeVario::OnResize(PixelSize new_size) noexcept
 void
 GaugeVario::ReinitialiseLook() noexcept
 {
-
-  geometry = {look, GetClientRect()};
+  geometry = {look, GetContentRect()};
 
   /* trigger reinitialisation */
   dirty = true;

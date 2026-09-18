@@ -132,6 +132,7 @@ constexpr std::string_view AppInfoBoxColors = "AppInfoBoxColors";
 constexpr std::string_view AppInfoBoxTheme = "AppInfoBoxTheme";
 constexpr std::string_view TeamcodeRefWaypoint = "TeamcodeRefWaypoint";
 constexpr std::string_view AppInfoBoxBorder = "AppInfoBoxBorder";
+constexpr std::string_view AppInfoBoxBackground = "AppInfoBoxBackground";
 constexpr std::string_view ShowMenuButton = "ShowMenuButton";
 constexpr std::string_view ShowZoomButton = "ShowZoomButton";
 constexpr std::string_view ShowQuickMenuButton = "ShowQuickMenuButton";

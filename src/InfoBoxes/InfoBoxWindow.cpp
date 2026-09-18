@@ -8,6 +8,7 @@
 #include "Look/Colors.hpp"
 #include "Input/InputEvents.hpp"
 #include "Renderer/GlassRenderer.hpp"
+#include "Renderer/InfoBoxBackground.hpp"
 #include "Renderer/UnitSymbolRenderer.hpp"
 #include "Screen/Layout.hpp"
 #include "ui/canvas/Canvas.hpp"
@@ -22,18 +23,24 @@
 static constexpr std::chrono::steady_clock::duration FOCUS_TIMEOUT_MAX = std::chrono::seconds(20);
 
 InfoBoxWindow::InfoBoxWindow(ContainerWindow &parent, PixelRect rc,
-                             unsigned border_flags,
+                             unsigned border_flags, unsigned _outer_edges,
                              const InfoBoxSettings &_settings,
                              const InfoBoxLook &_look,
                              unsigned _id,
                              WindowStyle style)
   :settings(_settings), look(_look),
-   border_kind(border_flags),
+   border_kind(border_flags), outer_edges(_outer_edges),
    id(_id)
 {
   data.Clear();
 
   Create(parent, rc, style);
+}
+
+InfoBoxBackgroundShape
+InfoBoxWindow::GetShape() const noexcept
+{
+  return InfoBoxBackgroundShape::For(settings.border_style, outer_edges);
 }
 
 void
@@ -49,8 +56,13 @@ InfoBoxWindow::PaintTitle(Canvas &canvas)
   if (data.title.empty())
     return;
 
-  if (settings.border_style == InfoBoxSettings::BorderStyle::SHADED)
-    canvas.DrawFilledRectangle(title_rect, look.caption_background_color);
+  if (settings.HasCaptionBar()) {
+    const Color solid = look.caption_background_color;
+    DrawInfoBoxBackground(canvas, title_rect, {},
+                          settings.IsTranslucent()
+                          ? GetTranslucentCaptionColor(look.inverse, solid)
+                          : solid);
+  }
 
   const bool is_selected = HasFocus() || dragging || force_draw_selector;
   if (is_selected)
@@ -58,7 +70,9 @@ InfoBoxWindow::PaintTitle(Canvas &canvas)
   else
     canvas.SetTextColor(look.GetTitleColor(data.title_color));
 
-  const Font &font = is_selected ? look.title_font_bold : look.title_font;
+  const Font &font = settings.HasGaps()
+    ? look.small_title_font
+    : (is_selected ? look.title_font_bold : look.title_font);
   canvas.Select(font);
 
   const PixelSize tsize = canvas.CalcTextSize(data.title);
@@ -151,7 +165,9 @@ InfoBoxWindow::PaintComment(Canvas &canvas)
 
   canvas.SetTextColor(look.GetCommentColor(data.comment_color));
 
-  const Font &font = look.title_font;
+  const Font &font = settings.HasGaps()
+    ? look.small_title_font
+    : look.title_font;
   canvas.Select(font);
 
   const PixelSize tsize = canvas.CalcTextSize(data.comment);
@@ -173,13 +189,23 @@ InfoBoxWindow::Paint(Canvas &canvas)
     ? look.pressed_background_color
     : (is_selected
        ? look.focused_background_color
-       : look.background_color);
-  
+       : (settings.IsTranslucent()
+          ? GetTranslucentInfoBoxColor(look.inverse, settings.background)
+          : look.background_color));
+
+  const InfoBoxBackgroundShape shape = GetShape();
+
   const PixelRect rc = GetClientRect();
+
+  DrawInfoBoxHalo(canvas, rc, shape);
+
+  if (settings.IsFrosted())
+    DrawInfoBoxFrostedGlass(canvas, rc, shape);
+
   if (settings.border_style == InfoBoxSettings::BorderStyle::GLASS)
     DrawGlassBackground(canvas, rc, background_color);
   else
-    canvas.DrawFilledRectangle(rc, background_color);
+    DrawInfoBoxBackground(canvas, rc, shape, background_color);
 
   if (data.GetCustom() && content) {
     /* if there's no comment, the content object may paint that area,
@@ -196,27 +222,17 @@ InfoBoxWindow::Paint(Canvas &canvas)
   PaintComment(canvas);
   PaintValue(canvas, background_color);
 
-  if (border_kind != 0) {
-    canvas.Select(look.border_pen);
+  /* where the box is set back from the window edge, the gap is the
+     border; the remaining lines run along the box, not along the
+     window, so they end at the gap */
+  const unsigned lines = border_kind & ~shape.edges;
+  if (lines != 0 || shape.outline) {
+    /* a Dock panel draws its separators lightly, like its outline */
+    const Pen outline_pen(look.border_width, GetInfoBoxOutlineColor());
+    const Pen &pen = settings.IsDock() ? outline_pen : look.border_pen;
 
-    const int width = canvas.GetWidth(),
-      height = canvas.GetHeight();
-
-    if (border_kind & BORDERTOP) {
-      canvas.DrawExactLine({0, 0}, {width - 1, 0});
-    }
-
-    if (border_kind & BORDERRIGHT) {
-      canvas.DrawExactLine({width - 1, 0}, {width - 1, height});
-    }
-
-    if (border_kind & BORDERBOTTOM) {
-      canvas.DrawExactLine({0, height - 1}, {width - 1, height - 1});
-    }
-
-    if (border_kind & BORDERLEFT) {
-      canvas.DrawExactLine({0, 0}, {0, height - 1});
-    }
+    DrawInfoBoxSeparators(canvas, rc, shape, lines, pen);
+    DrawInfoBoxOutline(canvas, rc, shape, pen);
   }
 }
 
@@ -313,25 +329,34 @@ InfoBoxWindow::OnResize(PixelSize new_size) noexcept
 {
   PaintWindow::OnResize(new_size);
 
-  PixelRect rc = GetClientRect();
+  /* keep the text inside the box, which may be set back from the
+     window edge, and clear of the border lines */
+  const InfoBoxBackgroundShape shape = GetShape();
+  PixelRect rc = shape.Inset(GetClientRect());
 
-  if (border_kind & BORDERLEFT)
+  const unsigned lines = border_kind & ~shape.edges;
+
+  if (lines & BORDERLEFT)
     rc.left += look.border_width;
 
-  if (border_kind & BORDERRIGHT)
+  if (lines & BORDERRIGHT)
     rc.right -= look.border_width;
 
-  if (border_kind & BORDERTOP)
+  if (lines & BORDERTOP)
     rc.top += look.border_width;
 
-  if (border_kind & BORDERBOTTOM)
+  if (lines & BORDERBOTTOM)
     rc.bottom -= look.border_width;
 
+  const Font &caption_font = settings.HasGaps()
+    ? look.small_title_font
+    : look.title_font;
+
   title_rect = rc;
-  title_rect.bottom = rc.top + look.title_font.GetHeight();
+  title_rect.bottom = rc.top + caption_font.GetHeight();
 
   comment_rect = rc;
-  comment_rect.top = comment_rect.bottom - look.title_font.GetHeight();
+  comment_rect.top = comment_rect.bottom - caption_font.GetHeight();
 
   value_rect = rc;
   value_rect.top = title_rect.bottom;
@@ -456,6 +481,18 @@ InfoBoxWindow::OnMouseMove(PixelPoint p, [[maybe_unused]] unsigned keys) noexcep
   }
 
   return false;
+}
+
+void
+InfoBoxWindow::OnPaint(Canvas &canvas) noexcept
+{
+  if (settings.ShowsMapBehind())
+    /* the buffer of the #LazyPaintWindow is opaque; paint straight
+       onto the screen so the map shows through the box and through
+       the gap around it */
+    Paint(canvas);
+  else
+    LazyPaintWindow::OnPaint(canvas);
 }
 
 void

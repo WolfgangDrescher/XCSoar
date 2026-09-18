@@ -55,4 +55,15 @@ int
 GetBorder(InfoBoxSettings::Geometry geometry, bool landscape,
           unsigned i) noexcept;
 
+/**
+ * The edges of the given InfoBox (or vario) rectangle which touch no
+ * other InfoBox of the layout: the outer edges of the block of
+ * adjacent InfoBoxes it belongs to, as BORDER* flags.
+ *
+ * @see InfoBoxSettings::BorderStyle::DOCK
+ */
+[[gnu::pure]]
+unsigned
+GetOuterEdges(const Layout &layout, const PixelRect &rc) noexcept;
+
 } // namespace InfoBoxLayout

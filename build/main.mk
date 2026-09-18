@@ -239,6 +239,7 @@ XCSOAR_SOURCES := \
 	$(SRC)/Renderer/HorizonRenderer.cpp \
 	$(SRC)/Renderer/GradientRenderer.cpp \
 	$(SRC)/Renderer/GlassRenderer.cpp \
+	$(SRC)/Renderer/InfoBoxBackground.cpp \
 	$(SRC)/Renderer/TransparentRendererCache.cpp \
 	$(SRC)/Renderer/LabelBlock.cpp \
 	$(SRC)/Renderer/TextInBox.cpp \
