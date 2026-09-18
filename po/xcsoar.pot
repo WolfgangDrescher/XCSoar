@@ -9804,3 +9804,35 @@ msgid ""
 "Forecast\n"
 "Controls"
 msgstr ""
+
+#, no-c-format
+msgid "Floating"
+msgstr ""
+
+#, no-c-format
+msgid "Dock"
+msgstr ""
+
+msgid "Groups adjacent InfoBoxes into panels with rounded corners, set back from the screen edge and from the map, which extends behind them."
+msgstr ""
+
+msgid "Rounded boxes floating over the map, which shows through the gaps between them."
+msgstr ""
+
+msgid "InfoBox background"
+msgstr ""
+
+msgid "Let the map show through the InfoBoxes. The map then extends behind them."
+msgstr ""
+
+msgid "Frosted glass"
+msgstr ""
+
+msgid "Solid"
+msgstr ""
+
+msgid "Transparent"
+msgstr ""
+
+msgid "Like Transparent, but the map is blurred behind the InfoBoxes, which keeps the values readable over busy terrain."
+msgstr ""

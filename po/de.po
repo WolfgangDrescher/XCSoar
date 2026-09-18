@@ -11248,3 +11248,33 @@ msgstr "InfoBox-Bereich strecken"
 
 msgid "System status bar"
 msgstr "System-Statusleiste"
+
+msgid "Floating"
+msgstr "Schwebend"
+
+msgid "Dock"
+msgstr "Dock"
+
+msgid "Groups adjacent InfoBoxes into panels with rounded corners, set back from the screen edge and from the map, which extends behind them."
+msgstr "Fasst benachbarte InfoBoxen zu Tafeln mit abgerundeten Ecken zusammen, mit Abstand zum Bildschirmrand und zur Karte, die dahinter weiterläuft."
+
+msgid "Rounded boxes floating over the map, which shows through the gaps between them."
+msgstr "Abgerundete Boxen, die über der Karte schweben; die Karte scheint in den Lücken zwischen ihnen durch."
+
+msgid "InfoBox background"
+msgstr "InfoBox-Hintergrund"
+
+msgid "Let the map show through the InfoBoxes. The map then extends behind them."
+msgstr "Lässt die Karte durch die InfoBoxen hindurchscheinen. Die Karte reicht dann hinter die InfoBoxen."
+
+msgid "Frosted glass"
+msgstr "Milchglas"
+
+msgid "Solid"
+msgstr "Deckend"
+
+msgid "Transparent"
+msgstr "Transparent"
+
+msgid "Like Transparent, but the map is blurred behind the InfoBoxes, which keeps the values readable over busy terrain."
+msgstr "Wie Transparent, aber die Karte wird hinter den InfoBoxen unscharf gezeichnet, damit die Werte über unruhigem Gelände lesbar bleiben."
