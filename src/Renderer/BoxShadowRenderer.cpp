@@ -10,6 +10,7 @@
 #include "Screen/Layout.hpp"
 #include "ui/canvas/Color.hpp"
 #include "ui/canvas/opengl/Program.hpp"
+#include "ui/canvas/opengl/Scissor.hpp"
 #include "ui/canvas/opengl/Scope.hpp"
 #include "ui/canvas/opengl/Shaders.hpp"
 #include "ui/canvas/opengl/VertexPointer.hpp"
@@ -135,67 +136,70 @@ AppendContour(FloatPoint2D *dest, const PixelRect &centers,
     *dest++ = {left - radius * i.y, bottom + radius * i.x};
 }
 
-} // anonymous namespace
-
-#endif /* ENABLE_OPENGL */
-
-void
-DrawBoxShadow([[maybe_unused]] const PixelRect &rc) noexcept
-{
-#ifdef ENABLE_OPENGL
-  /* the shape which gets blurred: the box, inflated by the spread */
-  PixelRect shape = rc;
-  shape.Grow(Layout::VptScale(SHADOW_SPREAD));
-
-  const int blur = Layout::VptScale(SHADOW_BLUR);
-
-  /* the blur transition reaches this far outside and inside of the
-     shape's edge */
-  const int outer = blur / 2;
-  const int inner = std::min<int>(outer,
-                                  std::min(shape.GetWidth(),
-                                           shape.GetHeight()) / 2);
-
-  /* the corner arcs of all contours are centered on these four
-     points; the innermost contour collapses onto them, and the
-     outermost is #inner+#outer away */
-  const PixelRect centers{
-    shape.left + inner, shape.top + inner,
-    shape.right - inner, shape.bottom - inner,
-  };
-
-  /* one contour every two pixels is plenty for a smooth gradient */
-  const unsigned n_intervals = std::clamp<unsigned>((outer + inner) / 2,
-                                                    1, MAX_CONTOURS - 1);
-  const unsigned n_contours = n_intervals + 1;
-
-  /* both buffers are sized for the largest mesh we can produce, so
-     that this noexcept function never needs to allocate */
+/**
+ * The blurred shadow of a rounded rectangle, as a triangle mesh whose
+ * vertex colours carry the blur gradient: a stack of contours around
+ * the same four corner centres, from #inner_radius to #outer_radius.
+ *
+ * Both buffers are sized for the largest mesh we can produce, so
+ * that building one never needs to allocate.
+ */
+class ShadowMesh {
   std::array<FloatPoint2D, MAX_VERTICES> vertices;
   std::array<Color, MAX_VERTICES> colors;
-
-  for (unsigned i = 0; i < n_contours; ++i) {
-    const float radius = float(outer + inner) * i / n_intervals;
-
-    AppendContour(&vertices[i * CONTOUR_VERTICES], centers, radius);
-
-    /* the opacity depends on the distance to the shape's edge, which
-       this contour crosses at radius==inner */
-    const float opacity = BlurOpacity((radius - inner + blur / 2.f) / blur);
-    const Color color =
-      COLOR_BLACK.WithAlpha(uint8_t(std::lround(SHADOW_ALPHA * opacity)));
-    std::fill_n(&colors[i * CONTOUR_VERTICES], CONTOUR_VERTICES, color);
-  }
-
   std::array<GLushort, MAX_INDICES> indices;
   unsigned n_indices = 0;
 
-  /* fill the innermost contour with a triangle fan */
-  for (unsigned i = 1; i + 1 < CONTOUR_VERTICES; ++i) {
-    indices[n_indices++] = 0;
-    indices[n_indices++] = i;
-    indices[n_indices++] = i + 1;
+public:
+  /**
+   * @param centers the four points the corner arcs of all contours
+   * are centered on
+   * @param inner_radius the radius of the innermost contour; with 0,
+   * the mesh fills the shape, otherwise it is a ring
+   * @param outer_radius the radius of the outermost contour
+   * @param edge_radius the radius at which the edge of the blurred
+   * shape lies, i.e. where the opacity is half of @p alpha
+   * @param blur the width of the blurred transition, in pixels
+   * @param alpha the opacity of the black shadow where it is darkest
+   */
+  ShadowMesh(const PixelRect &centers,
+             float inner_radius, float outer_radius, float edge_radius,
+             int blur, uint8_t alpha) noexcept;
+
+  void Draw() const noexcept;
+};
+
+ShadowMesh::ShadowMesh(const PixelRect &centers,
+                       const float inner_radius, const float outer_radius,
+                       const float edge_radius,
+                       const int blur, const uint8_t alpha) noexcept
+{
+  /* one contour every two pixels is plenty for a smooth gradient */
+  const unsigned n_intervals =
+    std::clamp<unsigned>(unsigned((outer_radius - inner_radius) / 2),
+                         1, MAX_CONTOURS - 1);
+  const unsigned n_contours = n_intervals + 1;
+
+  for (unsigned i = 0; i < n_contours; ++i) {
+    const float radius = inner_radius
+      + (outer_radius - inner_radius) * i / n_intervals;
+    AppendContour(&vertices[i * CONTOUR_VERTICES], centers, radius);
+
+    /* the opacity depends on the distance to the shape's edge */
+    const float opacity =
+      BlurOpacity((radius - edge_radius + blur / 2.f) / blur);
+    const Color color =
+      COLOR_BLACK.WithAlpha(uint8_t(std::lround(alpha * opacity)));
+    std::fill_n(&colors[i * CONTOUR_VERTICES], CONTOUR_VERTICES, color);
   }
+
+  if (inner_radius <= 0)
+    /* fill the innermost contour with a triangle fan */
+    for (unsigned i = 1; i + 1 < CONTOUR_VERTICES; ++i) {
+      indices[n_indices++] = 0;
+      indices[n_indices++] = i;
+      indices[n_indices++] = i + 1;
+    }
 
   /* stitch adjacent contours together with a ring of triangles; the
      vertex colors make OpenGL interpolate the blur gradient */
@@ -217,13 +221,75 @@ DrawBoxShadow([[maybe_unused]] const PixelRect &rc) noexcept
   }
 
   assert(n_indices <= indices.size());
+}
 
+void
+ShadowMesh::Draw() const noexcept
+{
   const ScopeAlphaBlend alpha_blend;
   const ScopeVertexPointer vp(vertices.data());
   const ScopeColorPointer cp(colors.data());
-
   OpenGL::solid_shader->Use();
   glDrawElements(GL_TRIANGLES, GLsizei(n_indices),
                  GL_UNSIGNED_SHORT, indices.data());
+}
+
+} // anonymous namespace
+
+#endif /* ENABLE_OPENGL */
+
+void
+DrawBoxShadow([[maybe_unused]] const PixelRect &rc) noexcept
+{
+#ifdef ENABLE_OPENGL
+  /* the shape which gets blurred: the box, inflated by the spread */
+  PixelRect shape = rc;
+  shape.Grow(Layout::VptScale(SHADOW_SPREAD));
+
+  const int blur = Layout::VptScale(SHADOW_BLUR);
+
+  /* the blur transition reaches this far outside and inside of the
+     shape's edge */
+  const int outer = blur / 2;
+  const int inner = std::min<int>(outer,
+                                  std::min(shape.GetWidth(),
+                                           shape.GetHeight()) / 2);
+
+  /* the innermost contour collapses onto the corner centres, and the
+     outermost is #inner+#outer away */
+  const PixelRect centers{
+    shape.left + inner, shape.top + inner,
+    shape.right - inner, shape.bottom - inner,
+  };
+
+  const ShadowMesh mesh{centers, 0.f, float(inner + outer), float(inner),
+                        blur, SHADOW_ALPHA};
+  mesh.Draw();
+#endif
+}
+
+void
+DrawBoxHalo([[maybe_unused]] const PixelRect &clip,
+            [[maybe_unused]] const PixelRect &box,
+            [[maybe_unused]] unsigned corner_radius,
+            [[maybe_unused]] unsigned blur,
+            [[maybe_unused]] uint8_t alpha) noexcept
+{
+#ifdef ENABLE_OPENGL
+  /* the ring starts on the box's edge: its corner arcs are centered
+     on the box's corner centres, with the box's radius */
+  const int r = std::min<int>(corner_radius,
+                              std::min(box.GetWidth(),
+                                       box.GetHeight()) / 2);
+  const PixelRect centers{
+    box.left + r, box.top + r,
+    box.right - r, box.bottom - r,
+  };
+
+  const ShadowMesh mesh{centers, float(r), float(r + blur / 2), float(r),
+                        int(blur), alpha};
+
+  const GLCanvasScissor scissor{clip};
+  mesh.Draw();
 #endif
 }
