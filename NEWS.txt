@@ -133,6 +133,14 @@ Version 7.46 - not yet released
   - let Left/Right still change settings pages on Services until Up
     selects a service action
 * infoboxen
+  - add the InfoBox border styles "Floating" (rounded boxes with a
+    gap between them) and "Dock" (adjacent InfoBoxes grouped into
+    rounded panels set back from the screen edge), and the
+    "InfoBox background" setting that lets the map show through
+    any border style, plain or blurred like frosted glass (Config →
+    Look → Screen Layout, expert); the map fills the whole screen
+    behind them, and the boxes are light or dark following the Dark
+    mode setting
   - pack portrait InfoBoxes on tall screens so title, value, and
     comment sit closer together; InfoBox title size still grows the
     boxes toward square at 150%
