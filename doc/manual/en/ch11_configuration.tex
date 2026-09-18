@@ -787,10 +787,26 @@ This page once more details the appearance of the graphical user interface of XC
 \item[Colour InfoBoxes*]  If {\bf On}, certain InfoBoxes will have coloured text. For 
   example, the active waypoint InfoBox will turn blue when the glider is above final 
   glide.
-\item[InfoBox border*]  Two styles for InfoBox borders are available. \\
+\item[InfoBox border*]  Selects how the InfoBoxes are drawn. \\
   {\bf Box}: Draws boxes around each InfoBox. \\
   {\bf Tab}: Draws a tab at the top of the InfoBox across the 
   title. \\
+  {\bf Shaded}: Draws the title on a shaded caption bar. \\
+  {\bf Glass}: Adds a glass-like sheen to the InfoBox background. \\
+  {\bf Floating}: Draws each InfoBox as a rounded box floating over
+  the map, which shows through the gaps between them. \\
+  {\bf Dock}: Groups adjacent InfoBoxes into panels with rounded
+  corners, set back from the screen edge and from the map, which
+  extends behind them. \\
+  Whenever the map extends behind the InfoBoxes, the aircraft stays in
+  the part of the map that is not covered by them.  The boxes are
+  light or dark following the {\bf Dark mode} setting.
+\item[InfoBox background*]  {\bf Solid} InfoBoxes hide the map.
+  With {\bf Transparent}, the map shows through the InfoBoxes, which
+  then extend over the whole screen.  {\bf Frosted glass} additionally
+  blurs the map behind the InfoBoxes, which keeps the values readable
+  over busy terrain.  Works with every InfoBox border style.  Not
+  available on e-paper devices.
 \item[Cursor size]  Control the size of the cursor. Default is 1.
   Only available if cursor is drawn by XCSoar.
 \item[Black cursor] Use black instead of white cursor. Default is {\bf Off} (white cursor).
