@@ -42,6 +42,14 @@ extern GLint combine_texture_projection, combine_texture_texture,
   combine_texture_translate;
 
 /**
+ * A shader that blurs the texture along one axis with a 9-tap
+ * Gaussian kernel.  #blur_step is the distance between two taps in
+ * texture coordinates, e.g. (1/width, 0) for a horizontal pass.
+ */
+extern GLProgram *blur_shader;
+extern GLint blur_projection, blur_texture, blur_translate, blur_step;
+
+/**
  * A shader that draws dashed lines (#Pen::Style).
  */
 extern GLProgram *dashed_shader;

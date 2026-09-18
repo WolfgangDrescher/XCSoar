@@ -24,6 +24,7 @@ DisplayOrientation display_orientation;
 #endif
 
 PixelPoint translate;
+unsigned frame_serial;
 
 glm::mat4 projection_matrix;
 

@@ -20,6 +20,7 @@
 #endif
 
 #include "Shaders.hpp"
+#include "FrostedGlass.hpp"
 #include "Math/Angle.hpp"
 
 #ifdef ANDROID
@@ -264,6 +265,7 @@ OpenGL::SetupViewport(UnsignedPoint2D size) noexcept
 void
 OpenGL::Deinitialise() noexcept
 {
+  DeinitFrostedGlass();
   DeinitShaders();
 
   TextCache::Flush();

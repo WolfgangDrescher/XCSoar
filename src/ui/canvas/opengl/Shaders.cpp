@@ -28,6 +28,9 @@ GLProgram *combine_texture_shader;
 GLint combine_texture_projection, combine_texture_texture,
   combine_texture_translate;
 
+GLProgram *blur_shader;
+GLint blur_projection, blur_texture, blur_translate, blur_step;
+
 GLProgram *dashed_shader;
 GLint dashed_projection, dashed_translate,
   dashed_resolution, dashed_start, dashed_period, dashed_ratio;
@@ -140,6 +143,29 @@ static constexpr char combine_texture_fragment_shader[] =
     varying vec2 texcoordvar;
     void main() {
       gl_FragColor = colorvar * texture2D(texture, texcoordvar);
+    }
+)glsl";
+
+static const char *const blur_vertex_shader = texture_vertex_shader;
+
+/* a 9-tap Gaussian kernel in five fetches: the linear texture filter
+   averages two neighbouring texels when sampled between them */
+static constexpr char blur_fragment_shader[] =
+  GLSL_VERSION
+  GLSL_PRECISION
+  R"glsl(
+    uniform sampler2D texture;
+    uniform vec2 step;
+    varying vec2 texcoordvar;
+    void main() {
+      vec2 o1 = step * 1.3846153846;
+      vec2 o2 = step * 3.2307692308;
+      vec4 c = texture2D(texture, texcoordvar) * 0.2270270270;
+      c += (texture2D(texture, texcoordvar + o1) +
+            texture2D(texture, texcoordvar - o1)) * 0.3162162162;
+      c += (texture2D(texture, texcoordvar + o2) +
+            texture2D(texture, texcoordvar - o2)) * 0.0702702703;
+      gl_FragColor = c;
     }
 )glsl";
 
@@ -349,6 +375,17 @@ OpenGL::InitShaders()
   combine_texture_shader->Use();
   glUniform1i(combine_texture_texture, 0);
 
+  blur_shader = CompileProgram(blur_vertex_shader, blur_fragment_shader);
+  blur_shader->BindAttribLocation(Attribute::POSITION, "position");
+  blur_shader->BindAttribLocation(Attribute::TEXCOORD, "texcoord");
+  LinkProgram(*blur_shader);
+  blur_projection = blur_shader->GetUniformLocation("projection");
+  blur_texture = blur_shader->GetUniformLocation("texture");
+  blur_translate = blur_shader->GetUniformLocation("translate");
+  blur_step = blur_shader->GetUniformLocation("step");
+  blur_shader->Use();
+  glUniform1i(blur_texture, 0);
+
   dashed_shader = CompileProgram(dashed_vertex_shader, dashed_fragment_shader);
   dashed_shader->BindAttribLocation(Attribute::POSITION, "position");
   dashed_shader->BindAttribLocation(Attribute::COLOR, "color");
@@ -394,6 +431,8 @@ OpenGL::DeinitShaders() noexcept
   circle_outline_shader = nullptr;
   delete dashed_shader;
   dashed_shader = nullptr;
+  delete blur_shader;
+  blur_shader = nullptr;
   delete combine_texture_shader;
   combine_texture_shader = nullptr;
   delete alpha_shader;
@@ -429,6 +468,9 @@ OpenGL::UpdateShaderProjectionMatrix() noexcept
   glUniformMatrix4fv(combine_texture_projection, 1, GL_FALSE,
                      glm::value_ptr(projection_matrix));
 
+  blur_shader->Use();
+  glUniformMatrix4fv(blur_projection, 1, GL_FALSE,
+                     glm::value_ptr(projection_matrix));
   dashed_shader->Use();
   glUniformMatrix4fv(dashed_projection, 1, GL_FALSE,
                      glm::value_ptr(projection_matrix));
@@ -463,6 +505,8 @@ OpenGL::UpdateShaderTranslate() noexcept
   combine_texture_shader->Use();
   glUniform2f(combine_texture_translate, t.x, t.y);
 
+  blur_shader->Use();
+  glUniform2f(blur_translate, t.x, t.y);
   dashed_shader->Use();
   glUniform2f(dashed_translate, t.x, t.y);
 

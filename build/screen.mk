@@ -143,6 +143,7 @@ SCREEN_SOURCES += \
 	$(CANVAS_SRC_DIR)/opengl/RawBitmap.cpp \
 	$(CANVAS_SRC_DIR)/opengl/Canvas.cpp \
 	$(CANVAS_SRC_DIR)/opengl/BufferCanvas.cpp \
+	$(CANVAS_SRC_DIR)/opengl/FrostedGlass.cpp \
 	$(CANVAS_SRC_DIR)/opengl/TopCanvas.cpp \
 	$(CANVAS_SRC_DIR)/opengl/SubCanvas.cpp \
 	$(CANVAS_SRC_DIR)/opengl/Texture.cpp \

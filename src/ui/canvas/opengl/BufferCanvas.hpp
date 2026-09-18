@@ -63,6 +63,16 @@ public:
     return texture != nullptr;
   }
 
+  /**
+   * The texture this buffer renders into.  It is flipped
+   * (#GLTexture::IsFlipped()), which #GLTexture::Draw() takes care
+   * of.
+   */
+  GLTexture &GetTexture() const noexcept {
+    assert(IsDefined());
+    return *texture;
+  }
+
   void Create(PixelSize new_size) noexcept;
 
   void Create([[maybe_unused]] const Canvas &canvas, PixelSize new_size) noexcept {

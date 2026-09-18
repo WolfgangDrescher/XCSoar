@@ -5,6 +5,9 @@
 #include "ui/canvas/Features.hpp" // for DRAW_MOUSE_CURSOR
 #include "ui/canvas/custom/TopCanvas.hpp"
 #include "ui/canvas/Canvas.hpp"
+#ifdef ENABLE_OPENGL
+#include "ui/canvas/opengl/Globals.hpp"
+#endif
 #include "ui/event/Queue.hpp"
 #include "ui/event/Globals.hpp"
 #include "Hardware/CPU.hpp"
@@ -259,6 +262,10 @@ TopWindow::Expose() noexcept
 #endif
 
   if (auto canvas = screen->Lock(); canvas.IsDefined()) {
+#ifdef ENABLE_OPENGL
+    ++OpenGL::frame_serial;
+#endif
+
 #if defined(ANDROID) || (defined(__APPLE__) && TARGET_OS_IPHONE)
     /* On a device with a display cutout or system bars, XCSoar does
        not necessarily paint every pixel: the user interface may be
