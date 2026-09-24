@@ -262,6 +262,10 @@ Version 7.46 - not yet released
     InfoBox dialogue is opened
   - describe airspace fill as a transparent colour, without hatch
     patterns or the Airspace transparency setting
+  - draw the gesture and swipe trail as a smooth red line with a
+    thin white edge and a soft shadow
+  - while a gesture is drawn, name the action it triggers at the top
+    of the map
 * development
   - build system: package Android APK and AAB from one
     aapt2/bundletool pipeline and one CI job #2021
