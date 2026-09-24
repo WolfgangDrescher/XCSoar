@@ -2,7 +2,7 @@
 // Copyright The XCSoar Project
 
 #include "DistanceRingsRenderer.hpp"
-#include "TextInBox.hpp"
+#include "LabelRenderer.hpp"
 #include "ui/canvas/Canvas.hpp"
 #include "Projection/WindowProjection.hpp"
 #include "Look/MapLook.hpp"

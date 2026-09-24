@@ -2,7 +2,7 @@
 // Copyright The XCSoar Project
 
 #include "WindArrowRenderer.hpp"
-#include "TextInBox.hpp"
+#include "LabelRenderer.hpp"
 #include "Look/WindArrowLook.hpp"
 #include "ui/canvas/Canvas.hpp"
 #include "Screen/Layout.hpp"
@@ -98,12 +98,12 @@ WindArrowRenderer::Draw(Canvas &canvas, const Angle screen_angle,
   };
   PolygonRotateShift(label, pos, angle, scale);
 
-  TextInBoxMode style;
-  style.align = TextInBoxMode::Alignment::CENTER;
-  style.vertical_position = TextInBoxMode::VerticalPosition::CENTERED;
-  style.shape = LabelShape::OUTLINED;
+  LabelPlacement placement;
+  placement.horizontal_align = LabelPlacement::HorizontalAlign::CENTER;
+  placement.vertical_align = LabelPlacement::VerticalAlign::MIDDLE;
 
-  TextInBox(canvas, buffer, label[0], style, rc);
+  LabelRenderer::Draw(canvas, buffer, label[0],
+                      LabelStyle::BLACK_TEXT_WITH_HALO, placement, rc);
 }
 
 void

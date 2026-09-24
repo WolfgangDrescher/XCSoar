@@ -2,7 +2,7 @@
 // Copyright The XCSoar Project
 
 #include "VarioBarRenderer.hpp"
-#include "TextInBox.hpp"
+#include "LabelRenderer.hpp"
 #include "ui/canvas/Canvas.hpp"
 #include "Screen/Layout.hpp"
 #include "NMEA/MoreData.hpp"
@@ -204,13 +204,14 @@ VarioBarRenderer::Draw(Canvas &canvas, const PixelRect &rc,
   canvas.SetTextColor(COLOR_BLACK);
   canvas.SetBackgroundColor(COLOR_WHITE);
 
-  TextInBoxMode style;
-  style.shape = LabelShape::ROUNDED_BLACK;
-  style.move_in_view = true;
+  LabelPlacement placement;
+  placement.move_in_view = true;
 
   if (text_size.width < Layout::Scale(18u)) {
-    style.align = TextInBoxMode::Alignment::RIGHT;
-    TextInBox(canvas, Value, {rc.left + Layout::Scale(18), y0}, style, rc);
+    placement.horizontal_align = LabelPlacement::HorizontalAlign::RIGHT;
+    LabelRenderer::Draw(canvas, Value, {rc.left + Layout::Scale(18), y0},
+                        LabelStyle::ROUNDED_BLACK, placement, rc);
   } else
-    TextInBox(canvas, Value, {rc.left, y0}, style, rc);
+    LabelRenderer::Draw(canvas, Value, {rc.left, y0},
+                        LabelStyle::ROUNDED_BLACK, placement, rc);
 }

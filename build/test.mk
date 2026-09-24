@@ -2324,7 +2324,7 @@ RUN_MAP_WINDOW_SOURCES = \
 	$(SRC)/Math/Screen.cpp \
 	$(MORE_SCREEN_SOURCES) \
 	$(SRC)/Renderer/LabelBlock.cpp \
-	$(SRC)/Renderer/TextInBox.cpp \
+	$(SRC)/Renderer/LabelRenderer.cpp \
 	$(SRC)/UISettings.cpp \
 	$(SRC)/Audio/Settings.cpp \
 	$(SRC)/Audio/VarioSettings.cpp \
@@ -2584,7 +2584,7 @@ RUN_WIND_ARROW_RENDERER_SOURCES = \
 	$(SRC)/Math/Screen.cpp \
 	$(MORE_SCREEN_SOURCES) \
 	$(SRC)/Renderer/LabelBlock.cpp \
-	$(SRC)/Renderer/TextInBox.cpp \
+	$(SRC)/Renderer/LabelRenderer.cpp \
 	$(SRC)/Look/ButtonLook.cpp \
 	$(SRC)/Look/WindArrowLook.cpp \
 	$(SRC)/Units/Units.cpp \
@@ -2614,7 +2614,7 @@ RUN_FINAL_GLIDE_BAR_RENDERER_SOURCES = \
 	$(SRC)/Math/Screen.cpp \
 	$(MORE_SCREEN_SOURCES) \
 	$(SRC)/Renderer/LabelBlock.cpp \
-	$(SRC)/Renderer/TextInBox.cpp \
+	$(SRC)/Renderer/LabelRenderer.cpp \
 	$(SRC)/Look/ButtonLook.cpp \
 	$(SRC)/Look/FinalGlideBarLook.cpp \
 	$(SRC)/Look/TaskLook.cpp \

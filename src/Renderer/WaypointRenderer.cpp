@@ -35,6 +35,22 @@
 #include <cassert>
 #include <stdio.h>
 
+[[gnu::const]]
+static constexpr LabelStyle
+ToLabelStyle(WaypointRendererSettings::WaypointLabelStyle style) noexcept
+{
+  switch (style) {
+  case WaypointRendererSettings::WaypointLabelStyle::OUTLINED:
+    return LabelStyle::WHITE_TEXT_WITH_HALO;
+
+  case WaypointRendererSettings::WaypointLabelStyle::ROUNDED_RECTANGLE:
+    return LabelStyle::ROUNDED_BLACK;
+  }
+
+  /* also for values of profiles written by other versions */
+  return LabelStyle::ROUNDED_BLACK;
+}
+
 /**
  * Metadata for a Waypoint that is about to be drawn.
  */
@@ -290,18 +306,19 @@ protected:
       break;
     }
 
-    TextInBoxMode text_mode;
+    LabelStyle text_style;
+    LabelPlacement text_placement;
     bool bold = false;
     if (vwp.IsReachable() && way_point.IsLandable()) {
-      text_mode.shape = settings.landable_render_mode;
+      text_style = ToLabelStyle(settings.label_style);
       bold = true;
-      text_mode.move_in_view = true;
+      text_placement.move_in_view = true;
     } else if (vwp.in_task) {
-      text_mode.shape = LabelShape::OUTLINED_INVERTED;
+      text_style = LabelStyle::WHITE_TEXT_WITH_HALO;
       bold = true;
     } else if (watchedWaypoint) {
-      text_mode.shape = LabelShape::OUTLINED;
-      text_mode.move_in_view = true;
+      text_style = LabelStyle::BLACK_TEXT_WITH_HALO;
+      text_placement.move_in_view = true;
     }
 
     char buffer[NAME_SIZE+1];
@@ -316,7 +333,7 @@ protected:
       // make space for the green circle
       sc.x += 5;
 
-    labels.Add(buffer, sc, text_mode, bold,
+    labels.Add(buffer, sc, text_style, text_placement, bold,
                vwp.reachable != WaypointReachability::INVALID ? vwp.reach.direct : INT_MIN,
                vwp.in_task, way_point.IsLandable(), way_point.IsAirport(),
                watchedWaypoint);
@@ -417,7 +434,8 @@ MapWaypointLabelRender(Canvas &canvas, PixelSize clip_size,
   for (const auto &l : labels) {
     canvas.Select(l.bold ? *look.bold_font : *look.font);
 
-    TextInBox(canvas, l.Name, l.Pos, l.Mode, clip_size, &label_block);
+    LabelRenderer::Draw(canvas, l.Name, l.Pos, l.style, l.placement,
+                        clip_size, &label_block);
   }
 }
 

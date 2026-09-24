@@ -115,13 +115,15 @@ WaypointDisplayConfigPanel::Prepare(ContainerWindow &parent,
   SetExpertRow(WaypointArrivalHeightDisplay);
 
   static constexpr StaticEnumChoice wp_label_list[] = {
-    { LabelShape::ROUNDED_BLACK, N_("Rounded rectangle") },
-    { LabelShape::OUTLINED_INVERTED, N_("Outlined") },
+    { WaypointRendererSettings::WaypointLabelStyle::ROUNDED_RECTANGLE,
+      N_("Rounded rectangle") },
+    { WaypointRendererSettings::WaypointLabelStyle::OUTLINED,
+      N_("Outlined") },
     nullptr
   };
 
   AddEnum(_("Label style"), nullptr, wp_label_list,
-          (unsigned)settings.landable_render_mode);
+          (unsigned)settings.label_style);
   SetExpertRow(WaypointLabelStyle);
 
   static constexpr StaticEnumChoice wp_selection_list[] = {
@@ -207,7 +209,7 @@ WaypointDisplayConfigPanel::Save(bool &_changed) noexcept
                            settings.arrival_height_display);
 
   changed |= SaveValueEnum(WaypointLabelStyle, ProfileKeys::WaypointLabelStyle,
-                           settings.landable_render_mode);
+                           settings.label_style);
 
   changed |= SaveValueEnum(WaypointLabelSelection, ProfileKeys::WaypointLabelSelection,
                            settings.label_selection);

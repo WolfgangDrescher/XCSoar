@@ -14,7 +14,7 @@
 #include "Airspace/AirspaceClass.hpp"
 #include "Formatter/AirspaceFormatter.hpp"
 #include "Language/Language.hpp"
-#include "Renderer/TextInBox.hpp"
+#include "Renderer/LabelRenderer.hpp"
 #include "Geo/GeoBounds.hpp"
 #include "NMEA/Aircraft.hpp"
 #include "ui/canvas/Canvas.hpp"
@@ -206,7 +206,7 @@ static void
 DrawNotamCluster(Canvas &canvas,
                  const PixelPoint anchor,
                  const NotamLabelCluster &cluster,
-                 const TextInBoxMode mode,
+                 const LabelPlacement placement,
                  const PixelRect &screen_rect,
                  LabelBlock *label_block) noexcept
 {
@@ -224,15 +224,17 @@ DrawNotamCluster(Canvas &canvas,
     : cluster.labels.size();
 
   for (; index < label_lines; ++index)
-    TextInBox(canvas, cluster.labels[index].c_str(),
-              anchor.At(0, first_offset + int(index * line_step)),
-              mode, screen_rect, label_block);
+    LabelRenderer::Draw(canvas, cluster.labels[index].c_str(),
+                        anchor.At(0, first_offset + int(index * line_step)),
+                        LabelStyle::ROUNDED_WHITE, placement,
+                        screen_rect, label_block);
 
   if (cluster.count > NOTAM_CLUSTER_VISIBLE_LINES) {
     const auto summary = MakeNotamOverflowLabel(cluster.count - label_lines);
-    TextInBox(canvas, summary.c_str(),
-              anchor.At(0, first_offset + int(index * line_step)),
-              mode, screen_rect, label_block);
+    LabelRenderer::Draw(canvas, summary.c_str(),
+                        anchor.At(0, first_offset + int(index * line_step)),
+                        LabelStyle::ROUNDED_WHITE, placement,
+                        screen_rect, label_block);
   }
 }
 
@@ -338,11 +340,10 @@ AirspaceLabelRenderer::DrawInternal(Canvas &canvas,
   });
 
   if (draw_notam_labels) {
-    TextInBoxMode mode{};
-    mode.shape = LabelShape::ROUNDED_WHITE;
-    mode.align = TextInBoxMode::Alignment::CENTER;
-    mode.vertical_position = TextInBoxMode::VerticalPosition::CENTERED;
-    mode.move_in_view = true;
+    LabelPlacement placement;
+    placement.horizontal_align = LabelPlacement::HorizontalAlign::CENTER;
+    placement.vertical_align = LabelPlacement::VerticalAlign::MIDDLE;
+    placement.move_in_view = true;
 
     StaticArray<NotamLabelCluster, NOTAM_CLUSTER_MAX_COUNT> clusters;
     const unsigned cluster_distance = GetNotamClusterDistance();
@@ -401,7 +402,7 @@ AirspaceLabelRenderer::DrawInternal(Canvas &canvas,
     for (const auto &cluster : clusters)
       DrawNotamCluster(canvas,
                        AdjustNotamClusterAnchor(cluster.anchor, screen_rect),
-                       cluster, mode, screen_rect, label_block);
+                       cluster, placement, screen_rect, label_block);
   }
 }
 

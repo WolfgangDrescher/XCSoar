@@ -3,8 +3,6 @@
 
 #pragma once
 
-#include "LabelShape.hpp"
-
 #include <cstdint>
 
 struct WaypointRendererSettings {
@@ -40,8 +38,15 @@ struct WaypointRendererSettings {
     TASK_AND_AIRFIELD,
   } label_selection;
 
-  /** What type of waypoint labels to render */
-  LabelShape landable_render_mode;
+  /**
+   * The style of the waypoint labels which get a box; for now, these
+   * are the labels of reachable landables.  The values are stored in
+   * the profile; they are those of the former LabelShape.
+   */
+  enum class WaypointLabelStyle : uint8_t {
+    OUTLINED = 3,
+    ROUNDED_RECTANGLE = 5,
+  } label_style;
 
   enum class LandableStyle : uint8_t {
     PURPLE_CIRCLE,
@@ -65,7 +70,7 @@ struct WaypointRendererSettings {
     display_text_type = DisplayTextType::SHORT_NAME;
     arrival_height_display = ArrivalHeightDisplay::GLIDE;
     label_selection = LabelSelection::ALL;
-    landable_render_mode = LabelShape::ROUNDED_BLACK;
+    label_style = WaypointLabelStyle::ROUNDED_RECTANGLE;
 
     landable_style = LandableStyle::PURPLE_CIRCLE;
     vector_landable_rendering = true;

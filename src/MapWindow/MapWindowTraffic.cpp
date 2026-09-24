@@ -6,7 +6,7 @@
 #include "Screen/Layout.hpp"
 #include "Formatter/UserUnits.hpp"
 #include "Look/TrafficLook.hpp"
-#include "Renderer/TextInBox.hpp"
+#include "Renderer/LabelRenderer.hpp"
 #include "Renderer/TrafficRenderer.hpp"
 #include "FLARM/Friends.hpp"
 #include "MapSettings.hpp"
@@ -32,9 +32,9 @@ DrawFlarmTraffic(Canvas &canvas, const WindowProjection &projection,
   else
     return;
 
-  TextInBoxMode mode;
-  if (!fading)
-    mode.shape = LabelShape::OUTLINED;
+  const LabelStyle style = fading
+    ? LabelStyle{}
+    : LabelStyle::BLACK_TEXT_WITH_HALO;
 
   // JMW TODO enhancement: decluttering of FLARM altitudes (sort by max lift)
 
@@ -51,18 +51,18 @@ DrawFlarmTraffic(Canvas &canvas, const WindowProjection &projection,
       auto sc_name = sc;
       sc_name.y -= layout.name_offset_y;
 
-      TextInBox(canvas, traffic.name, sc_name,
-                mode, projection.GetScreenRect());
+      LabelRenderer::Draw(canvas, traffic.name, sc_name, style, {},
+                          projection.GetScreenRect());
     }
 
     if (!fading && traffic.climb_rate_avg30s >= 0.1) {
       auto sc_av = sc;
       sc_av.y += layout.climb_offset_y;
 
-      TextInBox(canvas,
-                FormatUserVerticalSpeed(traffic.climb_rate_avg30s, false),
-                sc_av, mode,
-                projection.GetScreenRect());
+      LabelRenderer::Draw(canvas,
+                          FormatUserVerticalSpeed(traffic.climb_rate_avg30s,
+                                                  false),
+                          sc_av, style, {}, projection.GetScreenRect());
     }
   }
 
@@ -180,9 +180,10 @@ MapWindow::DrawGLinkTraffic([[maybe_unused]] Canvas &canvas) const noexcept
     else
       continue;
 
-    TextInBoxMode mode;
-    mode.shape = LabelShape::OUTLINED;
-    mode.align = TextInBoxMode::Alignment::RIGHT;
+    const auto &style = LabelStyle::BLACK_TEXT_WITH_HALO;
+
+    LabelPlacement placement;
+    placement.horizontal_align = LabelPlacement::HorizontalAlign::RIGHT;
 
     // If callsign/name available draw it to the canvas
     if (traf.HasName() && !StringIsEmpty(traf.name)) {
@@ -191,23 +192,23 @@ MapWindow::DrawGLinkTraffic([[maybe_unused]] Canvas &canvas) const noexcept
       sc_name.x -= Layout::Scale(10);
       sc_name.y -= Layout::Scale(15);
 
-      TextInBox(canvas, traf.name, sc_name,
-                mode, GetClientRect());
+      LabelRenderer::Draw(canvas, traf.name, sc_name, style, placement,
+                          GetClientRect());
     }
 
     if (traf.climb_rate_received) {
 
       // If average climb data available draw it to the canvas
-      mode.align = TextInBoxMode::Alignment::LEFT;
+      placement.horizontal_align = LabelPlacement::HorizontalAlign::LEFT;
 
       // Draw the average climb to the right of the icon
       auto sc_av = sc;
       sc_av.x += Layout::Scale(10);
       sc_av.y -= Layout::Scale(8);
 
-      TextInBox(canvas,
-                FormatUserVerticalSpeed(traf.climb_rate, false),
-                sc_av, mode, GetClientRect());
+      LabelRenderer::Draw(canvas,
+                          FormatUserVerticalSpeed(traf.climb_rate, false),
+                          sc_av, style, placement, GetClientRect());
     }
 
     // use GPS altitude to be consistent with GliderLink
@@ -223,8 +224,9 @@ MapWindow::DrawGLinkTraffic([[maybe_unused]] Canvas &canvas) const noexcept
       sc_alt.x -= Layout::Scale(10);
       sc_alt.y -= Layout::Scale(0);
 
-      mode.align = TextInBoxMode::Alignment::RIGHT;
-      TextInBox(canvas, label_alt, sc_alt, mode, GetClientRect());
+      placement.horizontal_align = LabelPlacement::HorizontalAlign::RIGHT;
+      LabelRenderer::Draw(canvas, label_alt, sc_alt, style, placement,
+                          GetClientRect());
     }
 
     TrafficRenderer::Draw(canvas, traffic_look, traf,

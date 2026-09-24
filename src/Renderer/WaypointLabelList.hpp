@@ -4,7 +4,7 @@
 #pragma once
 
 #include "Renderer/MapWaypointDrawLimits.hpp"
-#include "Renderer/TextInBox.hpp"
+#include "Renderer/LabelRenderer.hpp"
 #include "ui/dim/Point.hpp"
 #include "ui/dim/Rect.hpp"
 #include "util/NonCopyable.hpp"
@@ -18,7 +18,8 @@ public:
   struct Label{
     char Name[NAME_SIZE+1];
     PixelPoint Pos;
-    TextInBoxMode Mode;
+    LabelStyle style;
+    LabelPlacement placement;
     int AltArivalAGL;
     bool inTask;
     bool isLandable;
@@ -41,7 +42,7 @@ public:
   }
 
   void Add(const char *name, PixelPoint p,
-           TextInBoxMode Mode, bool bold,
+           const LabelStyle &style, LabelPlacement placement, bool bold,
            int AltArivalAGL,
            bool inTask, bool isLandable, bool isAirport,
            bool isWatchedWaypoint) noexcept;

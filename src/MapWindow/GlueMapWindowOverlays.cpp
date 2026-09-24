@@ -9,7 +9,7 @@
 #include "Task/ProtectedTaskManager.hpp"
 #include "Engine/Task/TaskManager.hpp"
 #include "Engine/Task/Ordered/OrderedTask.hpp"
-#include "Renderer/TextInBox.hpp"
+#include "Renderer/LabelRenderer.hpp"
 #include "Weather/Rasp/RaspRenderer.hpp"
 #include "Formatter/UserUnits.hpp"
 #include "Formatter/UserGeoPointFormatter.hpp"
@@ -124,9 +124,10 @@ GlueMapWindow::DrawPanInfo(Canvas &canvas) const noexcept
 
   GeoPoint location = render_projection.GetGeoLocation();
 
-  TextInBoxMode mode;
-  mode.shape = LabelShape::OUTLINED;
-  mode.align = TextInBoxMode::Alignment::RIGHT;
+  const auto &style = LabelStyle::BLACK_TEXT_WITH_HALO;
+
+  LabelPlacement placement;
+  placement.horizontal_align = LabelPlacement::HorizontalAlign::RIGHT;
 
   const Font &font = *look.overlay.overlay_font;
   canvas.Select(font);
@@ -147,8 +148,8 @@ GlueMapWindow::DrawPanInfo(Canvas &canvas) const noexcept
       elevation_long.Format("%s: %s", _("Elevation"),
                             FormatUserAltitude(elevation.GetValue()).c_str());
 
-      TextInBox(canvas, elevation_long, p, mode,
-                render_projection.GetScreenSize());
+      LabelRenderer::Draw(canvas, elevation_long, p, style, placement,
+                          render_projection.GetScreenSize());
 
       p.y += height;
     }
@@ -163,7 +164,8 @@ GlueMapWindow::DrawPanInfo(Canvas &canvas) const noexcept
     if (newline != nullptr)
       *newline = '\0';
 
-    TextInBox(canvas, start, p, mode, render_projection.GetScreenSize());
+    LabelRenderer::Draw(canvas, start, p, style, placement,
+                        render_projection.GetScreenSize());
 
     p.y += height;
 
@@ -186,8 +188,8 @@ GlueMapWindow::DrawPanInfo(Canvas &canvas) const noexcept
       else
         rasp_line.Format("%s: %s", label, value.c_str());
 
-      TextInBox(canvas, rasp_line, p, mode,
-                render_projection.GetScreenSize());
+      LabelRenderer::Draw(canvas, rasp_line, p, style, placement,
+                          render_projection.GetScreenSize());
 
       p.y += height;
     }
@@ -237,10 +239,7 @@ GlueMapWindow::DrawGPSStatus(Canvas &canvas, const PixelRect &rc,
   p.y = clear_bottom - (int)font.GetAscentHeight()
     - ((row_height - (int)font.GetHeight()) / 2);
 
-  TextInBoxMode mode;
-  mode.shape = LabelShape::ROUNDED_BLACK;
-
-  TextInBox(canvas, txt, p, mode, rc, nullptr);
+  LabelRenderer::Draw(canvas, txt, p, LabelStyle::ROUNDED_BLACK, {}, rc);
 }
 
 void
@@ -475,11 +474,11 @@ GlueMapWindow::DrawMapScale(Canvas &canvas, const PixelRect &rc,
     const int height = font.GetCapitalHeight()
         + Layout::GetTextPadding();
 
-    TextInBoxMode mode;
-    mode.vertical_position = TextInBoxMode::VerticalPosition::ABOVE;
-    mode.shape = LabelShape::OUTLINED;
+    LabelPlacement placement;
+    placement.vertical_align = LabelPlacement::VerticalAlign::BOTTOM;
 
-    TextInBox(canvas, buffer, {0, scale_pos.bottom - height}, mode, rc, nullptr);
+    LabelRenderer::Draw(canvas, buffer, {0, scale_pos.bottom - height},
+                        LabelStyle::BLACK_TEXT_WITH_HALO, placement, rc);
   }
 }
 
