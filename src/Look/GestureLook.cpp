@@ -28,5 +28,6 @@ GestureLook::Initialise()
   outline_color = COLOR_WHITE;
 
   width = Layout::ScalePenWidth(5);
-  outline_width = std::max(1u, Layout::ScaleFinePenWidth(1));
+  /* no outline: the shadow alone sets the line off the map */
+  outline_width = 0;
 }
