@@ -4,14 +4,23 @@
 #pragma once
 
 #include "ui/canvas/Color.hpp"
-#include "ui/canvas/Pen.hpp"
 
 struct GestureLook
 {
-  static constexpr Color color = COLOR_RED;
-  static constexpr Color invalid_color = LightColor(color);
+  /** Colour of a recognised gesture */
+  Color color;
 
-  Pen pen, invalid_pen;
+  /** Colour of a gesture which is not (yet) recognised */
+  Color invalid_color;
+
+  /** Colour of the thin outline around the line */
+  Color outline_color;
+
+  /** Width of the line */
+  unsigned width;
+
+  /** Width of the outline on each side of the line; 0 for none */
+  unsigned outline_width;
 
   void Initialise();
 };

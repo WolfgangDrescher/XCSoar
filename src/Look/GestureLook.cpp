@@ -3,11 +3,30 @@
 
 #include "GestureLook.hpp"
 #include "Screen/Layout.hpp"
+#include "Asset.hpp"
+
+#include <algorithm>
 
 void
 GestureLook::Initialise()
 {
-  pen.Create(Layout::ScalePenWidth(5), color);
-  invalid_pen.Create(Layout::ScalePenWidth(5), invalid_color);
-}
+  if (IsDithered()) {
+    /* colour is not useful on e-ink screens */
+    color = COLOR_BLACK;
+    invalid_color = COLOR_GRAY;
+  } else {
+    /* red stands out on the map, which is mostly green, yellow,
+       brown and blue; a bit darker than pure red, so it is not
+       glaring */
+    color = Color(0xe0, 0x1b, 0x1b);
 
+    /* grey: "not (yet) recognised"; opaque, so it stands out like
+       the red and the shadow does not show through */
+    invalid_color = Color(0xa8, 0xa8, 0xa8);
+  }
+
+  outline_color = COLOR_WHITE;
+
+  width = Layout::ScalePenWidth(5);
+  outline_width = std::max(1u, Layout::ScaleFinePenWidth(1));
+}
