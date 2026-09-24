@@ -2,6 +2,9 @@
 // Copyright The XCSoar Project
 
 #include "GlueMapWindow.hpp"
+#include "Look/MapLook.hpp"
+#include "Renderer/LabelRenderer.hpp"
+#include "ui/canvas/Canvas.hpp"
 #include "InfoBoxes/InfoBoxArrange.hpp"
 #include "Input/InputEvents.hpp"
 #include "Screen/Layout.hpp"
@@ -710,6 +713,67 @@ GlueMapWindow::OnCancelMode() noexcept
   map_item_timer.Cancel();
 }
 
+/* DO NOT MERGE: show label styles on the map, for comparison */
+static void
+DrawLabelStyleDemo(Canvas &canvas, const Font &font,
+                   const PixelRect &rc) noexcept
+{
+  using S = LabelStyle;
+
+  static constexpr struct {
+    LabelStyle style;
+    const char *name;
+  } styles[] = {
+    /* the presets */
+    { S{}, "LabelStyle{} (SIMPLE)" },
+    { S::BLACK_TEXT_WITH_HALO, "BLACK_TEXT_WITH_HALO" },
+    { S::WHITE_TEXT_WITH_HALO, "WHITE_TEXT_WITH_HALO" },
+    { S::ROUNDED_WHITE, "ROUNDED_WHITE" },
+    { S::ROUNDED_BLACK, "ROUNDED_BLACK" },
+    { S::CHIP, "CHIP" },
+
+    /* some styles of our own */
+    { S{.border_radius = S::BorderRadius::NONE,
+        .background = S::Background::OPAQUE,
+        .border = S::Border::BLACK},
+      "square, opaque, black border" },
+    { S{.border_radius = S::BorderRadius::FULL,
+        .background = S::Background::OPAQUE,
+        .border = S::Border::BLACK},
+      "pill, opaque, black border" },
+    { S{.border_radius = S::BorderRadius::FULL,
+        .background = S::Background::TRANSLUCENT,
+        .shadow = S::Shadow::DEFAULT},
+      "pill, translucent, shadow" },
+    { S{.background = S::Background::TRANSLUCENT,
+        .opacity = 0xe0,
+        .border = S::Border::BLACK},
+      "like ROUNDED_BLACK, opacity 0xe0" },
+    { S{.background = S::Background::TRANSLUCENT,
+        .border = S::Border::BLACK,
+        .shadow = S::Shadow::DEFAULT},
+      "like ROUNDED_BLACK, with shadow" },
+    { S{.background = S::Background::OPAQUE,
+        .shadow = S::Shadow::DEFAULT},
+      "rounded, opaque, shadow" },
+  };
+
+  canvas.Select(font);
+
+  const int step = font.GetHeight() * 17 / 10;
+  PixelPoint anchor{rc.GetCenter().x,
+                    rc.GetCenter().y - step * int(std::size(styles)) / 2};
+
+  LabelPlacement placement;
+  placement.horizontal_align = LabelPlacement::HorizontalAlign::CENTER;
+  placement.vertical_align = LabelPlacement::VerticalAlign::MIDDLE;
+
+  for (const auto &i : styles) {
+    LabelRenderer::Draw(canvas, i.name, anchor, i.style, placement, rc);
+    anchor.y += step;
+  }
+}
+
 void
 GlueMapWindow::OnPaint(Canvas &canvas) noexcept
 {
@@ -722,6 +786,8 @@ GlueMapWindow::OnPaint(Canvas &canvas) noexcept
      OpenGL it is painted over the InfoBoxes, and MainWindow::OnPaint()
      takes care of erasing it afterwards */
   DrawGesture(canvas);
+
+  DrawLabelStyleDemo(canvas, *look.overlay.overlay_font, GetClientRect());
 }
 
 void
