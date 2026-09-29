@@ -371,6 +371,22 @@ struct PageSettings {
   void SetDefaults() noexcept;
 
   /**
+   * Make a short title for the given page which names only what sets
+   * it apart from the other pages: a main area which is no map, a
+   * fixed InfoBox set, and only where two pages would get the same
+   * title, the InfoBox set which is switched automatically, a cross
+   * section or north up.  A plain map page has no title.
+   *
+   * @param auto_panel_name the name of the InfoBox set which is
+   * currently switched automatically
+   */
+  [[nodiscard]]
+  const char *MakeShortTitle(unsigned index,
+                             const InfoBoxSettings &info_box_settings,
+                             const char *auto_panel_name,
+                             std::span<char> buffer) const noexcept;
+
+  /**
    * Eliminate empty pages to make the array contiguous.
    */
   void Compress() noexcept;

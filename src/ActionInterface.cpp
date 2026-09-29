@@ -311,6 +311,31 @@ UpdateMapScalePageInfo(UIState &state) noexcept
     ? overlay_layout.overlay
     : PageLayout::Overlay::NONE;
 
+  /* the short title of the page, for the status bar; panning, or a
+     special page like "Map only", keeps the position of the page it
+     was opened from */
+  const auto &page_settings = GetUISettings().pages;
+  state.map_page_number = state.map_page_count = 0;
+  if (pages.current_index < page_settings.n_pages) {
+    char buffer[64];
+    state.map_page_title =
+      page_settings.MakeShortTitle(pages.current_index,
+                                   GetUISettings().info_boxes,
+                                   state.panel_name, std::span{buffer});
+    state.map_page_number = pages.current_index + 1;
+    state.map_page_count = page_settings.n_pages;
+  } else
+    state.map_page_title.clear();
+
+  /* a special page which is no map, e.g. the FLARM radar opened from
+     a map page, names its main area instead */
+  if (pages.special_page.IsDefined() && !pages.special_page.IsMapMain()) {
+    char buffer[64];
+    state.map_page_title =
+      pages.special_page.MakeTitle(GetUISettings().info_boxes,
+                                   std::span{buffer}, nullptr, true);
+  }
+
   state.map_scale_page_title.clear();
 
   if (overlay_layout.IsMapMain() &&

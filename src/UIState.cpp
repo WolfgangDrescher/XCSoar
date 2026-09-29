@@ -13,6 +13,8 @@ UIState::Clear()
   panel_index = 0;
   panel_name.clear();
   map_scale_page_title.clear();
+  map_page_title.clear();
+  map_page_number = map_page_count = 0;
   page_overlay = PageLayout::Overlay::NONE;
   pages.Clear();
   page_indicator_time = {};

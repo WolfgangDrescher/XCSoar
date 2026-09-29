@@ -64,6 +64,19 @@ struct UIState {
   StaticString<128> map_scale_page_title;
 
   /**
+   * The short title of the current page (see
+   * PageSettings::MakeShortTitle()), shown in the status bar.
+   */
+  StaticString<64u> map_page_title;
+
+  /**
+   * The position of the current page, counting from 1, and the
+   * number of pages; 0 on a page which is not configured, e.g. "Map
+   * only".
+   */
+  unsigned map_page_number, map_page_count;
+
+  /**
    * Overlay of the current map page.
    */
   PageLayout::Overlay page_overlay;
