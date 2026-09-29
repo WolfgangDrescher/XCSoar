@@ -131,6 +131,14 @@ Version 7.46 - not yet released
     the map scale, in the HUD
   - inset the map overlays by the same margin as the menu, QuickMenu
     and zoom buttons
+  - optional status bar at the top of the screen with items of your
+    choice on the left and on the right: page number and title, data
+    source, InfoBox values (the local time by default) and symbols
+    for GPS, FLARM, network, logger, ballast and battery; white,
+    black, translucent or transparent; a tap on an item opens what
+    belongs to it;
+    set up under Config → Look → Display → Status bar, together with
+    the system status bar on iOS
 * airspace
   - keep airspace altitude labels readable when they would overlap #771
   - fill airspaces with a transparent colour; hatch patterns and the
