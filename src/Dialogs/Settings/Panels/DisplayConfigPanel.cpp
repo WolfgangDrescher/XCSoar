@@ -16,6 +16,7 @@
 #include "Dialogs/WidgetDialog.hpp"
 #include "Dialogs/HelpDialog.hpp"
 #include "Dialogs/Settings/InfoBoxAreaStretchWidget.hpp"
+#include "Dialogs/Settings/StatusBarDialog.hpp"
 #include "Widget/StaticHelpTextWidget.hpp"
 #include "MainWindow.hpp"
 #include "LogFile.hpp"
@@ -50,9 +51,7 @@ enum ControlIndex {
   FullScreen,
   InfoBoxAreaStretch,
 #endif
-#ifdef HAVE_SYSTEM_STATUS_BAR_SETTING
-  SystemStatusBar,
-#endif
+  StatusBar,
   DarkMode,
   UIScale,
 #ifdef DRAW_MOUSE_CURSOR
@@ -167,20 +166,18 @@ EditInfoBoxAreaStretch(const char *caption, DataField &df,
 
 #endif
 
-#ifdef HAVE_SYSTEM_STATUS_BAR_SETTING
-static constexpr StaticEnumChoice system_status_bar_list[] = {
-  { DisplaySettings::SystemStatusBar::AUTO, NC_("Setting", "Auto"),
-    N_("Show the system status bar unless the InfoBox area is stretched "
-       "to the top screen edge, where it would cover the InfoBoxes.") },
-  { DisplaySettings::SystemStatusBar::VISIBLE, N_("Visible"),
-    N_("Always show the system status bar, even in full screen mode. "
-       "The InfoBoxes cannot be drawn behind it, so they keep clear of "
-       "the top screen edge.") },
-  { DisplaySettings::SystemStatusBar::HIDDEN, N_("Hidden"),
-    N_("Never show the system status bar.") },
-  nullptr
-};
-#endif
+
+/**
+ * Open the status bar settings instead of a text editor.
+ */
+static bool
+EditStatusBar([[maybe_unused]] const char *caption, DataField &df,
+              [[maybe_unused]] const char *help_text) noexcept
+{
+  ShowStatusBarDialog();
+  static_cast<DataFieldString &>(df).ModifyValue(GetStatusBarSummary());
+  return true;
+}
 
 static constexpr StaticEnumChoice display_type_list[] = {
   { DisplayType::LCD, NC_("Setting", "LCD"),
@@ -314,13 +311,12 @@ DisplayConfigPanel::Prepare(ContainerWindow &parent,
   SetExpertRow(InfoBoxAreaStretch);
 #endif
 
-#ifdef HAVE_SYSTEM_STATUS_BAR_SETTING
-  AddEnum(_("System status bar"),
-          _("Whether the system status bar with the clock and the battery "
-            "level stays visible."),
-          system_status_bar_list,
-          unsigned(ui_settings.display.system_status_bar));
-#endif
+  AddText(_("Status bar"),
+          _("A bar at the top of the screen with the page, values of your "
+            "choice and the state of GPS, FLARM, network, logger and "
+            "battery."),
+          GetStatusBarSummary())
+    ->SetEditCallback(EditStatusBar);
 
   AddEnum(_("Dark mode"), nullptr, dark_mode_list,
           (unsigned)ui_settings.dark_mode);
@@ -387,19 +383,12 @@ DisplayConfigPanel::Save(bool &_changed) noexcept
 #endif
 
 #ifdef HAVE_FULL_SCREEN_SETTING
-  bool full_screen_changed =
+  const bool full_screen_changed =
     SaveValue(FullScreen, ProfileKeys::FullScreen,
               ui_settings.display.full_screen);
-  /* the per-edge settings are applied by their own dialog */
+  /* the per-edge settings and the status bars are applied by their own
+     dialogs */
   changed |= full_screen_changed;
-
-#ifdef HAVE_SYSTEM_STATUS_BAR_SETTING
-  if (SaveValueEnum(SystemStatusBar, ProfileKeys::SystemStatusBar,
-                    ui_settings.display.system_status_bar)) {
-    changed = true;
-    full_screen_changed = true;
-  }
-#endif
 
   /* this may change the usable screen area, so do it before the
      remaining settings are applied */
