@@ -444,6 +444,7 @@ XCSOAR_SOURCES := \
 	$(SRC)/FlarmProgressOverlay.cpp \
 	$(SRC)/UIGlobals.cpp \
 	$(SRC)/UIState.cpp \
+	$(SRC)/StatusBarItems.cpp \
 	$(SRC)/UISettings.cpp \
 	$(SRC)/DisplaySettings.cpp \
 	$(SRC)/MapSettings.cpp \

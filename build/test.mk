@@ -135,6 +135,7 @@ TEST_NAMES = \
 	TestLXNToIGC \
 	TestLeastSquares \
 	TestHexString \
+	TestStatusBarItems \
 	TestUriUtil \
 	TestThermalBand \
 	TestPackedFloat \
@@ -174,6 +175,13 @@ TEST_HEX_STRING_SOURCES = \
 	$(TEST_SRC_DIR)/tap.c \
 	$(TEST_SRC_DIR)/TestHexString.cpp
 $(eval $(call link-program,TestHexString,TEST_HEX_STRING))
+
+TEST_STATUS_BAR_ITEMS_SOURCES = \
+	$(SRC)/StatusBarItems.cpp \
+	$(TEST_SRC_DIR)/tap.c \
+	$(TEST_SRC_DIR)/TestStatusBarItems.cpp
+TEST_STATUS_BAR_ITEMS_DEPENDS = UTIL
+$(eval $(call link-program,TestStatusBarItems,TEST_STATUS_BAR_ITEMS))
 
 TEST_URI_UTIL_SOURCES = \
 	$(TEST_SRC_DIR)/tap.c \
