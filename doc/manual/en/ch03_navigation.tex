@@ -68,6 +68,42 @@ Up (see left) zooms in, Down zooms out.\gesturespec{up}
 The map scale is displayed in the lower left corner of the moving map
 display. The indicated distance is measured from the left to the right border
 of the map display.
+
+The optional status bar at the top of the screen (see
+Section~\ref{sec:interface-display}) shows the items chosen in the
+configuration (see Section~\ref{conf:statusbar}).  By default, it shows the
+data source and the position and the short title of the page on the left,
+and on the right the local time and symbols for the state of the devices:
+\begin{itemize}
+\item a red dot while the logger records,
+\item a drop with the litres left during a ballast dump,
+\item a glider for FLARM, with the number of aircraft around, in red or
+  amber during an alarm,
+\item an arrow for the GPS: filled with a fix, amber while waiting for one,
+  and red without a GPS,
+\item a cloud for the internet connection, grey without one,
+\item the battery with its charge written inside.
+\end{itemize}
+A symbol with nothing to show is left out, e.g.\ the drop while no ballast is
+dumped.  Where the status bar runs out of room, the items next to the middle
+are left out first.  The short title names what sets the page apart from the
+others, \emph{Map} for a plain map page, and e.g.\ \emph{FLARM Radar} while
+the FLARM radar is opened from a map page.
+
+Tap an item of the status bar to open what belongs to it:
+\begin{itemize}
+\item the page number switches to the next page,
+\item the page title opens the pages configuration,
+\item the data source opens the replay dialogue during a replay,
+\item the drop opens the flight setup,
+\item the glider opens the FLARM radar,
+\item the GPS arrow opens the device list,
+\item the cloud opens the network settings,
+\item the logger dot opens the logger settings,
+\item an InfoBox value opens what a tap on that InfoBox opens besides the
+  InfoBox dialogue, e.g.\ the times in the status dialogue for the local time.
+\end{itemize}
+The battery or the bar next to the items opens the status dialogue.
 \marginpar{\includegraphics[angle=0,width=0.4\linewidth,keepaspectratio='true']{figures/zoom.png}}
 
 Compaq Aero Users. If you enable the Compaq Aero Game Keys (On the

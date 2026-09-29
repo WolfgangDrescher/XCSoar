@@ -763,6 +763,23 @@ This page configures how XCSoar uses the screen of the device.
   with its background; Quit, Fly, Simulator and the version stay
   in the safe area.
   Only relevant while \emph{Full screen} is enabled.
+\item[Status bar]  Shows whether the status bar of XCSoar is off, or its
+  style.  Select it to open the settings of the status bars, see
+  Section~\ref{conf:statusbar}.
+\end{description}
+
+
+\subsection*{Status bar}\label{conf:statusbar}
+
+The status bar of XCSoar is a narrow bar at the top of the screen with the
+page, values of your choice and the state of the devices.  A tap on an item opens what
+belongs to it (see Section~\ref{sec:zooming}), elsewhere the status
+dialogue.  It sits below the system status bar.  While the system status bar
+is hidden in full screen mode, the status bar of XCSoar takes its place at
+the top of the screen, and the InfoBoxes start below it.  Its items keep clear
+of the rounded corners, but not of a notch in the middle: choose the items so
+that none of them hides behind it.  Its settings:
+\begin{description}
 \item[System status bar]  Whether the system status bar with the clock and
   the battery level stays visible. \\
   {\bf Auto}: Show it unless the InfoBox area is stretched to the top
@@ -772,7 +789,40 @@ This page configures how XCSoar uses the screen of the device.
   While the system status bar is visible, the InfoBoxes keep clear of the
   top screen edge, because they cannot be drawn behind it.
   Only available on iOS.
+\item[XCSoar status bar]  Shows or hides the status bar of XCSoar.  Default
+  is {\bf Off}.
+\item[Style]  {\bf White}, {\bf Black}, {\bf Translucent}: the map reaches
+  up behind the status bar and shows through a translucent white background,
+  or {\bf Transparent}: the same without a background.
+\item[Items]  The items of the status bar, under the headings {\bf Left} and
+  {\bf Right} for the two parts of the bar, each in its order from left to
+  right.  \bmenug{Add} inserts an item after the selected one (or at the
+  start of the selected part), \bmenug{Delete} removes it, and the arrows
+  move it, also from one part into the other.  An item is one of the symbols
+  below, or, after choosing {\bf InfoBox}, the value of an InfoBox with its
+  unit but without its title, e.g.\ {\bf Time local} or {\bf Time UTC}.  The
+  list names these ``InfoBox: Time local'' and so on.
 \end{description}
+The symbols:
+\begin{description}
+\item[Battery]  The charge of the battery, written inside it; the charge left
+  is filled, green while charging and red when low.
+\item[GPS]  An arrow: filled with a fix, amber while waiting for one, and red
+  without a GPS.
+\item[FLARM]  A glider with the number of aircraft around, red or amber
+  during an alarm.
+\item[Ballast]  A drop with the litres left, during a ballast dump.
+\item[Logger]  A red dot while the logger records.  The flight time is an
+  InfoBox value.
+\item[Network]  A cloud, grey without an internet connection.
+\item[Page number]  The position of the page, e.g.\ 2/5.
+\item[Page title]  The short title of the page.
+\item[Data source]  Simulator or replay, if the data does not come from the
+  GPS; SIM or REP where room is short.
+\end{description}
+By default, the status bar shows the data source, the page number and the
+page title on the left, and the local time, the logger, the ballast, FLARM,
+GPS, the network and the battery on the right.
 
 
 %%%%%%%%%%%%%%%%%%
@@ -808,7 +858,6 @@ This page once more details the appearance of the graphical user interface of XC
 \item[Black cursor] Use black instead of white cursor. Default is {\bf Off} (white cursor).
   Only available if cursor is drawn by XCSoar.
 \end{description}
-
 
 %%%%%%%%%%%%%%%%%%
 \section{Look / InfoBox Pages (or just Pages)}\label{conf:screenpages}
