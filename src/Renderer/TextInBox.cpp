@@ -2,6 +2,7 @@
 // Copyright The XCSoar Project
 
 #include "TextInBox.hpp"
+#include "TranslucentSurface.hpp"
 #include "LabelBlock.hpp"
 #include "BoxShadowRenderer.hpp"
 #include "ui/canvas/Canvas.hpp"
@@ -19,6 +20,8 @@
 #include "ui/canvas/opengl/Scope.hpp"
 #include "ui/canvas/opengl/Triangulate.hpp"
 #endif
+
+using TranslucentSurface::Translucency;
 
 static PixelPoint
 TextInBoxMoveInView(PixelRect &rc, const PixelRect &map_rc) noexcept
@@ -103,11 +106,6 @@ RenderShadowedText(Canvas &canvas, const char *text,
   canvas.DrawText(p, text);
 }
 
-/**
- * The opacity of a #LabelShape::PILL.
- */
-static constexpr uint8_t PILL_ALPHA = 0xf2;
-
 void
 DrawPill(Canvas &canvas, const PixelRect &rc, uint8_t opacity) noexcept
 {
@@ -149,8 +147,12 @@ DrawPill(Canvas &canvas, const PixelRect &rc, uint8_t opacity) noexcept
        outline sets the pill off the map */
     canvas.Select(Pen(1, COLOR_BLACK.WithAlpha(opacity)));
 
+  TranslucentSurface::FrostRoundRect(canvas, rc, rc.GetHeight() / 2);
+
   const ScopeAlphaBlend alpha_blend;
-  canvas.Select(Brush(COLOR_WHITE.WithAlpha(PILL_ALPHA * opacity / 0xff)));
+  const uint8_t alpha =
+    TranslucentSurface::Alpha(Translucency::SUBTLE);
+  canvas.Select(Brush(COLOR_WHITE.WithAlpha(alpha * opacity / 0xff)));
 #else
   (void)opacity;
 
@@ -230,20 +232,15 @@ TextInBox(Canvas &canvas, const char *text, PixelPoint p,
     canvas.Select(outline_pen);
 
     {
-#ifdef ENABLE_OPENGL
-      const ScopeAlphaBlend alpha_blend;
-      canvas.Select(Brush(COLOR_WHITE.WithAlpha(0xa0)));
-#else
-      canvas.SelectWhiteBrush();
-#endif
-
       /* DrawRoundRectangle takes an ellipse diameter (radius =
          diameter/2). Cap it so short labels stay rounded rectangles
          instead of pills. */
       const unsigned ellipse =
         std::min(Layout::VptScale(8),
                  std::max(2u, (unsigned)rc.GetHeight() / 2));
-      canvas.DrawRoundRectangle(rc, PixelSize{ellipse});
+
+      TranslucentSurface::FillRoundRect(canvas, rc, ellipse / 2,
+                                        COLOR_WHITE, Translucency::STRONG);
     }
 
     canvas.SetBackgroundTransparent();
