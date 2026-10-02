@@ -320,6 +320,19 @@ Version 7.46 - not yet released
   - compose the InfoBox sets in the configuration with the same view:
     every InfoBox is a card which can be moved around; Copy Set, Paste
     Set, Rename and InfoBox geometry are the dialog buttons
+  - add the InfoBox border styles "Floating" (rounded boxes with a
+    gap between them) and "Dock" (adjacent InfoBoxes grouped into
+    rounded panels set back from the screen edge), and the
+    "InfoBox background" setting that lets the map show through
+    any border style (Config → Look → Layout, expert); the
+    map fills the whole screen behind them, and the boxes are light
+    or dark following the Dark mode setting
+  - add the "Frosted glass" setting (Config → Look → Layout,
+    expert): blur the map behind translucent InfoBoxes, the vario
+    gauge, waypoint, airspace and NOTAM labels, the final glide and
+    vario bars, the thermal assistant, the FLARM radar, the thermal
+    band and the gesture trail, which keeps them readable over busy
+    terrain
   - pack portrait InfoBoxes on tall screens so title, value, and
     comment sit closer together; InfoBox title size still grows the
     boxes toward square at 150%
