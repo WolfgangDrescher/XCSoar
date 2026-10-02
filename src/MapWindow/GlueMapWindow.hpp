@@ -91,6 +91,25 @@ class GlueMapWindow : public MapWindow {
   TrackingGestureManager gestures;
   bool ignore_single_click = false;
 
+#ifdef ENABLE_OPENGL
+  /**
+   * Where the map was when the current drag began, for
+   * HoldTranslucentSurfaces().
+   */
+  struct {
+    GeoPoint location;
+    double scale;
+    Angle angle;
+    bool valid = false;
+  } drag_start_map;
+
+  /**
+   * Counts the renderings of the map, for
+   * TranslucentSurface::MapPainted().
+   */
+  unsigned map_paint_generation = 0;
+#endif
+
   /**
    * A multi-touch gesture currently owns map projection updates
    * (location, scale, angle).  This is distinct from pan UI
@@ -427,6 +446,18 @@ protected:
   void OnCancelMode() noexcept override;
   void OnPaint(Canvas &canvas) noexcept override;
   void OnPaintBuffer(Canvas& canvas) noexcept override;
+
+#ifdef ENABLE_OPENGL
+  /**
+   * Let the translucent surfaces reuse their blurred copy of the map
+   * while it is being dragged or zoomed, moved along with the map;
+   * see TranslucentSurface::Hold().
+   *
+   * @param origin the position of this window within the frame
+   * buffer being painted
+   */
+  void HoldTranslucentSurfaces(PixelPoint origin) noexcept;
+#endif
 
   /**
    * This event handler gets called when a gesture has

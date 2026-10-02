@@ -3,6 +3,7 @@
 
 #include "GlueMapWindow.hpp"
 #include "InfoBoxes/InfoBoxArrange.hpp"
+#include "Renderer/TranslucentSurface.hpp"
 #include "Input/InputEvents.hpp"
 #include "Screen/Layout.hpp"
 #include "Simulator.hpp"
@@ -755,6 +756,14 @@ GlueMapWindow::OnPaint(Canvas &canvas) noexcept
 {
   MapWindow::OnPaint(canvas);
 
+#ifdef ENABLE_OPENGL
+  /* now in screen coordinates, for the surfaces painted over the
+     map: the gesture trail below, the InfoBoxes and gauges */
+  const PixelPoint origin = GetPosition().GetTopLeft();
+  TranslucentSurface::MapPainted(map_paint_generation, origin);
+  HoldTranslucentSurfaces(origin);
+#endif
+
   if (IsPanChromeVisible())
     DrawCrossHairs(canvas);
 
@@ -793,6 +802,14 @@ GlueMapWindow::OnPaintBuffer(Canvas &canvas) noexcept
        threads.  Stale bounds break airspace GeoClip (MapCanvas). */
     MapWindow::UpdateScreenBounds();
   }
+
+  /* the map changes: the translucent surfaces over it must blur it
+     again */
+  ++map_paint_generation;
+
+  /* in buffer coordinates, for the labels and bars drawn into the
+     map's buffer */
+  HoldTranslucentSurfaces({0, 0});
 #endif
 
   MapWindow::OnPaintBuffer(canvas);
@@ -806,6 +823,49 @@ GlueMapWindow::OnPaintBuffer(Canvas &canvas) noexcept
   LeaveDrawThread();
 #endif
 }
+
+#ifdef ENABLE_OPENGL
+
+void
+GlueMapWindow::HoldTranslucentSurfaces(PixelPoint origin) noexcept
+{
+  if (drag_mode == DRAG_NONE) {
+    drag_start_map.valid = false;
+    TranslucentSurface::Release();
+    return;
+  }
+
+  const auto &projection = visible_projection;
+  const PixelPoint center = projection.GetScreenCenter();
+
+  if (drag_start_map.valid &&
+      projection.GetScreenAngle().Native() !=
+      drag_start_map.angle.Native()) {
+    /* the blurred copy cannot follow a rotation: let this frame make
+       a fresh one, and continue from it */
+    TranslucentSurface::Release();
+    drag_start_map.valid = false;
+  }
+
+  if (!drag_start_map.valid) {
+    drag_start_map.location = projection.ScreenToGeo(center);
+    drag_start_map.scale = projection.GetScale();
+    drag_start_map.angle = projection.GetScreenAngle();
+    drag_start_map.valid = true;
+    return;
+  }
+
+  /* where the point which was at the centre is now, and how much the
+     map has grown */
+  const PixelPoint now = projection.GeoToScreen(drag_start_map.location);
+  TranslucentSurface::Hold({
+    origin + center,
+    now - center,
+    float(projection.GetScale() / drag_start_map.scale),
+  });
+}
+
+#endif
 
 void
 GlueMapWindow::OnMapItemTimer() noexcept
