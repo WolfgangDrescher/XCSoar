@@ -788,10 +788,31 @@ This page once more details the appearance of the graphical user interface of XC
 \item[Colour InfoBoxes*]  If {\bf On}, certain InfoBoxes will have coloured text. For 
   example, the active waypoint InfoBox will turn blue when the glider is above final 
   glide.
-\item[InfoBox border*]  Two styles for InfoBox borders are available. \\
+\item[Frosted glass*]  If {\bf On}, the map is blurred behind translucent
+  elements: InfoBoxes with a translucent background, the vario gauge,
+  waypoint, airspace and NOTAM labels, the final glide and vario bars,
+  the thermal assistant, the FLARM radar, the thermal band and the
+  gesture trail. This keeps them readable over busy terrain.
+  Only available with OpenGL; slow devices draw without the blur.
+\item[InfoBox border*]  Selects how the InfoBoxes are drawn. \\
   {\bf Box}: Draws boxes around each InfoBox. \\
   {\bf Tab}: Draws a tab at the top of the InfoBox across the
   title. \\
+  {\bf Shaded}: Draws the title on a shaded caption bar. \\
+  {\bf Glass}: Adds a glass-like sheen to the InfoBox background. \\
+  {\bf Floating}: Draws each InfoBox as a rounded box floating over
+  the map, which shows through the gaps between them. \\
+  {\bf Dock}: Groups adjacent InfoBoxes into panels with rounded
+  corners, set back from the screen edge and from the map, which
+  extends behind them. \\
+  Whenever the map extends behind the InfoBoxes, the aircraft stays in
+  the part of the map that is not covered by them.  The boxes are
+  light or dark following the {\bf Dark mode} setting.
+\item[InfoBox background*]  {\bf Solid} InfoBoxes hide the map.
+  With {\bf Translucent}, the map shows through the InfoBoxes, which
+  then extend over the whole screen.  Works with every InfoBox border
+  style.  With {\bf Frosted glass}, the map is blurred behind the
+  InfoBoxes.  Not available on e-paper devices.
 \end{description}
 
 
