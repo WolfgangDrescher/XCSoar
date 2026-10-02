@@ -12,6 +12,7 @@
 #include "Math/Point2D.hpp"
 #include "ui/canvas/Color.hpp"
 #include "ui/canvas/opengl/Program.hpp"
+#include "ui/canvas/opengl/Scissor.hpp"
 #include "ui/canvas/opengl/Scope.hpp"
 #include "ui/canvas/opengl/Shaders.hpp"
 #include "ui/canvas/opengl/VertexPointer.hpp"
@@ -241,6 +242,79 @@ DrawLayer(const PixelRect &rc, const BoxShadowStyle::Layer &shadow,
                  GL_UNSIGNED_SHORT, indices.data());
 }
 
+/**
+ * Draw the ring of a halo: contours from the box's edge outward, so
+ * nothing is painted inside the box.
+ */
+static void
+DrawHaloRing(const PixelRect &box, unsigned corner_radius,
+             int blur, uint8_t alpha) noexcept
+{
+  const int half_size = std::min(box.GetWidth(), box.GetHeight()) / 2;
+  const int edge = std::clamp(int(corner_radius), 0, half_size);
+
+  /* the corner arcs of all contours are centered on the box's corner
+     centres; the innermost contour is the box's edge */
+  const PixelRect centers{
+    box.left + edge, box.top + edge,
+    box.right - edge, box.bottom - edge,
+  };
+
+  const int outer = blur / 2;
+  const int first = edge;
+  const int last = edge + outer;
+
+  /* one contour every two pixels is plenty for a smooth gradient */
+  const unsigned n_intervals = std::clamp<unsigned>((last - first) / 2,
+                                                    1, MAX_CONTOURS - 1);
+  const unsigned n_contours = n_intervals + 1;
+
+  std::array<FloatPoint2D, MAX_VERTICES> vertices;
+  std::array<Color, MAX_VERTICES> colors;
+
+  for (unsigned i = 0; i < n_contours; ++i) {
+    const float radius = first + float(last - first) * i / n_intervals;
+
+    AppendContour(&vertices[i * CONTOUR_VERTICES], centers, radius);
+
+    const float opacity = BlurOpacity((radius - edge + blur / 2.f) / blur);
+    const Color color =
+      COLOR_BLACK.WithAlpha(uint8_t(std::lround(alpha * opacity)));
+    std::fill_n(&colors[i * CONTOUR_VERTICES], CONTOUR_VERTICES, color);
+  }
+
+  /* stitch adjacent contours together with a ring of triangles; no
+     fan fills the innermost contour, the box stays untouched */
+  std::array<GLushort, MAX_INDICES> indices;
+  unsigned n_indices = 0;
+
+  for (unsigned i = 0; i < n_intervals; ++i) {
+    const unsigned a = i * CONTOUR_VERTICES;
+    const unsigned b = a + CONTOUR_VERTICES;
+
+    for (unsigned j = 0; j < CONTOUR_VERTICES; ++j) {
+      const unsigned j2 = (j + 1) % CONTOUR_VERTICES;
+
+      indices[n_indices++] = a + j;
+      indices[n_indices++] = b + j;
+      indices[n_indices++] = a + j2;
+
+      indices[n_indices++] = b + j;
+      indices[n_indices++] = b + j2;
+      indices[n_indices++] = a + j2;
+    }
+  }
+
+  assert(n_indices <= indices.size());
+
+  const ScopeAlphaBlend alpha_blend;
+  const ScopeVertexPointer vp(vertices.data());
+  const ScopeColorPointer cp(colors.data());
+  OpenGL::solid_shader->Use();
+  glDrawElements(GL_TRIANGLES, GLsizei(n_indices),
+                 GL_UNSIGNED_SHORT, indices.data());
+}
+
 #endif /* ENABLE_OPENGL */
 
 void
@@ -252,5 +326,18 @@ DrawBoxShadow([[maybe_unused]] const PixelRect &rc,
   for (const auto &layer : style.layers)
     if (layer.alpha > 0)
       DrawLayer(rc, layer, corner_radius);
+#endif
+}
+
+void
+DrawBoxHalo([[maybe_unused]] const PixelRect &clip,
+            [[maybe_unused]] const PixelRect &box,
+            [[maybe_unused]] unsigned corner_radius,
+            [[maybe_unused]] unsigned blur,
+            [[maybe_unused]] uint8_t alpha) noexcept
+{
+#ifdef ENABLE_OPENGL
+  const GLCanvasScissor scissor{clip};
+  DrawHaloRing(box, corner_radius, int(blur), alpha);
 #endif
 }
