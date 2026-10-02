@@ -91,7 +91,7 @@ ThermalBandRenderer::DrawThermalProfile(const ThermalBand &thermal_band,
     const ScopeAlphaBlend alpha_blend;
 #endif
     chart.DrawFilledY({thermal_profile.data(), thermal_profile.size()},
-                      brush, pen);
+                      brush, pen, true);
   } else {
     chart.DrawFilledY({thermal_profile.data(), thermal_profile.size()},
                       brush, pen);

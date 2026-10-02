@@ -2,6 +2,7 @@
 // Copyright The XCSoar Project
 
 #include "ChartRenderer.hpp"
+#include "TranslucentSurface.hpp"
 #include "ui/canvas/Canvas.hpp"
 #include "Screen/Layout.hpp"
 #include "Language/Language.hpp"
@@ -598,7 +599,8 @@ ChartRenderer::DrawYGrid(double tic_step, double unit_step,
 
 void
 ChartRenderer::DrawFilledY(std::span<const DoublePoint2D> vals,
-                           const Brush &brush, const Pen *pen) noexcept
+                           const Brush &brush, const Pen *pen,
+                           bool frosted) noexcept
 {
   if (vals.size() < 2)
     return;
@@ -611,6 +613,9 @@ ChartRenderer::DrawFilledY(std::span<const DoublePoint2D> vals,
   line[0].y = line[fsize-1].y;
   line[1].x = rc_chart.left;
   line[1].y = line[2].y;
+
+  if (frosted)
+    TranslucentSurface::Frost(canvas, line, unsigned(fsize));
 
   canvas.Select(brush);
   if (pen == nullptr) {

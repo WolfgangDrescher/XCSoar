@@ -101,9 +101,14 @@ public:
                 ChartLook::Style style) noexcept;
   void DrawFilledLine(DoublePoint2D min, DoublePoint2D max,
                       const Brush &brush) noexcept;
+  /**
+   * @param frosted blur the map behind the area first (see
+   * TranslucentSurface), for a translucent area over the map
+   */
   void DrawFilledY(std::span<const DoublePoint2D> vals,
                    const Brush &brush,
-                   const Pen *pen=nullptr) noexcept;
+                   const Pen *pen=nullptr,
+                   bool frosted=false) noexcept;
   void DrawDot(DoublePoint2D p, const unsigned width) noexcept;
   void DrawImpulseGraph(const XYDataStore &lsdata, const Pen &pen) noexcept;
   void DrawImpulseGraph(const XYDataStore &lsdata, ChartLook::Style style) noexcept;
