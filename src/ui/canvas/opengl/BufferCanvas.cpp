@@ -91,6 +91,7 @@ BufferCanvas::Activate() noexcept
   assert(frame_buffer != nullptr);
 
   /* activate the frame buffer */
+  glGetIntegerv(GL_FRAMEBUFFER_BINDING, &old_framebuffer);
   frame_buffer->Bind();
   texture->AttachFramebuffer(FBO::COLOR_ATTACHMENT0);
 
@@ -146,7 +147,7 @@ BufferCanvas::Deactivate() noexcept
   assert(OpenGL::translate.x == 0);
   assert(OpenGL::translate.y == 0);
 
-  frame_buffer->Unbind();
+  FBO::BindFramebuffer(FBO::FRAMEBUFFER, GLuint(old_framebuffer));
 
   /* restore the old viewport */
 

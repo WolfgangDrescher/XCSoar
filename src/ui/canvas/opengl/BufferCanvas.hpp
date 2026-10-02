@@ -34,6 +34,14 @@ class BufferCanvas : public Canvas {
 
   GLint old_viewport[4];
 
+  /**
+   * The frame buffer which was bound before Activate(), restored by
+   * Deactivate(): usually the screen, but Begin()/End() may also
+   * nest inside another #BufferCanvas (e.g. a blur pass while the
+   * map is being rendered into its buffer).
+   */
+  GLint old_framebuffer = 0;
+
   glm::mat4 old_projection_matrix;
 
   PixelPoint old_translate;
@@ -61,6 +69,16 @@ public:
 
   bool IsDefined() const noexcept {
     return texture != nullptr;
+  }
+
+  /**
+   * The texture this buffer renders into.  It is flipped
+   * (#GLTexture::IsFlipped()), which #GLTexture::Draw() takes care
+   * of.
+   */
+  GLTexture &GetTexture() const noexcept {
+    assert(IsDefined());
+    return *texture;
   }
 
   void Create(PixelSize new_size) noexcept;

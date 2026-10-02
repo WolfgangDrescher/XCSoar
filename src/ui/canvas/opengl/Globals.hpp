@@ -78,6 +78,14 @@ extern DisplayOrientation display_orientation;
  */
 extern PixelPoint translate;
 
+/**
+ * Incremented each time the top window starts painting a frame.
+ * Lets a cache which is valid for one frame only (e.g. the blurred
+ * copy of the framebuffer for frosted glass) tell a new frame from
+ * the one it was built in.
+ */
+extern unsigned frame_serial;
+
 extern glm::mat4 projection_matrix;
 
 /**
