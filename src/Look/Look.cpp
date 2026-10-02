@@ -3,6 +3,8 @@
 
 #include "Look.hpp"
 #include "UISettings.hpp"
+#include "Renderer/TranslucentSurface.hpp"
+#include "Hardware/CPU.hpp"
 #include "GlobalSettings.hpp"
 
 void
@@ -63,6 +65,9 @@ Look::InitialiseConfigured(const UISettings &settings,
 {
   const bool dark_mode = GetDarkMode(settings);
   const bool infobox_dark_mode = GetInfoBoxDarkMode(settings, dark_mode);
+
+  /* the blur costs a few render passes per frame; not on a slow CPU */
+  TranslucentSurface::SetFrosted(settings.frosted_glass && !IsSlowCPU());
 
   dialog.Initialise(dark_mode);
   chart.Initialise(dark_mode);

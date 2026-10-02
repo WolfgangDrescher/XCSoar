@@ -17,6 +17,9 @@
 
 enum ControlIndex {
   DarkMode,
+#ifdef ENABLE_OPENGL
+  FrostedGlass,
+#endif
   UIScale,
   TabDialogStyle,
   SPACER_INFOBOX,
@@ -109,6 +112,15 @@ LayoutConfigPanel::Prepare(ContainerWindow &parent,
   AddEnum(_("Dark mode"), nullptr, dark_mode_list,
           (unsigned)ui_settings.dark_mode);
 
+#ifdef ENABLE_OPENGL
+  AddBoolean(_("Frosted glass"),
+             _("Blur the map behind translucent elements such as "
+               "InfoBoxes, labels and gauges, which keeps them readable "
+               "over busy terrain."),
+             ui_settings.frosted_glass);
+  SetExpertRow(FrostedGlass);
+#endif
+
   AddInteger(_("Text size"),
              nullptr,
              "%d %%", "%d",
@@ -197,6 +209,15 @@ LayoutConfigPanel::Save(bool &_changed) noexcept
 
   changed |= SaveValueEnum(DarkMode, ProfileKeys::DarkMode,
                            ui_settings.dark_mode);
+
+#ifdef ENABLE_OPENGL
+  if (SaveValue(FrostedGlass, ProfileKeys::FrostedGlass,
+                ui_settings.frosted_glass)) {
+    changed = true;
+    /* the look carries the flag to the renderers */
+    CommonInterface::main_window->ReinitialiseLook();
+  }
+#endif
 
   if (SaveValueInteger(UIScale, ProfileKeys::UIScale,
                        ui_settings.scale))

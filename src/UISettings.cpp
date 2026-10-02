@@ -37,6 +37,8 @@ UISettings::SetDefaults() noexcept
   dark_mode = DarkMode::AUTO;
 #endif
 
+  frosted_glass = false;
+
   format.SetDefaults();
   map.SetDefaults();
   info_boxes.SetDefaults();

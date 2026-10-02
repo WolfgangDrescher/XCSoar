@@ -154,6 +154,8 @@ Profile::Load(const ProfileMap &map, UISettings &settings)
   settings.dark_mode = UISettings::DarkMode::OFF;
 #endif
 
+  map.Get(ProfileKeys::FrostedGlass, settings.frosted_glass);
+
   Load(map, settings.format);
   Load(map, settings.map);
   Load(map, settings.info_boxes);

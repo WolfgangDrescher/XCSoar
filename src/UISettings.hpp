@@ -78,6 +78,13 @@ struct UISettings {
     COUNT
   } dark_mode;
 
+  /**
+   * Blur the map behind translucent elements (InfoBoxes, labels,
+   * gauges), so they stay readable over busy terrain?  OpenGL only;
+   * see TranslucentSurface.
+   */
+  bool frosted_glass;
+
   FormatSettings format;
   MapSettings map;
   InfoBoxSettings info_boxes;
