@@ -21,6 +21,7 @@
 #include "Form/Form.hpp"
 #include "Widget/Widget.hpp"
 #include "Look/GlobalFonts.hpp"
+#include "StatusBarWindow.hpp"
 #include "Look/DefaultFonts.hpp"
 #include "InfoBoxes/Border.hpp"
 #include "Look/Look.hpp"
@@ -35,6 +36,7 @@
 #include "Interface.hpp"
 
 #include <algorithm>
+#include <cmath>
 #include <utility>
 #include "Components.hpp"
 #include "BackendComponents.hpp"
@@ -268,7 +270,11 @@ GetOuterBorder(const PixelRect &infobox_area_rc, const PixelRect &rc) noexcept
 {
   unsigned border = 0;
 
-  if (infobox_area_rc.top > rc.top)
+  /* a black status bar ends the InfoBoxes at the top on its own */
+  const UISettings &settings = CommonInterface::GetUISettings();
+  if (infobox_area_rc.top > rc.top &&
+      !(settings.show_status_bar &&
+        settings.status_bar_style == UISettings::StatusBarStyle::BLACK))
     border |= BORDERTOP;
   if (infobox_area_rc.bottom < rc.bottom)
     border |= BORDERBOTTOM;
@@ -296,7 +302,7 @@ ComputeMapAreaRect(const PixelRect &main_rect,
 }
 
 PixelRect
-MainWindow::GetInfoBoxAreaRect() const noexcept
+MainWindow::GetStatusBarAreaRect() const noexcept
 {
   const PixelRect rc = GetClientRect();
   const PixelRect safe_rc = GetSafeAreaRect();
@@ -320,6 +326,118 @@ MainWindow::GetInfoBoxAreaRect() const noexcept
     edges & DisplaySettings::INFOBOX_AREA_STRETCH_BOTTOM
       ? rc.bottom : std::min(rc.bottom, safe_rc.bottom),
   };
+}
+
+PixelRect
+MainWindow::GetStatusBarRect() const noexcept
+{
+  PixelRect bar = GetStatusBarAreaRect();
+  bar.bottom = bar.top;
+  if (!CommonInterface::GetUISettings().show_status_bar)
+    return bar;
+
+  const int height = StatusBarWindow::GetHeight(Fonts::map_bold);
+
+#ifdef HAVE_SYSTEM_STATUS_BAR_SETTING
+  const bool system_status_bar =
+    CommonInterface::GetUISettings().display.IsSystemStatusBarVisible();
+#else
+  /* where the system shows its status bar, it is not part of the
+     window */
+  constexpr bool system_status_bar = false;
+#endif
+
+  /* while the system status bar is hidden, take its place: the band
+     at the top of the screen which the safe area leaves out, with the
+     items in its middle */
+  const PixelRect rc = GetClientRect();
+  const int band = GetSafeAreaRect().top - rc.top;
+  if (band > 0 && !system_status_bar) {
+    bar.top = rc.top;
+    bar.bottom = rc.top + std::max(band, height);
+  } else
+    bar.bottom = bar.top + height;
+
+  return bar;
+}
+
+PixelRect
+MainWindow::GetInfoBoxAreaRect() const noexcept
+{
+  PixelRect rc = GetStatusBarAreaRect();
+  if (CommonInterface::GetUISettings().show_status_bar)
+    rc.top = std::clamp(GetStatusBarRect().bottom, rc.top, rc.bottom);
+  return rc;
+}
+
+void
+MainWindow::UpdateStatusBar() noexcept
+{
+  const UISettings &settings = CommonInterface::GetUISettings();
+  if (!settings.show_status_bar) {
+    status_bar.reset();
+    return;
+  }
+
+  const PixelRect rc = GetStatusBarRect();
+
+  if (status_bar != nullptr &&
+      status_bar->GetStyle() != settings.status_bar_style)
+    status_bar.reset();
+
+  if (status_bar == nullptr) {
+    status_bar = std::make_unique<StatusBarWindow>(Fonts::map_bold,
+                                                   settings.status_bar_style);
+    status_bar->Create(*this, rc);
+  } else
+    status_bar->Move(rc);
+
+  /* the items stay clear of the display cutout at the sides and of
+     the rounded corners; at the top, they may hide behind a notch,
+     whose shape XCSoar does not know */
+  const PixelRect client_rc = GetClientRect();
+  const PixelRect safe_rc = GetSafeAreaRect();
+  int inset_left = std::max(safe_rc.left - rc.left, 0);
+  int inset_right = std::max(rc.right - safe_rc.right, 0);
+
+  if (const int radius = GetCornerRadius(); radius > 0) {
+    /* where the top of the text meets the rounded corner */
+    const int text_top = rc.top - client_rc.top +
+      (rc.GetHeight() - int(Fonts::map_bold.GetHeight())) / 2;
+    if (text_top < radius) {
+      const int dy = radius - text_top;
+      const int dx = radius -
+        int(std::lround(std::sqrt(double(radius * radius - dy * dy))));
+      inset_left = std::max(inset_left, client_rc.left + dx - rc.left);
+      inset_right = std::max(inset_right, rc.right - client_rc.right + dx);
+    }
+  }
+
+  status_bar->SetItemInsets(inset_left, inset_right);
+}
+
+PixelRect
+MainWindow::GetMapRect(const PixelRect &remaining) const noexcept
+{
+  const PixelRect rc = GetClientRect();
+  if (!GetStatusBarAreaRect().Contains(rc))
+    /* the map slides underneath the InfoBoxes and the status bar, see
+       ReinitialiseLayout() */
+    return rc;
+
+  PixelRect map_rc = remaining;
+
+  /* the map shows through a transparent status bar, so it reaches up
+     to it, also behind InfoBoxes in between; the HUD stays below, see
+     LayoutMapArea() */
+  if (CommonInterface::GetUISettings().IsStatusBarSeeThrough()) {
+    const PixelRect bar_rc = GetStatusBarRect();
+    map_rc.left = std::min(map_rc.left, bar_rc.left);
+    map_rc.top = std::min(map_rc.top, bar_rc.top);
+    map_rc.right = std::max(map_rc.right, bar_rc.right);
+  }
+
+  return map_rc;
 }
 
 void
@@ -658,9 +776,7 @@ MainWindow::InitialiseConfigured()
                              ib_layout.control_size.width);
 
   InfoBoxManager::Create(*this, ib_layout, look->info_box);
-  map_rect = infobox_area_rc.Contains(rc)
-    ? ib_layout.remaining
-    : rc;
+  map_rect = GetMapRect(ib_layout.remaining);
 
   menu_bar = new MenuBar(*this, infobox_area_rc, look->dialog.button);
 
@@ -694,6 +810,9 @@ MainWindow::InitialiseConfigured()
 
   popup = new PopupMessage(*this, look->dialog, ui_settings);
   popup->Create(GetHudRect());
+
+  /* after the map, so it is drawn on top of it */
+  UpdateStatusBar();
 
   UpdateMapOverlayButtonLayout();
   if (menu_bar != nullptr)
@@ -744,6 +863,8 @@ void
 MainWindow::Deinitialise() noexcept
 {
   InfoBoxManager::Destroy();
+
+  status_bar.reset();
 
   delete menu_bar;
   menu_bar = nullptr;
@@ -887,6 +1008,8 @@ MainWindow::ReinitialiseLayout() noexcept
 
   InfoBoxManager::Destroy();
 
+  UpdateStatusBar();
+
   const UISettings &ui_settings = CommonInterface::GetUISettings();
 
   InfoBoxLayout::Layout ib_layout =
@@ -910,9 +1033,7 @@ MainWindow::ReinitialiseLayout() noexcept
 
      @see GlueMapWindow::UpdateProjection(), which keeps the aircraft
      in the part of the map that is not hidden behind the InfoBoxes */
-  map_rect = infobox_area_rc.Contains(rc)
-    ? ib_layout.remaining
-    : rc;
+  map_rect = GetMapRect(ib_layout.remaining);
 
   /* the areas must avoid the InfoBoxes, which the map itself may
      now be hiding behind */
@@ -1557,6 +1678,12 @@ MainWindow::OnPaint(Canvas &canvas) noexcept
     canvas.DrawFilledRectangle(rc, COLOR_BLACK);
   }
 
+  if (status_bar != nullptr &&
+      CommonInterface::GetUISettings().IsStatusBarSeeThrough())
+    /* a transparent status bar shows the map where it reaches up to
+       it, and white elsewhere */
+    canvas.DrawFilledRectangle(status_bar->GetPosition(), COLOR_WHITE);
+
   SingleWindow::OnPaint(canvas);
 
   if (HasMaximisedDialog() && !HasFullScreenDialog()) {
@@ -1682,6 +1809,9 @@ MainWindow::SetUIState(const UIState &ui_state) noexcept
     map->SetUIState(ui_state);
     map->FullRedraw();
   }
+
+  if (status_bar != nullptr)
+    status_bar->Invalidate();
 }
 
 GlueMapWindow *

@@ -26,6 +26,8 @@
 #include "thread/Cond.hxx"
 
 #include <algorithm>
+#include <cmath>
+#include <numbers>
 
 namespace UI { struct Event; }
 
@@ -539,6 +541,28 @@ public:
     return GetClientRect();
   }
 
+  /**
+   * The radius of the rounded display corners, or 0 if the display
+   * is rectangular or the window does not reach its corners.  iOS
+   * does not tell it; the devices with rounded corners are those with
+   * a home indicator, i.e. a bottom safe area inset, and their radius
+   * is about as large as the larger one of the top and the bottom
+   * inset.
+   */
+  [[gnu::pure]]
+  unsigned GetCornerRadius() const noexcept {
+    if (!full_screen_mode)
+      /* the window is the safe area, clear of the corners */
+      return 0;
+
+    const PixelRect screen = GetScreenRect(), safe = GetSafeAreaRect();
+    const int bottom = screen.bottom - safe.bottom;
+    if (bottom <= 0)
+      return 0;
+
+    return unsigned(std::max(safe.top - screen.top, bottom));
+  }
+
   [[gnu::pure]]
   const PixelRect GetClientRect() const noexcept override {
     assert(IsDefined());
@@ -588,6 +612,22 @@ public:
 #endif
 
     return rc;
+  }
+
+  /**
+   * The radius of the rounded display corners at the top, or 0 if
+   * the display is rectangular.
+   */
+  [[gnu::pure]]
+  unsigned GetCornerRadius() const noexcept {
+#ifdef ANDROID
+    /* undo NativeView.roundedCornerInset(), which turned the radius
+       into an inset of R * (1 - 1/sqrt(2)) */
+    return unsigned(std::lround(shape_insets.top /
+                                (1 - 1 / std::numbers::sqrt2)));
+#else
+    return 0;
+#endif
   }
 
   /**

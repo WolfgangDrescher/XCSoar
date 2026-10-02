@@ -26,6 +26,7 @@ struct Look;
 class Menu;
 class MenuBar;
 class GlueMapWindow;
+class StatusBarWindow;
 class Widget;
 class RasterTerrain;
 class TopographyStore;
@@ -70,6 +71,12 @@ class MainWindow : public UI::SingleWindow {
 #endif
 
   GlueMapWindow *map = nullptr;
+
+  /**
+   * The optional bar at the top of the screen, see
+   * UISettings::show_status_bar.
+   */
+  std::unique_ptr<StatusBarWindow> status_bar;
 
   /**
    * A #Widget that is shown above the map.
@@ -321,14 +328,45 @@ private:
   }
 
   /**
-   * The area in which everything except the map itself is laid out.
-   * This is the whole client area on the edges the user chose to
-   * stretch to, and the safe area on all others.
+   * The area in which everything except the map itself and the
+   * status bar is laid out.  This is the whole client area on the
+   * edges the user chose to stretch to, and the safe area on all
+   * others, below the status bar.
    *
    * @see DisplaySettings::infobox_area_stretch
    */
   [[gnu::pure]]
   PixelRect GetInfoBoxAreaRect() const noexcept;
+
+  /**
+   * #GetInfoBoxAreaRect() with the status bar: the status bar sits
+   * at its top, and the rest is #GetInfoBoxAreaRect().
+   */
+  [[gnu::pure]]
+  PixelRect GetStatusBarAreaRect() const noexcept;
+
+  /**
+   * Where XCSoar's status bar goes: the top of #GetStatusBarAreaRect(),
+   * or, while the system status bar is hidden, its place at the top
+   * of the screen.  Empty if the status bar is disabled.
+   */
+  [[gnu::pure]]
+  PixelRect GetStatusBarRect() const noexcept;
+
+  /**
+   * Show or hide the status bar according to the settings, and move
+   * it to #GetStatusBarRect().
+   */
+  void UpdateStatusBar() noexcept;
+
+  /**
+   * Where the map goes while the InfoBoxes are visible: what they
+   * leave over, extended up under a transparent status bar, or the
+   * whole client area if the InfoBox area is kept clear of the
+   * screen edges.
+   */
+  [[gnu::pure]]
+  PixelRect GetMapRect(const PixelRect &remaining) const noexcept;
 
   /**
    * Re-run the layout if the system has changed the safe area behind

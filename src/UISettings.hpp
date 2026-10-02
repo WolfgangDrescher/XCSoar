@@ -9,6 +9,7 @@
 #include "Gauge/VarioSettings.hpp"
 #include "Gauge/TrafficSettings.hpp"
 #include "PageSettings.hpp"
+#include "StatusBarItems.hpp"
 #include "Dialogs/DialogSettings.hpp"
 #include "DisplaySettings.hpp"
 #include "Audio/Settings.hpp"
@@ -16,6 +17,12 @@
 #include <chrono>
 #include <cstdint>
 #include <type_traits>
+
+/* Workaround: Some Win32 headers define TRANSPARENT as a preprocessor
+ * define.  Undefine it to avoid name conflict. */
+#ifdef TRANSPARENT
+#undef TRANSPARENT
+#endif
 
 /**
  * User interface settings.
@@ -58,6 +65,43 @@ struct UISettings {
   bool show_menu_button;
   bool show_zoom_button;
   bool show_quickmenu_button;
+
+  /**
+   * Show a bar at the top of the screen with the page and the state
+   * of the data source and the devices?
+   */
+  bool show_status_bar;
+
+  enum class StatusBarStyle : uint8_t {
+    WHITE,
+    BLACK,
+
+    /**
+     * The map reaches up behind the status bar and shows through.
+     */
+    TRANSPARENT,
+
+    /**
+     * Like #TRANSPARENT, but the map shows through a translucent white
+     * background, like through a rounded map label.
+     */
+    TRANSLUCENT,
+  };
+
+  StatusBarStyle status_bar_style;
+
+  /**
+   * Does the map show through the status bar?
+   */
+  constexpr bool IsStatusBarSeeThrough() const noexcept {
+    return status_bar_style == StatusBarStyle::TRANSPARENT ||
+      status_bar_style == StatusBarStyle::TRANSLUCENT;
+  }
+
+  /**
+   * The symbols and InfoBox values which the status bar shows.
+   */
+  StatusBarItems status_bar_items;
 
   enum class PopupMessagePosition : uint8_t {
     CENTER,

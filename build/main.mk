@@ -445,6 +445,7 @@ XCSOAR_SOURCES := \
 	$(SRC)/UIGlobals.cpp \
 	$(SRC)/UIState.cpp \
 	$(SRC)/StatusBarItems.cpp \
+	$(SRC)/StatusBarWindow.cpp \
 	$(SRC)/UISettings.cpp \
 	$(SRC)/DisplaySettings.cpp \
 	$(SRC)/MapSettings.cpp \

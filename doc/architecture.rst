@@ -647,11 +647,24 @@ child of the main window on the map.
   by the shade band as well; it is already below the system status
   bar.
 
-``MainWindow::GetInfoBoxAreaRect()``
+``MainWindow::GetStatusBarAreaRect()``
   Per edge, the screen border where *Stretch InfoBox area* is on, and
   the safe edge where it is off.  A visible system status bar clears
-  the top stretch, because nothing can be drawn behind that bar.  Use it for
-  the InfoBoxes, the menu, and gauge positions that do not avoid the
+  the top stretch, because nothing can be drawn behind that bar.
+  XCSoar's own status bar, if enabled, takes its top; the rest is the
+  InfoBox area below.
+
+``MainWindow::GetStatusBarRect()``
+  XCSoar's own status bar: the top of the status bar area, or, while
+  the system status bar is hidden, its place in the band at the top of
+  the screen which the safe area leaves out, also when the InfoBox
+  area is stretched there.  The items stay clear of the side insets
+  and of the rounded corners (``TopWindow::GetCornerRadius()``); at
+  the top, a notch may hide them, because its shape is unknown.
+
+``MainWindow::GetInfoBoxAreaRect()``
+  The status bar area without XCSoar's status bar.  Use it for the
+  InfoBoxes, the menu, and gauge positions that do not avoid the
   InfoBoxes.  Positions that do avoid them, and a page that replaces
   the map, use the HUD rectangle below.
 

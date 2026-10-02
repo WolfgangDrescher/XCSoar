@@ -30,6 +30,9 @@ UISettings::SetDefaults() noexcept
 #endif
   show_zoom_button = show_menu_button;
   show_quickmenu_button = HasTouchScreen();
+  show_status_bar = false;
+  status_bar_style = StatusBarStyle::WHITE;
+  status_bar_items.SetDefaults();
 
 #ifdef KOBO
   dark_mode = DarkMode::OFF;
