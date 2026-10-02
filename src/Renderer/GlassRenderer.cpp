@@ -4,6 +4,10 @@
 #include "GlassRenderer.hpp"
 #include "ui/canvas/Canvas.hpp"
 
+#ifdef ENABLE_OPENGL
+#include "ui/canvas/opengl/Scope.hpp"
+#endif
+
 #if defined(EYE_CANDY) && defined(ENABLE_OPENGL)
 
 #include "ui/canvas/opengl/Scissor.hpp"
@@ -12,20 +16,39 @@
 
 #include <algorithm>
 
+/**
+ * Is this a light background, on which the glass sheen shows?  The
+ * alpha does not matter: a translucent box gets the sheen as well.
+ */
+[[gnu::const]]
+static bool
+IsLight(Color color) noexcept
+{
+  return color.Red() >= 0xf0 && color.Green() >= 0xf0 &&
+    color.Blue() >= 0xf0;
+}
+
 #endif
 
 void
 DrawGlassBackground(Canvas &canvas, const PixelRect &rc, Color color) noexcept
 {
+#ifdef ENABLE_OPENGL
+  /* the colour may be translucent */
+  const ScopeAlphaBlend alpha_blend;
+#endif
+
   canvas.DrawFilledRectangle(rc, color);
 
 #if defined(EYE_CANDY) && defined(ENABLE_OPENGL)
-  if (color != COLOR_WHITE)
-    /* apply only to white background for now */
+  if (!IsLight(color))
+    /* apply only to light backgrounds for now */
     return;
 
   const GLCanvasScissor scissor(rc);
 
+  /* Shadow() keeps the alpha, so the sheen is as translucent as the
+     box */
   const Color shadow = color.Shadow();
 
   const auto center = rc.GetCenter();
