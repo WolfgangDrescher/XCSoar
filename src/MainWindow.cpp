@@ -304,8 +304,8 @@ MainWindow::GetInfoBoxAreaRect() const noexcept
     CommonInterface::GetUISettings().display;
 
   unsigned edges = settings.infobox_area_stretch;
-  if (settings.IsStatusBarVisible())
-    /* the status bar overlays the top of the screen */
+  if (settings.IsSystemStatusBarVisible())
+    /* the system status bar overlays the top of the screen */
     edges &= ~unsigned(DisplaySettings::INFOBOX_AREA_STRETCH_TOP);
 
   /* unstretched edges stay in the safe area (cutout, system bars,
@@ -335,7 +335,7 @@ MainWindow::CheckSafeAreaChange() noexcept
 
   safe_area_rect = rc;
 
-  /* iOS applies a status bar change to the safe area only after the
+  /* iOS applies a system status bar change to the safe area only after the
      next run loop iteration, so the layout that ApplyFullScreenSettings()
      triggered was calculated for the old one */
   OnResize(GetSize());
@@ -1622,7 +1622,7 @@ MainWindow::ApplyFullScreenSettings() noexcept
      or disappear; the resulting resize event updates the layout */
   native_view->SetFullScreen(Java::GetEnv(), settings.full_screen);
 #elif defined(__APPLE__) && TARGET_OS_IPHONE
-  const bool status_bar_hidden = !settings.IsStatusBarVisible();
+  const bool status_bar_hidden = !settings.IsSystemStatusBarVisible();
 
   if (settings.full_screen == GetFullScreenMode() &&
       status_bar_hidden == GetStatusBarHidden())

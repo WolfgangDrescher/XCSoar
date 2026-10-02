@@ -50,8 +50,8 @@ enum ControlIndex {
   FullScreen,
   InfoBoxAreaStretch,
 #endif
-#ifdef HAVE_STATUS_BAR_SETTING
-  StatusBar,
+#ifdef HAVE_SYSTEM_STATUS_BAR_SETTING
+  SystemStatusBar,
 #endif
   DarkMode,
   UIScale,
@@ -156,7 +156,7 @@ EditInfoBoxAreaStretch(const char *caption, DataField &df,
   Profile::Set(ProfileKeys::InfoBoxAreaStretch, unsigned(edges));
   Profile::Save();
 
-  /* in "Auto" mode the status bar follows the top edge, and the area
+  /* in "Auto" mode the system status bar follows the top edge, and the area
      the InfoBoxes and gauges may use changed */
   CommonInterface::main_window->ApplyFullScreenSettings();
   CommonInterface::main_window->ReinitialiseLayout();
@@ -167,17 +167,17 @@ EditInfoBoxAreaStretch(const char *caption, DataField &df,
 
 #endif
 
-#ifdef HAVE_STATUS_BAR_SETTING
-static constexpr StaticEnumChoice status_bar_list[] = {
-  { DisplaySettings::StatusBar::AUTO, NC_("Setting", "Auto"),
-    N_("Show the status bar unless the InfoBox area is stretched to the "
-       "top screen edge, where it would cover the InfoBoxes.") },
-  { DisplaySettings::StatusBar::VISIBLE, N_("Visible"),
-    N_("Always show the status bar, even in full screen mode. The "
-       "InfoBoxes cannot be drawn behind it, so they keep clear of the "
-       "top screen edge.") },
-  { DisplaySettings::StatusBar::HIDDEN, N_("Hidden"),
-    N_("Never show the status bar.") },
+#ifdef HAVE_SYSTEM_STATUS_BAR_SETTING
+static constexpr StaticEnumChoice system_status_bar_list[] = {
+  { DisplaySettings::SystemStatusBar::AUTO, NC_("Setting", "Auto"),
+    N_("Show the system status bar unless the InfoBox area is stretched "
+       "to the top screen edge, where it would cover the InfoBoxes.") },
+  { DisplaySettings::SystemStatusBar::VISIBLE, N_("Visible"),
+    N_("Always show the system status bar, even in full screen mode. "
+       "The InfoBoxes cannot be drawn behind it, so they keep clear of "
+       "the top screen edge.") },
+  { DisplaySettings::SystemStatusBar::HIDDEN, N_("Hidden"),
+    N_("Never show the system status bar.") },
   nullptr
 };
 #endif
@@ -314,12 +314,12 @@ DisplayConfigPanel::Prepare(ContainerWindow &parent,
   SetExpertRow(InfoBoxAreaStretch);
 #endif
 
-#ifdef HAVE_STATUS_BAR_SETTING
+#ifdef HAVE_SYSTEM_STATUS_BAR_SETTING
   AddEnum(_("System status bar"),
           _("Whether the system status bar with the clock and the battery "
             "level stays visible."),
-          status_bar_list,
-          unsigned(ui_settings.display.status_bar));
+          system_status_bar_list,
+          unsigned(ui_settings.display.system_status_bar));
 #endif
 
   AddEnum(_("Dark mode"), nullptr, dark_mode_list,
@@ -393,9 +393,9 @@ DisplayConfigPanel::Save(bool &_changed) noexcept
   /* the per-edge settings are applied by their own dialog */
   changed |= full_screen_changed;
 
-#ifdef HAVE_STATUS_BAR_SETTING
-  if (SaveValueEnum(StatusBar, ProfileKeys::StatusBar,
-                    ui_settings.display.status_bar)) {
+#ifdef HAVE_SYSTEM_STATUS_BAR_SETTING
+  if (SaveValueEnum(SystemStatusBar, ProfileKeys::SystemStatusBar,
+                    ui_settings.display.system_status_bar)) {
     changed = true;
     full_screen_changed = true;
   }

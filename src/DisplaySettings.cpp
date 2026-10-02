@@ -24,7 +24,7 @@ DisplaySettings::SetDefaults()
   /* Android has always drawn the InfoBoxes and gauges edge to edge */
   infobox_area_stretch = INFOBOX_AREA_STRETCH_ALL;
 #endif
-  status_bar = StatusBar::AUTO;
+  system_status_bar = SystemStatusBar::AUTO;
 #ifdef KOBO
   display_type = DisplayType::E_INK;
 #else

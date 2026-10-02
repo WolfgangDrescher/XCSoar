@@ -30,11 +30,11 @@
 #endif
 
 /**
- * Can the status bar be shown and hidden independently of the full
+ * Can the system status bar be shown and hidden independently of the full
  * screen setting?
  *
- * @see DisplaySettings::status_bar
+ * @see DisplaySettings::system_status_bar
  */
 #if defined(__APPLE__) && TARGET_OS_IPHONE
-#define HAVE_STATUS_BAR_SETTING
+#define HAVE_SYSTEM_STATUS_BAR_SETTING
 #endif

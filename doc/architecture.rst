@@ -627,7 +627,7 @@ child of the main window on the map.
 
 ``GetClientRect()``
   The whole window.  On Android in full screen this includes the
-  status bar, the display cutout, the home indicator and the rounded
+  system status bar, the display cutout, the home indicator and the rounded
   corners.  On iOS it is that full screen only while full screen mode
   is on; otherwise it is already the safe area.  Use it for pixels
   that are allowed to run under system UI: the map itself, a
@@ -635,8 +635,8 @@ child of the main window on the map.
   behind the InfoBox arrange cards).
 
 ``GetSafeAreaRect()``
-  The window minus the status bar, the navigation bar, the display
-  cutout and the rounded corners.  On a rectangular display with no
+  The window minus the system status bar, the navigation bar, the
+  display cutout and the rounded corners.  On a rectangular display with no
   system bars it equals ``GetClientRect()``.  Android reports these
   insets only while full screen is on, because outside full screen
   the surface is already laid out inside them.  The reserved bar size
@@ -644,12 +644,13 @@ child of the main window on the map.
   the pilot must be able to read or press that is not allowed to
   slide under system UI: dialogue windows (title and buttons
   included) and the Fly/Simulator controls.  Do not inset a dialogue
-  by the shade band as well; it is already below the status bar.
+  by the shade band as well; it is already below the system status
+  bar.
 
 ``MainWindow::GetInfoBoxAreaRect()``
   Per edge, the screen border where *Stretch InfoBox area* is on, and
-  the safe edge where it is off.  A visible status bar clears the top
-  stretch, because nothing can be drawn behind that bar.  Use it for
+  the safe edge where it is off.  A visible system status bar clears
+  the top stretch, because nothing can be drawn behind that bar.  Use it for
   the InfoBoxes, the menu, and gauge positions that do not avoid the
   InfoBoxes.  Positions that do avoid them, and a page that replaces
   the map, use the HUD rectangle below.
@@ -694,7 +695,7 @@ child of the main window on the map.
 
 ``Android::ContentRectBelowTopGesture()``
   The notification-shade swipe band.  It is not the safe area: it can
-  extend below the status bar, and it remains when full screen hides
+  extend below the system status bar, and it remains when full screen hides
   the bars.  The value is how far the top of the XCSoar view still
   lies inside that band, or zero when the surface already starts
   below it.  Use it only for content the pilot drags in that band.
@@ -705,7 +706,7 @@ child of the main window on the map.
   dialogue already placed in the safe area; pass the two-argument
   helper the dialogue's Y in the view, so only the part of the band
   that still covers the dialogue moves the cards.  A band that ends
-  at the status bar does not move them.
+  at the system status bar does not move them.
 
 Touch interaction
 ~~~~~~~~~~~~~~~~~

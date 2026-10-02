@@ -51,9 +51,9 @@ Version 7.46 - not yet released
     screen, including the areas behind the display cutout and the home
     indicator
   - add the System status bar setting (Config → Look → Display): keep
-    the status bar visible in full screen mode, or hide it without
-    going full screen; "Auto" shows it unless the InfoBox area is
-    stretched to the top screen edge
+    the system status bar visible in full screen mode, or hide it
+    without going full screen; "Auto" shows it unless the InfoBox area
+    is stretched to the top screen edge
   - fix other apps' audio staying ducked after XCSoar plays a sound,
     and the audio vario cutting out when leaving settings #2609
   - fix crash on exit after opening the flight export dialog

@@ -55,9 +55,10 @@ struct DisplaySettings {
   uint8_t infobox_area_stretch;
 
   /**
-   * Shall the iOS status bar be visible?
+   * Shall the system status bar be visible?  Only iOS lets XCSoar
+   * choose.
    */
-  enum class StatusBar : uint8_t {
+  enum class SystemStatusBar : uint8_t {
     /**
      * Visible while there is room for it above the user interface,
      * i.e. unless the InfoBox area is stretched to the top screen edge.
@@ -69,25 +70,25 @@ struct DisplaySettings {
     HIDDEN,
   };
 
-  StatusBar status_bar;
+  SystemStatusBar system_status_bar;
 
   /**
-   * Resolve #status_bar against #full_screen.
+   * Resolve #system_status_bar against #full_screen.
    */
-  constexpr bool IsStatusBarVisible() const noexcept {
-    switch (status_bar) {
-    case StatusBar::VISIBLE:
+  constexpr bool IsSystemStatusBarVisible() const noexcept {
+    switch (system_status_bar) {
+    case SystemStatusBar::VISIBLE:
       return true;
 
-    case StatusBar::HIDDEN:
+    case SystemStatusBar::HIDDEN:
       return false;
 
-    case StatusBar::AUTO:
+    case SystemStatusBar::AUTO:
       break;
     }
 
     /* without full screen mode the whole user interface is inside the
-       safe area anyway; with it, the status bar would sit on top of
+       safe area anyway; with it, the system status bar would sit on top of
        the InfoBoxes as soon as they reach the top screen edge */
     return !full_screen ||
       (infobox_area_stretch & INFOBOX_AREA_STRETCH_TOP) == 0;

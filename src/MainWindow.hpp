@@ -485,9 +485,9 @@ public:
 #ifdef HAVE_FULL_SCREEN_SETTING
   /**
    * Apply DisplaySettings::full_screen and
-   * DisplaySettings::status_bar, i.e. hide or show the system bars
-   * (status bar, navigation bar, home indicator) and use the whole
-   * screen.
+   * DisplaySettings::system_status_bar, i.e. hide or show the system
+   * bars (status bar, navigation bar, home indicator) and use the
+   * whole screen.
    *
    * Not to be confused with #SetFullScreen(), which hides the
    * InfoBoxes.
