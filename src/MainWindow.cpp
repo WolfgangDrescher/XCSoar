@@ -658,9 +658,11 @@ MainWindow::InitialiseConfigured()
                              ib_layout.control_size.width);
 
   InfoBoxManager::Create(*this, ib_layout, look->info_box);
-  map_rect = infobox_area_rc.Contains(rc)
+  /* see ReinitialiseLayout() for the map behind the InfoBoxes */
+  map_rect = infobox_area_rc.Contains(rc) && !ib_settings.ShowsMapBehind()
     ? ib_layout.remaining
     : rc;
+  area_stack_rect = ib_layout.remaining.Intersection(infobox_area_rc);
 
   menu_bar = new MenuBar(*this, infobox_area_rc, look->dialog.button);
 
@@ -796,6 +798,9 @@ MainWindow::ReinitialiseLayout_vario(const InfoBoxLayout::Layout &layout) noexce
   vario.Move(layout.vario);
   vario.Show();
 
+  static_cast<GlueGaugeVario *>(vario.Get())
+    ->SetOuterEdges(InfoBoxLayout::GetOuterEdges(layout, layout.vario));
+
   // XXX vario->BringToTop();
 }
 
@@ -908,9 +913,14 @@ MainWindow::ReinitialiseLayout() noexcept
      one rectangle cannot leave the InfoBoxes out and still cover the
      strip beyond them.
 
+     A border style that lets the map show through the InfoBox area
+     needs the map behind the InfoBoxes everywhere, whatever the
+     screen edges.
+
      @see GlueMapWindow::UpdateProjection(), which keeps the aircraft
      in the part of the map that is not hidden behind the InfoBoxes */
-  map_rect = infobox_area_rc.Contains(rc)
+  map_rect = infobox_area_rc.Contains(rc) &&
+    !ui_settings.info_boxes.ShowsMapBehind()
     ? ib_layout.remaining
     : rc;
 

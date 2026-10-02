@@ -14,6 +14,7 @@
 
 struct InfoBoxSettings;
 struct InfoBoxLook;
+struct InfoBoxBackgroundShape;
 class Color;
 class Canvas;
 
@@ -25,6 +26,14 @@ class InfoBoxWindow : public LazyPaintWindow
   const InfoBoxLook &look;
 
   const unsigned border_kind;
+
+  /**
+   * The edges of this window which are outer edges of the block of
+   * adjacent InfoBoxes, as BORDER* flags.
+   *
+   * @see InfoBoxLayout::GetOuterEdges()
+   */
+  const unsigned outer_edges;
 
   const unsigned id;
 
@@ -107,6 +116,12 @@ class InfoBoxWindow : public LazyPaintWindow
    */
   void Paint(Canvas &canvas);
 
+  /**
+   * The shape of the background in the configured border style.
+   */
+  [[gnu::pure]]
+  InfoBoxBackgroundShape GetShape() const noexcept;
+
 public:
   void PaintInto(Canvas &dest, int xoff, int yoff,
                  unsigned width, unsigned height);
@@ -126,6 +141,7 @@ public:
    * @param Parent The parent ContainerWindow (usually MainWindow)
    */
   InfoBoxWindow(ContainerWindow &parent, PixelRect rc, unsigned border_flags,
+                unsigned outer_edges,
                 const InfoBoxSettings &settings, const InfoBoxLook &_look,
                 unsigned id,
                 WindowStyle style=WindowStyle());
@@ -186,6 +202,9 @@ protected:
   bool OnMouseUp(PixelPoint p) noexcept override;
   bool OnMouseDouble(PixelPoint p) noexcept override;
   bool OnMouseMove(PixelPoint p, unsigned keys) noexcept override;
+
+  /* methods from class PaintWindow */
+  void OnPaint(Canvas &canvas) noexcept override;
 
   /* methods from class LazyPaintWindow */
   void OnPaintBuffer(Canvas &canvas) noexcept override;

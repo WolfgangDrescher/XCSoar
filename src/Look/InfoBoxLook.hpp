@@ -54,6 +54,12 @@ struct InfoBoxLook {
   /** the small font for the slot number in the arrange preview */
   Font preview_number_font;
 
+  /**
+   * A smaller title/comment font for the styles which leave a gap
+   * around the boxes to the map, see InfoBoxSettings::HasGaps().
+   */
+  Font small_title_font;
+
   Color colors[6];
 
   void Initialise(bool inverse, bool use_colors,

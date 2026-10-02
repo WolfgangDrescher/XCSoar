@@ -11,6 +11,8 @@
 struct VarioLook;
 class ContainerWindow;
 
+struct InfoBoxBackgroundShape;
+
 class GaugeVario : public AntiFlickerWindow
 {
   static constexpr unsigned NARROWS = 3;
@@ -94,6 +96,14 @@ class GaugeVario : public AntiFlickerWindow
 
   const VarioLook &look;
 
+  /**
+   * The edges of this window which are outer edges of the block of
+   * InfoBoxes it sits in, as BORDER* flags.
+   *
+   * @see SetOuterEdges()
+   */
+  unsigned outer_edges = 0;
+
   bool dirty = true;
 
   bool background_dirty = true;
@@ -123,6 +133,15 @@ public:
 
   void ReinitialiseLook() noexcept;
 
+  /**
+   * Tell the gauge which of its edges are outer edges of the block of
+   * InfoBoxes it sits in; #InfoBoxSettings::BorderStyle::DOCK sets
+   * the box back from those.
+   *
+   * @see InfoBoxLayout::GetOuterEdges()
+   */
+  void SetOuterEdges(unsigned edges) noexcept;
+
 protected:
   const MoreData &Basic() const noexcept {
     return blackboard.Basic();
@@ -143,6 +162,24 @@ protected:
   const VarioSettings &Settings() const noexcept {
     return blackboard.GetUISettings().vario;
   }
+
+  const InfoBoxSettings &GetInfoBoxSettings() const noexcept {
+    return blackboard.GetUISettings().info_boxes;
+  }
+
+  /**
+   * The shape of the box the gauge is drawn on, like the InfoBoxes
+   * around it.
+   */
+  [[gnu::pure]]
+  InfoBoxBackgroundShape GetShape() const noexcept;
+
+  /**
+   * The part of the client area the dial is drawn in: the whole
+   * client area, or the inside of the box.
+   */
+  [[gnu::pure]]
+  PixelRect GetContentRect() const noexcept;
 
 protected:
   /* virtual methods from class Window */

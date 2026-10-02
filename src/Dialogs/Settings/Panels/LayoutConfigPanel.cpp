@@ -28,6 +28,7 @@ enum ControlIndex {
   AppInfoBoxColors,
   AppInfoBoxTheme,
   AppInfoBoxBorder,
+  AppInfoBoxBackground,
   SPACER_MAP,
   AppStatusMessageAlignment,
   ShowMenuButton,
@@ -60,8 +61,27 @@ static constexpr StaticEnumChoice infobox_border_list[] = {
     N_("Shaded"), nullptr /* TODO: help text */ },
   { InfoBoxSettings::BorderStyle::GLASS,
     N_("Glass"), nullptr /* TODO: help text */ },
+  { InfoBoxSettings::BorderStyle::FLOATING,
+    N_("Floating"),
+    N_("Rounded boxes floating over the map, which shows through "
+       "the gaps between them.") },
+  { InfoBoxSettings::BorderStyle::DOCK,
+    N_("Dock"),
+    N_("Groups adjacent InfoBoxes into panels with rounded corners, "
+       "set back from the screen edge and from the map, which extends "
+       "behind them.") },
   nullptr
 };
+
+#ifdef ENABLE_OPENGL
+static constexpr StaticEnumChoice infobox_background_list[] = {
+  { InfoBoxSettings::Background::OPAQUE, N_("Solid"), nullptr },
+  { InfoBoxSettings::Background::TRANSLUCENT, N_("Translucent"),
+    N_("Let the map show through the InfoBoxes. "
+       "The map then extends behind them.") },
+  nullptr
+};
+#endif
 
 static constexpr StaticEnumChoice infobox_theme_list[] = {
   { InfoBoxSettings::Theme::FOLLOW_GLOBAL, N_("Follow global"),
@@ -159,6 +179,15 @@ LayoutConfigPanel::Prepare(ContainerWindow &parent,
           unsigned(ui_settings.info_boxes.border_style));
   SetExpertRow(AppInfoBoxBorder);
 
+#ifdef ENABLE_OPENGL
+  AddEnum(_("InfoBox background"), nullptr, infobox_background_list,
+          unsigned(ui_settings.info_boxes.background));
+  SetExpertRow(AppInfoBoxBackground);
+#else
+  /* the memory canvas cannot blend */
+  AddDummy();
+#endif
+
   AddSpacer();
   SetExpertRow(SPACER_MAP);
 
@@ -235,8 +264,6 @@ LayoutConfigPanel::Save(bool &_changed) noexcept
     SaveValueInteger(InfoBoxTitleScale, ProfileKeys::InfoBoxTitleScale,
                   ui_settings.info_boxes.scale_title_font);
 
-  changed |= info_box_geometry_changed;
-
   changed |= SaveValueEnum(AppStatusMessageAlignment, ProfileKeys::AppStatusMessageAlignment,
                            ui_settings.popup_message_position);
 
@@ -247,8 +274,17 @@ LayoutConfigPanel::Save(bool &_changed) noexcept
   changed |= SaveValueEnum(AppInfoBoxTheme, ProfileKeys::AppInfoBoxTheme,
                            ui_settings.info_boxes.theme);
 
-  changed |= SaveValueEnum(AppInfoBoxBorder, ProfileKeys::AppInfoBoxBorder,
-                           ui_settings.info_boxes.border_style);
+  /* the border style decides whether the map extends behind the
+     InfoBoxes, so it changes the layout like the geometry does */
+  info_box_geometry_changed |=
+    SaveValueEnum(AppInfoBoxBorder, ProfileKeys::AppInfoBoxBorder,
+                  ui_settings.info_boxes.border_style);
+#ifdef ENABLE_OPENGL
+  info_box_geometry_changed |=
+    SaveValueEnum(AppInfoBoxBackground, ProfileKeys::AppInfoBoxBackground,
+                  ui_settings.info_boxes.background);
+#endif
+  changed |= info_box_geometry_changed;
 
   bool overlay_buttons_changed = false;
   if (SaveValue(ShowMenuButton, ProfileKeys::ShowMenuButton,

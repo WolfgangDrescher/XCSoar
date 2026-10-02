@@ -28,6 +28,11 @@ public:
 
   void ReinitialiseLook() noexcept;
 
+  /**
+   * @see GaugeVario::SetOuterEdges()
+   */
+  void SetOuterEdges(unsigned edges) noexcept;
+
 private:
   virtual void OnGPSUpdate(const MoreData &basic) override;
 };
