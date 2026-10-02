@@ -2,6 +2,7 @@
 // Copyright The XCSoar Project
 
 #include "FlarmTrafficWindow.hpp"
+#include "Renderer/TranslucentSurface.hpp"
 #include "FLARM/Traffic.hpp"
 #include "FLARM/Friends.hpp"
 #include "ui/canvas/Canvas.hpp"
@@ -802,12 +803,11 @@ FlarmTrafficWindow::OnPaint(Canvas &canvas) noexcept
 {
 #ifdef ENABLE_OPENGL
   if (small) {
-    const ScopeAlphaBlend alpha_blend;
-
     canvas.SelectBlackPen();
-    canvas.Select(Brush(look.background_color.WithAlpha(0xd0)));
-    radar_renderer.DrawCircle(canvas, radar_renderer.GetRadius());
-
+    TranslucentSurface::FillCircle(canvas, radar_renderer.GetCenter(),
+                                   radar_renderer.GetRadius(),
+                                   look.background_color,
+                                   TranslucentSurface::Translucency::MODERATE);
   } else
 #endif
     canvas.Clear(look.background_color);

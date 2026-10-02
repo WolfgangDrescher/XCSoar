@@ -2,6 +2,7 @@
 // Copyright The XCSoar Project
 
 #include "ThermalAssistantWindow.hpp"
+#include "Renderer/TranslucentSurface.hpp"
 #include "Look/ThermalAssistantLook.hpp"
 #include "ui/canvas/Canvas.hpp"
 
@@ -45,11 +46,11 @@ ThermalAssistantWindow::OnPaintBuffer(Canvas &canvas) noexcept
 {
 #ifdef ENABLE_OPENGL
   if (transparent) {
-    const ScopeAlphaBlend alpha_blend;
-
     canvas.Select(renderer.GetLook().inner_circle_pen);
-    canvas.Select(Brush(renderer.GetLook().background_color.WithAlpha(0xd0)));
-    DrawCircle(canvas);
+    TranslucentSurface::FillCircle(canvas, renderer.GetMiddle(),
+                                   renderer.GetRadius(),
+                                   renderer.GetLook().background_color,
+                                   TranslucentSurface::Translucency::MODERATE);
   } else
 #endif
     canvas.Clear(renderer.GetLook().background_color);
