@@ -16,9 +16,10 @@ GestureLook::Initialise()
     color = Color(0xf0, 0x14, 0x2d);
 
 #ifdef ENABLE_OPENGL
-    /* "not (yet) recognised": the same red, slightly translucent;
-       a subtle difference, the label names the recognised gesture */
-    invalid_color = color.WithAlpha(0xb3);
+    /* "not (yet) recognised": the same red, which the renderer makes
+       translucent (TranslucentSurface); a subtle difference, the
+       label names the recognised gesture */
+    invalid_color = color;
 #else
     /* no translucency without OpenGL */
     invalid_color = Color(0xa8, 0xa8, 0xa8);

@@ -9,8 +9,11 @@
 
 #ifdef ENABLE_OPENGL
 #include "BoxShadowRenderer.hpp"
+#include "TranslucentSurface.hpp"
 #include "Hardware/CPU.hpp"
 #include "ui/canvas/opengl/RoundLines.hpp"
+#include "ui/canvas/opengl/Scope.hpp"
+#include "ui/dim/Rect.hpp"
 #endif
 
 #include <algorithm>
@@ -162,6 +165,38 @@ DrawShadow(std::span<const BulkPixelPoint> line, float radius,
   }
 }
 
+/**
+ * Blur the map behind a translucent line (see TranslucentSurface),
+ * i.e. behind the pixels RoundLines::DrawMask() has just marked in
+ * the stencil buffer.
+ */
+static void
+FrostTrail(Canvas &canvas, std::span<const BulkPixelPoint> line,
+           float radius)
+{
+  if (!TranslucentSurface::IsFrosted() || !RoundLines::HaveStencilBuffer())
+    return;
+
+  PixelRect bounds{line.front().x, line.front().y,
+                   line.front().x, line.front().y};
+  for (const auto &p : line) {
+    bounds.left = std::min<int>(bounds.left, p.x);
+    bounds.top = std::min<int>(bounds.top, p.y);
+    bounds.right = std::max<int>(bounds.right, p.x);
+    bounds.bottom = std::max<int>(bounds.bottom, p.y);
+  }
+
+  bounds.Grow(int(std::ceil(radius)) + 1);
+
+  /* the off-screen blur passes must not inherit the stencil test */
+  TranslucentSurface::Prepare(canvas);
+
+  const GLEnable<GL_STENCIL_TEST> stencil_test;
+  glStencilFunc(GL_EQUAL, RoundLines::MASK_BIT, RoundLines::MASK_BIT);
+  glStencilOp(GL_KEEP, GL_KEEP, GL_KEEP);
+  TranslucentSurface::FrostRect(canvas, bounds);
+}
+
 #else /* !ENABLE_OPENGL */
 
 /**
@@ -208,9 +243,14 @@ try {
   if (line.size() < 2)
     return;
 
-  const Color color = valid ? look.color : look.invalid_color;
-
 #ifdef ENABLE_OPENGL
+  /* "not (yet) recognised": translucent, the map shows through */
+  using TranslucentSurface::Translucency;
+  const Color color = valid
+    ? look.color
+    : TranslucentSurface::Translucent(look.invalid_color,
+                                      Translucency::STRONG);
+
   const float line_radius = look.width / 2.f;
 
   RoundLines trail;
@@ -221,15 +261,18 @@ try {
   if (!IsSlowCPU()) {
     /* the map, not the shadow, shows through a translucent line */
     const bool translucent = !color.IsOpaque();
-    if (translucent)
+    if (translucent) {
       trail.DrawMask();
+      FrostTrail(canvas, line, line_radius);
+    }
 
     DrawShadow(line, line_radius, BoxShadowStyle::FLOATING, translucent);
   }
 
   trail.Draw(color);
 #else
-  DrawTrail(canvas, line, look.width, color);
+  DrawTrail(canvas, line, look.width,
+            valid ? look.color : look.invalid_color);
 #endif
 } catch (const std::bad_alloc &) {
   /* out of memory: skip the trail, the next frame draws it again */

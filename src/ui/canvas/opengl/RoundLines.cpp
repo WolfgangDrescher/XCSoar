@@ -73,12 +73,8 @@ RoundLines::WithVertices(Color color, F &&draw) const noexcept
   glDisableVertexAttribArray(OpenGL::Attribute::TEXCOORD);
 }
 
-/**
- * Does the current framebuffer have a stencil buffer?  Android may
- * choose an EGL config without one.
- */
-static bool
-HaveStencilBuffer() noexcept
+bool
+RoundLines::HaveStencilBuffer() noexcept
 {
   GLint bits = 0;
   glGetIntegerv(GL_STENCIL_BITS, &bits);

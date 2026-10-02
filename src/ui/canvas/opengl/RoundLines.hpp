@@ -33,13 +33,13 @@ class RoundLines {
 
   std::vector<Vertex> vertices;
 
-  /** the stencil bit set by DrawMask() */
-  static constexpr unsigned MASK_BIT = 2;
-
   /** the width of the soft edge, centred on the radius */
   float softness;
 
 public:
+  /** the stencil bit set by DrawMask() */
+  static constexpr unsigned MASK_BIT = 2;
+
   /**
    * @param _softness the width of the soft edge in pixels; 1 is a
    * crisp, anti-aliased edge
@@ -83,6 +83,13 @@ public:
    * line, which would otherwise show through.
    */
   void DrawMask() const noexcept;
+
+  /**
+   * Does the current framebuffer have a stencil buffer?  Android may
+   * choose an EGL config without one; DrawMask() then has no effect.
+   */
+  [[gnu::pure]]
+  static bool HaveStencilBuffer() noexcept;
 
 private:
   /**
