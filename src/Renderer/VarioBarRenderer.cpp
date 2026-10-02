@@ -3,6 +3,7 @@
 
 #include "VarioBarRenderer.hpp"
 #include "TextInBox.hpp"
+#include "TranslucentSurface.hpp"
 #include "ui/canvas/Canvas.hpp"
 #include "Screen/Layout.hpp"
 #include "NMEA/MoreData.hpp"
@@ -165,6 +166,19 @@ VarioBarRenderer::Draw(Canvas &canvas, const PixelRect &rc,
     clipping_arrow_av[i].x = Layout::Scale(clipping_arrow_av[i].x) + rc.left;
   }
 
+  const bool clipped = vario_gross <= -5 || vario_gross >= 5;
+  const bool clipped_avg = vario_avg <= -5.0 || vario_avg >= 5.0;
+
+  /* blur the map behind the translucent bars (frosted glass) before
+     filling any of them, as they overlap */
+  TranslucentSurface::Frost(canvas, VarioBar, 6, true);
+  if (clipped)
+    TranslucentSurface::Frost(canvas, clipping_arrow, 6, true);
+  TranslucentSurface::Frost(canvas, VarioBarAvg, 4, true);
+  if (clipped_avg)
+    TranslucentSurface::Frost(canvas, clipping_arrow_av, 4, true);
+  TranslucentSurface::Frost(canvas, mc_arrow, 6, true);
+
   // draw actual vario bar
   if (vario_gross <= 0) {
     canvas.Select(look.pen_sink);
@@ -177,7 +191,7 @@ VarioBarRenderer::Draw(Canvas &canvas, const PixelRect &rc,
   canvas.DrawPolygon(VarioBar, 6);
 
   // draw clipping arrow
-  if (vario_gross <= -5 || vario_gross >= 5)
+  if (clipped)
     canvas.DrawPolygon(clipping_arrow, 6);
 
   // draw avg vario bar
@@ -191,7 +205,7 @@ VarioBarRenderer::Draw(Canvas &canvas, const PixelRect &rc,
 
   canvas.DrawPolygon(VarioBarAvg, 4);
 
-  if (vario_avg <= -5.0 || vario_avg >= 5.0)
+  if (clipped_avg)
       canvas.DrawPolygon(clipping_arrow_av, 4);
 
   //draw MC arrow

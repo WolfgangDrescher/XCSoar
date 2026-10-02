@@ -3,6 +3,7 @@
 
 #include "FinalGlideBarRenderer.hpp"
 #include "TextInBox.hpp"
+#include "TranslucentSurface.hpp"
 #include "ui/canvas/Canvas.hpp"
 #include "Screen/Layout.hpp"
 #include "NMEA/Derived.hpp"
@@ -158,6 +159,24 @@ FinalGlideBarRenderer::Draw(Canvas &canvas, const PixelRect &rc,
     clipping_arrow0[i].x = rc.right - Layout::Scale(clipping_arrow0[i].x);
   }
 
+  const bool clipped =
+    altitude_difference <= -468 || altitude_difference >= 468;
+  const bool clipped0 =
+    altitude_difference0 <= -468 || altitude_difference0 >= 468;
+  const bool draw_mc0 = final_glide_bar_mc0_enabled &&
+    (altitude_difference != altitude_difference0 || altitude_difference0 < 0);
+
+  /* blur the map behind the translucent bars (frosted glass) before
+     filling any of them, as they overlap */
+  TranslucentSurface::Frost(canvas, GlideBar, 6, true);
+  if (clipped)
+    TranslucentSurface::Frost(canvas, clipping_arrow, 6, true);
+  if (draw_mc0) {
+    TranslucentSurface::Frost(canvas, GlideBar0, 4, true);
+    if (clipped0)
+      TranslucentSurface::Frost(canvas, clipping_arrow0, 4, true);
+  }
+
   // draw actual glide bar
   if (altitude_difference <= 0) {
     if (calculated.common_stats.landable_reachable) {
@@ -174,7 +193,7 @@ FinalGlideBarRenderer::Draw(Canvas &canvas, const PixelRect &rc,
   canvas.DrawPolygon(GlideBar, 6);
 
   // draw clipping arrow
-  if ((altitude_difference <= -468 ) || (altitude_difference >= 468))
+  if (clipped)
     canvas.DrawPolygon(clipping_arrow, 6);
 
   // draw glide bar at mc 0
@@ -191,11 +210,10 @@ FinalGlideBarRenderer::Draw(Canvas &canvas, const PixelRect &rc,
     canvas.Select(look.brush_above_mc0);
   }
 
-  if ( ( (altitude_difference != altitude_difference0) || (altitude_difference0 < 0) )
-      && final_glide_bar_mc0_enabled) {
+  if (draw_mc0) {
     canvas.DrawPolygon(GlideBar0, 4);
 
-    if ((altitude_difference0 <= -468 ) || (altitude_difference0 >= 468))
+    if (clipped0)
       canvas.DrawPolygon(clipping_arrow0, 4);
   }
 
